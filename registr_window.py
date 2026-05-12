@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
     QFrame, QRadioButton, QButtonGroup, QMessageBox
 )
 from PyQt5.QtCore import Qt, QSize, pyqtSignal
-from PyQt5.QtGui import QFont, QPalette, QColor, QMouseEvent
+from PyQt5.QtGui import QFont, QPalette, QColor, QMouseEvent, QIcon
 
 
 class CustomLineEdit(QLineEdit):
@@ -110,7 +110,7 @@ class CustomRadioButton(QPushButton):
                     font-size: 40px;
                 }}
                 QPushButton:hover {{
-                    background-color: #696969;
+                    background-color: #c0c0c0;
                 }}
             """)
 
@@ -130,6 +130,39 @@ class CustomRadioButton(QPushButton):
         self.update_style(checked)
 
 
+class SupportButton(QPushButton):
+    """Кнопка техподдержки в виде круга с иконкой наушников"""
+
+    def __init__(self):
+        super().__init__()
+        self.setFixedSize(60, 60)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setIcon(QIcon("free-icon-support-8016461.png"))
+        self.setIconSize(QSize(35, 35))
+        self.setStyleSheet("""
+            QPushButton {
+                background-color: #EF8354;
+                border-radius: 30px;
+            }
+            QPushButton:hover {
+                background-color: #EF8354;
+            }
+            QPushButton:pressed {
+                background-color: #EF8354;
+            }
+        """)
+        self.clicked.connect(self.on_click)
+
+    def on_click(self):
+        msg_box = QMessageBox()
+        msg_box.setIcon(QMessageBox.Information)
+        msg_box.setWindowTitle("Техподдержка")
+        msg_box.setText(
+            "Свяжитесь с нами:\n\n📧 Email: support@sportorg.ru\n📞 Телефон: +7 (999) 123-45-67\n💬 Telegram: @sportorg_support")
+        msg_box.setStandardButtons(QMessageBox.Ok)
+        msg_box.exec_()
+
+
 class RegistrationWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -142,7 +175,7 @@ class RegistrationWindow(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
-        # Главный layout
+        # Основной вертикальный layout
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(200, 40, 200, 40)
         main_layout.setSpacing(20)
@@ -159,16 +192,15 @@ class RegistrationWindow(QMainWindow):
         subtitle_label = QLabel("РЕГИСТРАЦИЯ")
         subtitle_font = QFont("Mont", 40, QFont.Thin)
         subtitle_label.setFont(subtitle_font)
-        subtitle_label.setFont(subtitle_font)
         subtitle_label.setAlignment(Qt.AlignCenter)
         subtitle_label.setStyleSheet("color: black;")
         main_layout.addWidget(subtitle_label)
 
-        # Поле ПОЧТА (обычное поле, не пароль)
+        # Поле ПОЧТА
         self.email_input = CustomLineEdit("ПОЧТА", is_password=False)
         main_layout.addWidget(self.email_input)
 
-        # Поле ПАРОЛЬ (с режимом пароля)
+        # Поле ПАРОЛЬ
         self.password_input = CustomLineEdit("ПАРОЛЬ", is_password=True)
         main_layout.addWidget(self.password_input)
 
@@ -181,14 +213,12 @@ class RegistrationWindow(QMainWindow):
 
         # Горизонтальный layout для радио-кнопок
         radio_layout = QHBoxLayout()
-        radio_layout.setSpacing(153)  # Расстояние между кнопками 153 пикселя
-        radio_layout.setAlignment(Qt.AlignCenter)  # Центрируем кнопки
+        radio_layout.setSpacing(153)
+        radio_layout.setAlignment(Qt.AlignCenter)
 
-        # Создаем кастомные радио-кнопки с разными цветами и фиксированным размером
-        self.role_sportsman = CustomRadioButton("СПОРТСМЕН", "#EF8354")  # Оранжевый
-        self.role_trainer = CustomRadioButton("ТРЕНЕР", "#4F5D75")  # Синий
+        self.role_sportsman = CustomRadioButton("СПОРТСМЕН", "#EF8354")
+        self.role_trainer = CustomRadioButton("ТРЕНЕР", "#4F5D75")
 
-        # Подключаем сигналы для синхронизации
         self.role_sportsman.radio_clicked.connect(lambda: self.on_role_selected("СПОРТСМЕН"))
         self.role_trainer.radio_clicked.connect(lambda: self.on_role_selected("ТРЕНЕР"))
 
@@ -224,12 +254,25 @@ class RegistrationWindow(QMainWindow):
         self.register_button.clicked.connect(self.on_register)
         main_layout.addWidget(self.register_button)
 
-        # Дополнительная информация
+        # Горизонтальный layout для нижней панели (инфо + кнопка поддержки)
+        bottom_layout = QHBoxLayout()
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Копирайт слева (растягивается, чтобы кнопка ушла вправо)
         info_label = QLabel("© 2026 SPORTORG | Все права защищены")
         info_label.setFont(QFont("Buvera", 10))
-        info_label.setAlignment(Qt.AlignCenter)
-        info_label.setStyleSheet("color: gray; margin-top: 15px;")
-        main_layout.addWidget(info_label)
+        info_label.setAlignment(Qt.AlignLeft)
+        info_label.setStyleSheet("color: gray;")
+
+        # Кнопка техподдержки справа
+        self.support_button = SupportButton()
+
+        # Добавляем элементы в нижний layout
+        bottom_layout.addWidget(info_label)
+        bottom_layout.addStretch()  # Растяжка между копирайтом и кнопкой
+        bottom_layout.addWidget(self.support_button)
+
+        main_layout.addLayout(bottom_layout)
 
     def on_role_selected(self, role):
         """Обработка выбора роли"""
@@ -252,10 +295,8 @@ class RegistrationWindow(QMainWindow):
         email = self.email_input.get_real_text()
         password = self.password_input.get_real_text()
 
-        # Определяем выбранную роль
         role = self.get_selected_role()
 
-        # Простая валидация
         errors = []
         if not email or email == "ПОЧТА":
             errors.append("Введите почту")
@@ -273,7 +314,7 @@ class RegistrationWindow(QMainWindow):
         if errors:
             self.show_error_message("\n".join(errors))
         else:
-            self.show_success_message(f"Регистрация успешна!\nРоль: {role}\nПочта: {email}\nПароль: {password}")
+            self.show_success_message(f"Регистрация успешна!\nРоль: {role}\nПочта: {email}")
 
     def show_error_message(self, message):
         msg_box = QMessageBox()
@@ -297,7 +338,6 @@ class RegistrationWindow(QMainWindow):
         self.email_input.is_placeholder_active = True
         self.password_input.setText("ПАРОЛЬ")
         self.password_input.is_placeholder_active = True
-        # Сбрасываем режим пароля для плейсхолдера
         self.password_input.setEchoMode(QLineEdit.Normal)
         self.role_sportsman.setChecked(False)
         self.role_trainer.setChecked(False)
@@ -306,10 +346,8 @@ class RegistrationWindow(QMainWindow):
 def main():
     app = QApplication(sys.argv)
 
-    # Устанавливаем общий стиль приложения
     app.setStyle('Fusion')
 
-    # Настройка палитры (белый фон)
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))
     app.setPalette(palette)
