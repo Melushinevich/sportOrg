@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Регистрация — SportOrg</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 32rem; margin: 2rem auto; padding: 0 1rem; }
+    label { display: block; margin-top: 0.75rem; font-weight: 600; }
+    input, select { width: 100%; margin-top: 0.25rem; padding: 0.4rem; box-sizing: border-box; }
+    button { margin-top: 1.25rem; padding: 0.5rem 1rem; cursor: pointer; }
+    .flash { padding: 0.6rem; margin-bottom: 1rem; border-radius: 4px; }
+    .flash.success { background: #e6f4ea; color: #137333; }
+    .flash.error { background: #fce8e6; color: #c5221f; }
+    .hint { font-size: 0.85rem; color: #555; font-weight: normal; }
+  </style>
+</head>
+<body>
+  <h1>Регистрация</h1>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <p class="flash {{ category }}">{{ message }}</p>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="post" action="{{ url_for('register_submit') }}">
+    <label>Имя</label>
+    <input name="first_name" required autocomplete="given-name">
+
+    <label>Фамилия</label>
+    <input name="last_name" required autocomplete="family-name">
+
+    <label>Отчество <span class="hint">необязательно</span></label>
+    <input name="patronymic" autocomplete="additional-name">
+
+    <label>Email</label>
+    <input name="email" type="email" required autocomplete="email">
+
+    <label>Пароль <span class="hint">не менее 6 символов</span></label>
+    <input name="password" type="password" required minlength="6" autocomplete="new-password">
+
+    <label>Пароль ещё раз</label>
+    <input name="password2" type="password" required minlength="6" autocomplete="new-password">
+
+    <label>Роль</label>
+    <select name="role">
+      <option value="sportsman">Спортсмен</option>
+      <option value="coach">Тренер</option>
+    </select>
+
+    <label>Дата рождения <span class="hint">необязательно</span></label>
+    <input name="birth_date" type="date">
+
+    <label>Телефон <span class="hint">необязательно</span></label>
+    <input name="phone" autocomplete="tel">
+
+    <label>Город <span class="hint">необязательно</span></label>
+    <input name="city" autocomplete="address-level2">
+
+    <button type="submit">Зарегистрироваться</button>
+  </form>
+</body>
+</html>
