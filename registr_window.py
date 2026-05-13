@@ -80,7 +80,7 @@ class CustomRadioButton(QPushButton):
         self.default_color = color
         self.active_color = color  # Цвет когда кнопка выбрана
         self.inactive_color = "#D9D9D9"  # Серый когда не выбрана
-        self.setFont(QFont("Mont", 14, QFont.Thin))
+        self.setFont(QFont("Roboto Flex", 14, QFont.Thin))
         self.update_style(False)
         self.clicked.connect(self.on_click)
 
@@ -190,7 +190,7 @@ class RegistrationWindow(QMainWindow):
 
         # Подзаголовок "РЕГИСТРАЦИЯ"
         subtitle_label = QLabel("РЕГИСТРАЦИЯ")
-        subtitle_font = QFont("Mont", 40, QFont.Thin)
+        subtitle_font = QFont("Roboto Flex", 40)
         subtitle_label.setFont(subtitle_font)
         subtitle_label.setAlignment(Qt.AlignCenter)
         subtitle_label.setStyleSheet("color: black;")
@@ -198,15 +198,17 @@ class RegistrationWindow(QMainWindow):
 
         # Поле ПОЧТА
         self.email_input = CustomLineEdit("ПОЧТА", is_password=False)
+        self.email_input.setFont(QFont("Roboto Flex", 128, QFont.Thin))
         main_layout.addWidget(self.email_input)
 
         # Поле ПАРОЛЬ
         self.password_input = CustomLineEdit("ПАРОЛЬ", is_password=True)
+        self.password_input.setFont(QFont("Roboto Flex", 128, QFont.Thin))
         main_layout.addWidget(self.password_input)
 
         # Блок выбора роли
         role_label = QLabel("ВЫБЕРИТЕ ВАШУ РОЛЬ")
-        role_label.setFont(QFont("Mont", 40, QFont.Thin))
+        role_label.setFont(QFont("Roboto Flex", 40))
         role_label.setAlignment(Qt.AlignCenter)
         role_label.setStyleSheet("color: black; margin-top: 20px; margin-bottom: 5px;")
         main_layout.addWidget(role_label)
@@ -233,7 +235,7 @@ class RegistrationWindow(QMainWindow):
         # Кнопка ЗАРЕГИСТРИРОВАТЬСЯ
         self.register_button = QPushButton("ЗАРЕГИСТРИРОВАТЬСЯ")
         self.register_button.setMinimumHeight(91)
-        self.register_button.setFont(QFont("Mont", 14, QFont.Thin))
+        self.register_button.setFont(QFont("Roboto Flex", 14))
         self.register_button.setCursor(Qt.PointingHandCursor)
         self.register_button.setStyleSheet("""
             QPushButton {
@@ -260,7 +262,7 @@ class RegistrationWindow(QMainWindow):
 
         # Копирайт слева (растягивается, чтобы кнопка ушла вправо)
         info_label = QLabel("© 2026 SPORTORG | Все права защищены")
-        info_label.setFont(QFont("Buvera", 10))
+        info_label.setFont(QFont("Roboto Flex", 10))
         info_label.setAlignment(Qt.AlignLeft)
         info_label.setStyleSheet("color: gray;")
 

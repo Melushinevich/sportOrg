@@ -103,15 +103,19 @@ class ProfileWindow(QMainWindow):
 
         welcome = QLabel("Привет! Я - твой виртуальный помощник по подбору команды, с которой вы победите в ваших соревнованиях!\nПройдите регистрацию и выбирайте!")
         welcome.setAlignment(Qt.AlignCenter)
+        welcome.setFont(QFont("Roboto Flex", 128))
         welcome.setStyleSheet("font-size:20px;")
         main_layout.addWidget(welcome)
 
         self.fio_input = CustomLineEdit("Фамилия Имя Отчество")
+        self.fio_input.setFont(QFont("Roboto Flex", 96))
         main_layout.addWidget(self.fio_input)
 
         row2 = QHBoxLayout()
         self.birth_date = CustomDateEdit()
         self.gender_combo = CustomComboBox("Пол", ["Мужской", "Женский"])
+        self.birth_date.setFont(QFont("Roboto Flex", 96))
+        self.gender_combo.setFont(QFont("Roboto Flex", 96))
         row2.addWidget(self.birth_date)
         row2.addWidget(self.gender_combo)
         main_layout.addLayout(row2)
@@ -127,6 +131,7 @@ class ProfileWindow(QMainWindow):
 
         self.save_button = QPushButton("СОХРАНИТЬ")
         self.save_button.setFixedSize(500, 80)
+        self.save_button.setFont(QFont("Roboto Flex", 96))
         self.save_button.setStyleSheet("QPushButton{background:#6C769F;color:white;border-radius:40px;font-size:28px;}")
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
