@@ -348,8 +348,6 @@ class RegistrationWindow(QMainWindow):
 def main():
     app = QApplication(sys.argv)
 
-    app.setStyle('Fusion')
-
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))
     app.setPalette(palette)
