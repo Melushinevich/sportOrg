@@ -94,9 +94,12 @@ def test_login_json_200(api_client):
         content_type="application/json",
     )
     assert rv.status_code == 200
-    user = rv.get_json()["user"]
+    body = rv.get_json()
+    user = body["user"]
     assert user["email"] == email
     assert "password_hash" not in user
+    assert "access_token" in body and body["access_token"]
+    assert body.get("token_type") == "Bearer"
 
 
 def test_register_requires_json(api_client):

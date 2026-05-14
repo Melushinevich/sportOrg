@@ -3,11 +3,15 @@ import os
 from typing import Any
 
 __all__ = (
+    "add_athlete_skill",
     "create_new_user",
     "get_all_users",
     "get_db_connection",
     "get_user_by_email",
+    "get_user_by_id",
     "init_db",
+    "list_athlete_skills",
+    "replace_athlete_skills",
 )
 
 
@@ -49,3 +53,19 @@ def create_new_user(user_data: dict) -> int:
 
 def get_all_users():
     return _backend().get_all_users()
+
+
+def get_user_by_id(user_id: int):
+    return _backend().get_user_by_id(user_id)
+
+
+def list_athlete_skills(user_id: int):
+    return _backend().list_athlete_skills(user_id)
+
+
+def add_athlete_skill(user_id: int, name: str = "") -> int:
+    return _backend().add_athlete_skill(user_id, name)
+
+
+def replace_athlete_skills(user_id: int, skills: list[dict[str, Any]]) -> None:
+    return _backend().replace_athlete_skills(user_id, skills)

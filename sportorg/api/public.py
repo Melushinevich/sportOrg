@@ -2,8 +2,9 @@ import logging
 
 from flask import Blueprint, jsonify, request
 
-from extensions import limiter
-from notify_stub import log_verification_stub
+from sportorg.auth.jwt import issue_access_token
+from sportorg.extensions import limiter
+from sportorg.notifications.verification_stub import log_verification_stub
 from user_registration.registration import login_user, register_user
 from user_registration.storage import init_db
 
@@ -97,7 +98,8 @@ def api_login():
     ok, payload = login_user(email, password)
     if ok:
         log.info("login_ok email=%s user_id=%s", email, payload.get("id"))
-        return jsonify({"user": payload}), 200
+        token = issue_access_token(int(payload["id"]), str(payload.get("role", "")))
+        return jsonify({"user": payload, "access_token": token, "token_type": "Bearer"}), 200
 
     log.warning("login_fail email=%s", email)
     return _json_error(str(payload), "unauthorized", 401)

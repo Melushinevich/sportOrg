@@ -47,6 +47,7 @@ def init_db():
     cursor = conn.cursor()
 
     if _sqlite_schema_incompatible(conn):
+        cursor.execute("DROP TABLE IF EXISTS athlete_skills")
         cursor.execute("DROP TABLE IF EXISTS profiles")
         cursor.execute("DROP TABLE IF EXISTS users")
         conn.commit()
@@ -86,6 +87,22 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles(user_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_profiles_last_name ON profiles(last_name)")
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS athlete_skills (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            name TEXT NOT NULL DEFAULT '',
+            rating INTEGER,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+        """
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_athlete_skills_user ON athlete_skills(user_id)"
+    )
 
     conn.commit()
     conn.close()
@@ -192,3 +209,99 @@ def get_all_users() -> list[dict[str, Any]]:
     conn.close()
 
     return [_row_to_user_dict(row) for row in rows]
+
+
+def get_user_by_id(user_id: int):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT u.id, u.email, u.password_hash, u.role, u.created_at,
+               p.last_name, p.first_name, p.patronymic,
+               p.birth_date, p.phone, p.city
+        FROM users u
+        LEFT JOIN profiles p ON u.id = p.user_id
+        WHERE u.id = ?
+        LIMIT 1
+        """,
+        (user_id,),
+    )
+    row = cursor.fetchone()
+    conn.close()
+    return _row_to_user_dict(row) if row else None
+
+
+def list_athlete_skills(user_id: int) -> list[dict[str, Any]]:
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT id, user_id, name, rating, sort_order
+        FROM athlete_skills
+        WHERE user_id = ?
+        ORDER BY sort_order ASC, id ASC
+        """,
+        (user_id,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return [
+        {
+            "id": r["id"],
+            "name": r["name"],
+            "rating": r["rating"],
+            "sort_order": r["sort_order"],
+        }
+        for r in rows
+    ]
+
+
+def add_athlete_skill(user_id: int, name: str = "") -> int:
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM athlete_skills WHERE user_id = ?",
+            (user_id,),
+        )
+        sort_order = int(cursor.fetchone()[0])
+        cursor.execute(
+            """
+            INSERT INTO athlete_skills (user_id, name, rating, sort_order)
+            VALUES (?, ?, NULL, ?)
+            """,
+            (user_id, name.strip(), sort_order),
+        )
+        new_id = cursor.lastrowid
+        conn.commit()
+        return int(new_id)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def replace_athlete_skills(user_id: int, skills: list[dict[str, Any]]) -> None:
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM athlete_skills WHERE user_id = ?", (user_id,))
+        for i, s in enumerate(skills):
+            name = (s.get("name") or "").strip()
+            rating = s.get("rating", None)
+            if rating is not None:
+                rating = int(rating)
+            cursor.execute(
+                """
+                INSERT INTO athlete_skills (user_id, name, rating, sort_order)
+                VALUES (?, ?, ?, ?)
+                """,
+                (user_id, name, rating, i),
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
