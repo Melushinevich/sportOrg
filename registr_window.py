@@ -182,15 +182,15 @@ class RegistrationWindow(QMainWindow):
 
         # Основной вертикальный layout
         main_layout = QVBoxLayout(central_widget)
-        main_layout.setContentsMargins(200, 40, 200, 40)
+        main_layout.setContentsMargins(200, 0, 200, 40)
         main_layout.setSpacing(20)
 
         # Заголовок SPORTORG
         title_label = QLabel("SPORTORG")
-        title_font = QFont("UrbanSlavic", 128)
+        title_font = QFont("UrbanSlavic", 96)
         title_label.setFont(title_font)
         title_label.setAlignment(Qt.AlignCenter)
-        title_label.setStyleSheet("color: black; margin-bottom: 10px;")
+        title_label.setStyleSheet("color: black; margin-top: 20px; margin-bottom: 10px;")  # Добавил margin-top
         main_layout.addWidget(title_label)
 
         # Подзаголовок "РЕГИСТРАЦИЯ"
