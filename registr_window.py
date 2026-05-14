@@ -168,6 +168,7 @@ class SupportButton(QPushButton):
 class RegistrationWindow(QMainWindow):
     register_success = pyqtSignal(str, str, str)  # (role, email, password)
     go_to_start = pyqtSignal()  # Сигнал для возврата на стартовое окно
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("SPORTORG")
@@ -209,6 +210,11 @@ class RegistrationWindow(QMainWindow):
         self.password_input = CustomLineEdit("ПАРОЛЬ", is_password=True)
         self.password_input.setFont(QFont("Roboto Flex", 128, QFont.Thin))
         main_layout.addWidget(self.password_input)
+
+        # Поле ПОДТВЕРЖДЕНИЕ ПАРОЛЯ
+        self.confirm_password_input = CustomLineEdit("ПОДТВЕРДИТЕ ПАРОЛЬ", is_password=True)
+        self.confirm_password_input.setFont(QFont("Roboto Flex", 128, QFont.Thin))
+        main_layout.addWidget(self.confirm_password_input)
 
         # Блок выбора роли
         role_label = QLabel("ВЫБЕРИТЕ ВАШУ РОЛЬ")
@@ -326,6 +332,7 @@ class RegistrationWindow(QMainWindow):
     def on_register(self):
         email = self.email_input.get_real_text()
         password = self.password_input.get_real_text()
+        confirm_password = self.confirm_password_input.get_real_text()
 
         role = self.get_selected_role()
 
@@ -340,13 +347,18 @@ class RegistrationWindow(QMainWindow):
         elif len(password) < 4:
             errors.append("Пароль должен содержать минимум 4 символа")
 
+        if not confirm_password or confirm_password == "ПОДТВЕРДИТЕ ПАРОЛЬ":
+            errors.append("Подтвердите пароль")
+        elif password != confirm_password:
+            errors.append("Пароли не совпадают")
+
         if not role:
             errors.append("Выберите вашу роль")
 
         if errors:
             self.show_error_message("\n".join(errors))
         else:
-            self.show_success_message(f"Регистрация успешна!\nРоль: {role}\nПочта: {email} \n Пароль: {password}")
+            self.show_success_message(f"Регистрация успешна!\nРоль: {role}\nПочта: {email}")
 
     def show_error_message(self, message):
         msg_box = QMessageBox()
@@ -354,6 +366,7 @@ class RegistrationWindow(QMainWindow):
         msg_box.setWindowTitle("Ошибка")
         msg_box.setText("Пожалуйста, исправьте следующие ошибки:")
         msg_box.setInformativeText(message)
+        msg_box.setStyleSheet("color: black;")
         msg_box.setStandardButtons(QMessageBox.Ok)
         msg_box.exec_()
 
@@ -363,21 +376,24 @@ class RegistrationWindow(QMainWindow):
         msg_box.setWindowTitle("Успех")
         msg_box.setText(message)
         msg_box.setStandardButtons(QMessageBox.Ok)
-        msg_box.setStyleSheet("color: black;")
 
         # Ждем, пока пользователь нажмет OK
         msg_box.exec_()
 
-        # Очищаем поля после успешной регистрации
+        # Получаем данные перед очисткой
         email = self.email_input.get_real_text()
         password = self.password_input.get_real_text()
         role = self.get_selected_role()
 
+        # Очищаем поля после успешной регистрации
         self.email_input.setText("ПОЧТА")
         self.email_input.is_placeholder_active = True
         self.password_input.setText("ПАРОЛЬ")
         self.password_input.is_placeholder_active = True
         self.password_input.setEchoMode(QLineEdit.Normal)
+        self.confirm_password_input.setText("ПОДТВЕРДИТЕ ПАРОЛЬ")
+        self.confirm_password_input.is_placeholder_active = True
+        self.confirm_password_input.setEchoMode(QLineEdit.Normal)
         self.role_sportsman.setChecked(False)
         self.role_trainer.setChecked(False)
 
