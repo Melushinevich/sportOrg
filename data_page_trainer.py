@@ -22,6 +22,7 @@ class CustomLineEdit(QLineEdit):
                 border:2px solid black;
                 border-radius:30px;
                 font-size:25px;
+                color: black;
                 min-height:70px;
             }
         """)
@@ -68,6 +69,7 @@ class CustomComboBox(QComboBox):
                 border-radius:30px;
                 font-size:24px;
                 min-height:70px;
+                color: black;
                 padding-right:55px;
             }
 
@@ -113,6 +115,7 @@ class CustomDateEdit(QDateEdit):
                 border:2px solid black;
                 border-radius:30px;
                 font-size:25px;
+                color: black;
                 min-height:70px;
             }
 
@@ -146,6 +149,7 @@ class ProfileWindow(QMainWindow):
 
         title = QLabel("SPORTORG")
         title.setFont(QFont("UrbanSlavic", 96))
+        title.setStyleSheet("color: black;")
         top.addWidget(title)
 
         top.addStretch()
@@ -179,6 +183,7 @@ class ProfileWindow(QMainWindow):
         )
         welcome.setAlignment(Qt.AlignCenter)
         welcome.setFont(QFont("Roboto Flex", 26))
+        welcome.setStyleSheet("color: black;")
         main_layout.addWidget(welcome)
 
         self.fio_input = CustomLineEdit("Фамилия Имя Отчество")
