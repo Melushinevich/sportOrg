@@ -167,6 +167,7 @@ class SupportButton(QPushButton):
 
 class RegistrationWindow(QMainWindow):
     register_success = pyqtSignal(str, str, str)  # (role, email, password)
+    go_to_start = pyqtSignal()  # Сигнал для возврата на стартовое окно
     def __init__(self):
         super().__init__()
         self.setWindowTitle("SPORTORG")
@@ -259,6 +260,28 @@ class RegistrationWindow(QMainWindow):
         self.register_button.clicked.connect(self.on_register)
         main_layout.addWidget(self.register_button)
 
+        login_hint_layout = QHBoxLayout()
+        login_hint_layout.setAlignment(Qt.AlignCenter)
+
+        self.login_hint_button = QPushButton("Уже есть аккаунт? Войти")
+        self.login_hint_button.setFont(QFont("Roboto Flex", 16))
+        self.login_hint_button.setCursor(Qt.PointingHandCursor)
+        self.login_hint_button.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                color: #EF8354;
+                border: none;
+                font-size: 18px;
+            }
+            QPushButton:hover {
+                text-decoration: underline;
+            }
+        """)
+        self.login_hint_button.clicked.connect(self.on_login_clicked)
+        login_hint_layout.addWidget(self.login_hint_button)
+
+        main_layout.addLayout(login_hint_layout)
+
         # Горизонтальный layout для нижней панели (инфо + кнопка поддержки)
         bottom_layout = QHBoxLayout()
         bottom_layout.setContentsMargins(0, 0, 0, 0)
@@ -295,6 +318,10 @@ class RegistrationWindow(QMainWindow):
         elif self.role_trainer.isChecked():
             return "ТРЕНЕР"
         return None
+
+    def on_login_clicked(self):
+        """Переход на окно входа"""
+        self.go_to_start.emit()
 
     def on_register(self):
         email = self.email_input.get_real_text()
