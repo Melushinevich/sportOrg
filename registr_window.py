@@ -7,6 +7,8 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QSize, pyqtSignal
 from PyQt5.QtGui import QFont, QPalette, QColor, QMouseEvent, QIcon
 
+from PyQt5.QtCore import pyqtSignal  # если еще не импортирован
+
 
 class CustomLineEdit(QLineEdit):
     """Кастомное поле ввода с плейсхолдером по центру и радиусом скругления 40"""
@@ -164,6 +166,7 @@ class SupportButton(QPushButton):
 
 
 class RegistrationWindow(QMainWindow):
+    register_success = pyqtSignal(str, str, str)  # (role, email, password)
     def __init__(self):
         super().__init__()
         self.setWindowTitle("SPORTORG")
@@ -316,7 +319,7 @@ class RegistrationWindow(QMainWindow):
         if errors:
             self.show_error_message("\n".join(errors))
         else:
-            self.show_success_message(f"Регистрация успешна!\nРоль: {role}\nПочта: {email}")
+            self.show_success_message(f"Регистрация успешна!\nРоль: {role}\nПочта: {email} \n Пароль: {password}")
 
     def show_error_message(self, message):
         msg_box = QMessageBox()
@@ -333,9 +336,16 @@ class RegistrationWindow(QMainWindow):
         msg_box.setWindowTitle("Успех")
         msg_box.setText(message)
         msg_box.setStandardButtons(QMessageBox.Ok)
+        msg_box.setStyleSheet("color: black;")
+
+        # Ждем, пока пользователь нажмет OK
         msg_box.exec_()
 
         # Очищаем поля после успешной регистрации
+        email = self.email_input.get_real_text()
+        password = self.password_input.get_real_text()
+        role = self.get_selected_role()
+
         self.email_input.setText("ПОЧТА")
         self.email_input.is_placeholder_active = True
         self.password_input.setText("ПАРОЛЬ")
@@ -343,6 +353,9 @@ class RegistrationWindow(QMainWindow):
         self.password_input.setEchoMode(QLineEdit.Normal)
         self.role_sportsman.setChecked(False)
         self.role_trainer.setChecked(False)
+
+        # Отправляем сигнал с данными для перехода
+        self.register_success.emit(role, email, password)
 
 
 def main():
@@ -354,8 +367,6 @@ def main():
 
     window = RegistrationWindow()
     window.show()
-
-    sys.exit(app.exec_())
 
 
 if __name__ == '__main__':
