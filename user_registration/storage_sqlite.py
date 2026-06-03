@@ -47,6 +47,9 @@ def init_db():
     cursor = conn.cursor()
 
     if _sqlite_schema_incompatible(conn):
+        cursor.execute("DROP TABLE IF EXISTS team_applications")
+        cursor.execute("DROP TABLE IF EXISTS teams")
+        cursor.execute("DROP TABLE IF EXISTS sports")
         cursor.execute("DROP TABLE IF EXISTS athlete_skills")
         cursor.execute("DROP TABLE IF EXISTS profiles")
         cursor.execute("DROP TABLE IF EXISTS users")
@@ -102,6 +105,55 @@ def init_db():
     )
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_athlete_skills_user ON athlete_skills(user_id)"
+    )
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS sports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL
+        )
+        """
+    )
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_sports_name ON sports(name)")
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS teams (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sport_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            coach_user_id INTEGER NOT NULL,
+            is_open INTEGER NOT NULL DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (sport_id) REFERENCES sports(id) ON DELETE RESTRICT,
+            FOREIGN KEY (coach_user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+        """
+    )
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_teams_sport ON teams(sport_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_teams_open ON teams(is_open)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_teams_coach ON teams(coach_user_id)")
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS team_applications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            team_id INTEGER NOT NULL,
+            athlete_user_id INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
+            FOREIGN KEY (athlete_user_id) REFERENCES users(id) ON DELETE CASCADE,
+            UNIQUE(team_id, athlete_user_id)
+        )
+        """
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_team_apps_athlete ON team_applications(athlete_user_id)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_team_apps_team ON team_applications(team_id)"
     )
 
     conn.commit()
@@ -305,3 +357,173 @@ def replace_athlete_skills(user_id: int, skills: list[dict[str, Any]]) -> None:
         raise
     finally:
         conn.close()
+
+
+def ensure_sport(name: str) -> int:
+    n = (name or "").strip()
+    if not n:
+        raise ValueError("Название вида спорта обязательно")
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT OR IGNORE INTO sports(name) VALUES(?)", (n,))
+        cursor.execute("SELECT id FROM sports WHERE name = ? LIMIT 1", (n,))
+        row = cursor.fetchone()
+        if not row:
+            raise RuntimeError("Не удалось создать вид спорта")
+        conn.commit()
+        return int(row["id"])
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def create_team(coach_user_id: int, sport_name: str, team_name: str) -> int:
+    sport_id = ensure_sport(sport_name)
+    tn = (team_name or "").strip()
+    if not tn:
+        raise ValueError("Название команды обязательно")
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            INSERT INTO teams (sport_id, name, coach_user_id, is_open)
+            VALUES (?, ?, ?, 1)
+            """,
+            (sport_id, tn, coach_user_id),
+        )
+        team_id = cursor.lastrowid
+        conn.commit()
+        return int(team_id)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def list_available_teams(sport_name: str | None = None) -> list[dict[str, Any]]:
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    params: list[Any] = []
+    where = "t.is_open = 1"
+    if sport_name:
+        where += " AND s.name = ?"
+        params.append((sport_name or "").strip())
+    cursor.execute(
+        f"""
+        SELECT
+            t.id AS team_id,
+            s.name AS sport,
+            t.name AS team,
+            u.id AS coach_id,
+            p.first_name AS coach_first_name,
+            p.last_name AS coach_last_name
+        FROM teams t
+        JOIN sports s ON s.id = t.sport_id
+        JOIN users u ON u.id = t.coach_user_id
+        LEFT JOIN profiles p ON p.user_id = u.id
+        WHERE {where}
+        ORDER BY s.name, t.id
+        """,
+        tuple(params),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        coach_name = " ".join(
+            x for x in [r["coach_last_name"] or "", r["coach_first_name"] or ""] if x
+        ).strip()
+        out.append(
+            {
+                "team_id": int(r["team_id"]),
+                "sport": r["sport"],
+                "team": r["team"],
+                "coach_id": int(r["coach_id"]),
+                "coach": coach_name or None,
+            }
+        )
+    return out
+
+
+def apply_to_team(team_id: int, athlete_user_id: int) -> int:
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "SELECT 1 FROM teams WHERE id = ? AND is_open = 1 LIMIT 1", (team_id,)
+        )
+        if cursor.fetchone() is None:
+            raise ValueError("Команда не найдена или набор закрыт")
+
+        cursor.execute(
+            """
+            INSERT INTO team_applications (team_id, athlete_user_id, status)
+            VALUES (?, ?, 'pending')
+            """,
+            (team_id, athlete_user_id),
+        )
+        app_id = cursor.lastrowid
+        conn.commit()
+        return int(app_id)
+    except sqlite3.IntegrityError as exc:
+        msg = str(exc).lower()
+        if "unique" in msg:
+            raise ValueError("Заявка уже подана") from exc
+        raise
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def list_my_team_applications(athlete_user_id: int) -> list[dict[str, Any]]:
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT
+            a.id AS application_id,
+            a.status,
+            a.created_at,
+            t.id AS team_id,
+            t.name AS team,
+            s.name AS sport,
+            u.id AS coach_id,
+            p.first_name AS coach_first_name,
+            p.last_name AS coach_last_name
+        FROM team_applications a
+        JOIN teams t ON t.id = a.team_id
+        JOIN sports s ON s.id = t.sport_id
+        JOIN users u ON u.id = t.coach_user_id
+        LEFT JOIN profiles p ON p.user_id = u.id
+        WHERE a.athlete_user_id = ?
+        ORDER BY a.created_at DESC, a.id DESC
+        """,
+        (athlete_user_id,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        coach_name = " ".join(
+            x for x in [r["coach_last_name"] or "", r["coach_first_name"] or ""] if x
+        ).strip()
+        out.append(
+            {
+                "application_id": int(r["application_id"]),
+                "status": r["status"],
+                "team_id": int(r["team_id"]),
+                "team": r["team"],
+                "sport": r["sport"],
+                "coach_id": int(r["coach_id"]),
+                "coach": coach_name or None,
+                "created_at": r["created_at"],
+            }
+        )
+    return out

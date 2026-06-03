@@ -11,12 +11,13 @@ import logging
 import os
 import sys
 
-from flask import Flask, request
+from flask import Flask, jsonify, request
 
 from flask_limiter.constants import ConfigVars
 
 from sportorg.api.athlete_skills import me_bp
 from sportorg.api.public import bp as api_bp
+from sportorg.api.teams import bp as teams_bp
 from sportorg.extensions import limiter
 
 
@@ -42,6 +43,27 @@ def create_app(testing: bool = False) -> Flask:
     limiter.init_app(app)
     app.register_blueprint(api_bp)
     app.register_blueprint(me_bp)
+    app.register_blueprint(teams_bp)
+
+    @app.get("/")
+    def index():
+        """Подсказка: бэкенд только JSON API, без HTML-форм."""
+        return jsonify(
+            {
+                "service": "SportOrg API",
+                "docs_hint": "Используйте /api/v1/... с Content-Type: application/json",
+                "endpoints": {
+                    "health": "GET /api/v1/health",
+                    "register": "POST /api/v1/register",
+                    "login": "POST /api/v1/login",
+                    "skills": "GET|POST|PUT /api/v1/me/skills (Bearer, sportsman)",
+                    "available_teams": "GET /api/v1/available-teams?sport=... (Bearer, sportsman)",
+                    "apply": "POST /api/v1/teams/<team_id>/apply (Bearer, sportsman)",
+                    "my_applications": "GET /api/v1/me/applications (Bearer, sportsman)",
+                    "coach_create_team": "POST /api/v1/coach/teams (Bearer, coach)",
+                },
+            }
+        )
 
     @app.after_request
     def log_request(response):

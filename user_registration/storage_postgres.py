@@ -79,6 +79,50 @@ def init_db() -> None:
             cur.execute(
                 "CREATE INDEX IF NOT EXISTS idx_athlete_skills_user ON athlete_skills(user_id)"
             )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS sports (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(200) UNIQUE NOT NULL
+                );
+                """
+            )
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_sports_name ON sports(name)")
+
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS teams (
+                    id SERIAL PRIMARY KEY,
+                    sport_id INTEGER NOT NULL REFERENCES sports(id) ON DELETE RESTRICT,
+                    name VARCHAR(200) NOT NULL,
+                    coach_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    is_open BOOLEAN NOT NULL DEFAULT TRUE,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                );
+                """
+            )
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_teams_sport ON teams(sport_id)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_teams_open ON teams(is_open)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_teams_coach ON teams(coach_user_id)")
+
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS team_applications (
+                    id SERIAL PRIMARY KEY,
+                    team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+                    athlete_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    UNIQUE(team_id, athlete_user_id)
+                );
+                """
+            )
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_team_apps_athlete ON team_applications(athlete_user_id)"
+            )
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_team_apps_team ON team_applications(team_id)"
+            )
         conn.commit()
     finally:
         conn.close()
@@ -258,5 +302,210 @@ def replace_athlete_skills(user_id: int, skills: list[dict[str, Any]]) -> None:
     except Exception:
         conn.rollback()
         raise
+    finally:
+        conn.close()
+
+
+def ensure_sport(name: str) -> int:
+    n = (name or "").strip()
+    if not n:
+        raise ValueError("Название вида спорта обязательно")
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO sports(name)
+                VALUES (%s)
+                ON CONFLICT (name) DO NOTHING
+                RETURNING id
+                """,
+                (n,),
+            )
+            row = cur.fetchone()
+            if row and row.get("id") is not None:
+                conn.commit()
+                return int(row["id"])
+
+            cur.execute("SELECT id FROM sports WHERE name = %s LIMIT 1", (n,))
+            row2 = cur.fetchone()
+            if not row2:
+                raise RuntimeError("Не удалось создать вид спорта")
+        conn.commit()
+        return int(row2["id"])
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def create_team(coach_user_id: int, sport_name: str, team_name: str) -> int:
+    sport_id = ensure_sport(sport_name)
+    tn = (team_name or "").strip()
+    if not tn:
+        raise ValueError("Название команды обязательно")
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO teams (sport_id, name, coach_user_id, is_open)
+                VALUES (%s, %s, %s, TRUE)
+                RETURNING id
+                """,
+                (sport_id, tn, coach_user_id),
+            )
+            row = cur.fetchone()
+        conn.commit()
+        return int(row["id"])
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def list_available_teams(sport_name: str | None = None) -> list[dict[str, Any]]:
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            if sport_name:
+                cur.execute(
+                    """
+                    SELECT
+                        t.id AS team_id,
+                        s.name AS sport,
+                        t.name AS team,
+                        u.id AS coach_id,
+                        p.first_name AS coach_first_name,
+                        p.last_name AS coach_last_name
+                    FROM teams t
+                    JOIN sports s ON s.id = t.sport_id
+                    JOIN users u ON u.id = t.coach_user_id
+                    LEFT JOIN profiles p ON p.user_id = u.id
+                    WHERE t.is_open = TRUE AND s.name = %s
+                    ORDER BY s.name, t.id
+                    """,
+                    ((sport_name or "").strip(),),
+                )
+            else:
+                cur.execute(
+                    """
+                    SELECT
+                        t.id AS team_id,
+                        s.name AS sport,
+                        t.name AS team,
+                        u.id AS coach_id,
+                        p.first_name AS coach_first_name,
+                        p.last_name AS coach_last_name
+                    FROM teams t
+                    JOIN sports s ON s.id = t.sport_id
+                    JOIN users u ON u.id = t.coach_user_id
+                    LEFT JOIN profiles p ON p.user_id = u.id
+                    WHERE t.is_open = TRUE
+                    ORDER BY s.name, t.id
+                    """
+                )
+            rows = cur.fetchall()
+            out: list[dict[str, Any]] = []
+            for r in rows:
+                coach_name = " ".join(
+                    x
+                    for x in [r.get("coach_last_name") or "", r.get("coach_first_name") or ""]
+                    if x
+                ).strip()
+                out.append(
+                    {
+                        "team_id": int(r["team_id"]),
+                        "sport": r["sport"],
+                        "team": r["team"],
+                        "coach_id": int(r["coach_id"]),
+                        "coach": coach_name or None,
+                    }
+                )
+            return out
+    finally:
+        conn.close()
+
+
+def apply_to_team(team_id: int, athlete_user_id: int) -> int:
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT 1 FROM teams WHERE id = %s AND is_open = TRUE LIMIT 1",
+                (team_id,),
+            )
+            if cur.fetchone() is None:
+                raise ValueError("Команда не найдена или набор закрыт")
+            cur.execute(
+                """
+                INSERT INTO team_applications (team_id, athlete_user_id, status)
+                VALUES (%s, %s, 'pending')
+                RETURNING id
+                """,
+                (team_id, athlete_user_id),
+            )
+            row = cur.fetchone()
+        conn.commit()
+        return int(row["id"])
+    except psycopg.errors.UniqueViolation as exc:  # type: ignore[attr-defined]
+        conn.rollback()
+        raise ValueError("Заявка уже подана") from exc
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def list_my_team_applications(athlete_user_id: int) -> list[dict[str, Any]]:
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    a.id AS application_id,
+                    a.status,
+                    a.created_at,
+                    t.id AS team_id,
+                    t.name AS team,
+                    s.name AS sport,
+                    u.id AS coach_id,
+                    p.first_name AS coach_first_name,
+                    p.last_name AS coach_last_name
+                FROM team_applications a
+                JOIN teams t ON t.id = a.team_id
+                JOIN sports s ON s.id = t.sport_id
+                JOIN users u ON u.id = t.coach_user_id
+                LEFT JOIN profiles p ON p.user_id = u.id
+                WHERE a.athlete_user_id = %s
+                ORDER BY a.created_at DESC, a.id DESC
+                """,
+                (athlete_user_id,),
+            )
+            rows = cur.fetchall()
+            out: list[dict[str, Any]] = []
+            for r in rows:
+                coach_name = " ".join(
+                    x
+                    for x in [r.get("coach_last_name") or "", r.get("coach_first_name") or ""]
+                    if x
+                ).strip()
+                out.append(
+                    {
+                        "application_id": int(r["application_id"]),
+                        "status": r["status"],
+                        "team_id": int(r["team_id"]),
+                        "team": r["team"],
+                        "sport": r["sport"],
+                        "coach_id": int(r["coach_id"]),
+                        "coach": coach_name or None,
+                        "created_at": r["created_at"],
+                    }
+                )
+            return out
     finally:
         conn.close()

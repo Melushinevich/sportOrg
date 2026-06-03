@@ -67,3 +67,32 @@ def require_sportsman_json(f):
         return f(user_id=uid, *args, **kwargs)
 
     return wrapped
+
+
+def require_coach_json(f):
+    """JWT обязателен; роль coach; иначе 401/403 JSON."""
+
+    @wraps(f)
+    def wrapped(*args, **kwargs):
+        from user_registration.storage import get_user_by_id
+
+        raw = bearer_token()
+        if not raw:
+            return jsonify({"error": "Нужен заголовок Authorization: Bearer <token>", "code": "unauthorized"}), 401
+        data = decode_access_token(raw)
+        if not data:
+            return jsonify({"error": "Недействительный или просроченный токен", "code": "invalid_token"}), 401
+        try:
+            uid = int(data["sub"])
+        except (KeyError, TypeError, ValueError):
+            return jsonify({"error": "Недействительный токен", "code": "invalid_token"}), 401
+
+        user = get_user_by_id(uid)
+        if user is None:
+            return jsonify({"error": "Пользователь не найден", "code": "not_found"}), 401
+        if (user.get("role") or "").lower() != "coach":
+            return jsonify({"error": "Доступно только тренеру", "code": "forbidden_role"}), 403
+
+        return f(user_id=uid, *args, **kwargs)
+
+    return wrapped

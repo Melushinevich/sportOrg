@@ -4,13 +4,18 @@ from typing import Any
 
 __all__ = (
     "add_athlete_skill",
+    "apply_to_team",
     "create_new_user",
+    "create_team",
+    "ensure_sport",
     "get_all_users",
     "get_db_connection",
     "get_user_by_email",
     "get_user_by_id",
     "init_db",
+    "list_available_teams",
     "list_athlete_skills",
+    "list_my_team_applications",
     "replace_athlete_skills",
 )
 
@@ -69,3 +74,23 @@ def add_athlete_skill(user_id: int, name: str = "") -> int:
 
 def replace_athlete_skills(user_id: int, skills: list[dict[str, Any]]) -> None:
     return _backend().replace_athlete_skills(user_id, skills)
+
+
+def ensure_sport(name: str) -> int:
+    return _backend().ensure_sport(name)
+
+
+def create_team(coach_user_id: int, sport_name: str, team_name: str) -> int:
+    return _backend().create_team(coach_user_id, sport_name, team_name)
+
+
+def list_available_teams(sport_name: str | None = None):
+    return _backend().list_available_teams(sport_name)
+
+
+def apply_to_team(team_id: int, athlete_user_id: int) -> int:
+    return _backend().apply_to_team(team_id, athlete_user_id)
+
+
+def list_my_team_applications(athlete_user_id: int):
+    return _backend().list_my_team_applications(athlete_user_id)
