@@ -6,16 +6,16 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, QSize, pyqtSignal
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
-
 from registr_window import SupportButton
 from add_sport_critetia_window import AddSportCriteriaWindow
+from team_view_window import TeamViewWindow
 
 
 class TrainerSportsWindow(QMainWindow):
     sports_added = pyqtSignal(list)
-    go_back = pyqtSignal()  # сигнал для возврата
+    go_back = pyqtSignal()
 
-    def __init__(self, trainer_name="", trainer_data=None):
+    def __init__(self, trainer_name=" ", trainer_data=None):
         super().__init__()
         self.trainer_name = trainer_name
         self.trainer_data = trainer_data or {}
@@ -42,12 +42,12 @@ class TrainerSportsWindow(QMainWindow):
 
         top_layout.addStretch()
 
-        sports_label = QLabel("ВИДЫ")
-        sports_label.setFont(QFont("UrbanSlavic", 96))
-        sports_label.setStyleSheet("color: #6C769F;")
-        top_layout.addWidget(sports_label)
+        trainer_label = QLabel("ТРЕНЕР")
+        trainer_label.setFont(QFont("UrbanSlavic", 96))
+        trainer_label.setStyleSheet("color: #6C769F;")
+        top_layout.addWidget(trainer_label)
 
-        self.burger_button = QPushButton("")
+        self.burger_button = QPushButton(" ")
         self.burger_button.setIcon(QIcon("burger.png"))
         self.burger_button.setIconSize(QSize(30, 30))
         self.burger_button.setFixedSize(55, 55)
@@ -65,23 +65,16 @@ class TrainerSportsWindow(QMainWindow):
         main_layout.addLayout(top_layout)
         main_layout.addSpacing(50)
 
-        # Приветствие
-        welcome_label = QLabel(f"Здравствуйте, {self.trainer_name}! \n Добавьте виды спорта, которые вы преподаете")
-        welcome_font = QFont("Roboto Flex", 32)
-        welcome_label.setFont(welcome_font)
-        welcome_label.setAlignment(Qt.AlignCenter)
-        welcome_label.setStyleSheet("color: #6C769F; margin-bottom: 10px;")
-        main_layout.addWidget(welcome_label)
-
         # Заголовок списка
-        list_title = QLabel("Ваши виды спорта и критерии оценки:")
+        list_title = QLabel("Команды")
         list_title.setFont(QFont("Roboto Flex", 20, QFont.Bold))
-        list_title.setAlignment(Qt.AlignCenter)
+        list_title.setAlignment(Qt.AlignLeft)
         list_title.setStyleSheet("color: black; margin-bottom: 10px;")
         main_layout.addWidget(list_title)
 
-        # Список видов спорта
+        # Список команд
         self.sports_list_widget = QListWidget()
+        self.sports_list_widget.setCursor(Qt.PointingHandCursor)
         self.sports_list_widget.setStyleSheet("""
             QListWidget {
                 background-color: #F5F5F5;
@@ -97,12 +90,23 @@ class TrainerSportsWindow(QMainWindow):
                 padding: 15px;
                 border-bottom: 1px solid #DDDDDD;
                 color: black;
+                border-radius: 10px;
+                margin: 2px 0;
+            }
+            QListWidget::item:hover {
+                background-color: #D0D4E6;
+                color: black;
+            }
+            QListWidget::item:selected {
+                background-color: #6C769F;
+                color: white;
             }
         """)
+        self.sports_list_widget.itemDoubleClicked.connect(self.on_item_clicked)
         main_layout.addWidget(self.sports_list_widget)
 
         # Кнопка ДОБАВИТЬ ВИД
-        self.add_sport_button = QPushButton("+ ДОБАВИТЬ ВИД")
+        self.add_sport_button = QPushButton("ДОБАВИТЬ ВИД")
         self.add_sport_button.setFixedSize(400, 65)
         self.add_sport_button.setFont(QFont("Roboto Flex", 20))
         self.add_sport_button.setCursor(Qt.PointingHandCursor)
@@ -110,7 +114,7 @@ class TrainerSportsWindow(QMainWindow):
             QPushButton {
                 background-color: #6C769F;
                 color: white;
-                border: 2px solid black;
+                border: none;
                 border-radius: 40px;
                 font-size: 22px;
             }
@@ -146,25 +150,32 @@ class TrainerSportsWindow(QMainWindow):
         main_layout.addLayout(bottom_layout)
 
     def add_sport_to_list(self, sport_name, criteria):
-        """Добавить вид спорта в список"""
-        criteria_text = " • ".join(criteria) if criteria else "Критерии не выбраны"
-        item_text = f"🏆 {sport_name}\n📋 Критерии: {criteria_text}"
-
+        """Добавить команду в список"""
+        item_text = f"🏆 {sport_name}"
         item = QListWidgetItem(item_text)
         item.setFont(QFont("Roboto Flex", 16))
         item.setData(Qt.UserRole, {"sport": sport_name, "criteria": criteria})
         self.sports_list_widget.addItem(item)
 
+    def on_item_clicked(self, item):
+        """Открыть окно команды при двойном клике"""
+        data = item.data(Qt.UserRole)
+        if data:
+            sport_name = data["sport"]
+            self.team_view_window = TeamViewWindow(team_name=sport_name, parent=self)
+            self.team_view_window.show()
+            self.hide()
+
     def on_add_sport(self):
-        """Переход на окно добавления вида спорта"""
+        """Переход на окно добавления команды"""
         existing_sport_names = [item['sport'] for item in self.sports_with_criteria]
         self.add_window = AddSportCriteriaWindow(existing_sport_names, self)
         self.add_window.sport_saved.connect(self.on_sport_saved)
         self.add_window.show()
-        self.hide()  # скрываем текущее окно
+        self.hide()
 
     def on_sport_saved(self, sport, criteria):
-        """Сохранение вида спорта с критериями и возврат"""
+        """Сохранение команды с критериями и возврат"""
         self.sports_with_criteria.append({
             "sport": sport,
             "criteria": criteria
@@ -174,17 +185,14 @@ class TrainerSportsWindow(QMainWindow):
         msg_box = QMessageBox()
         msg_box.setIcon(QMessageBox.Information)
         msg_box.setWindowTitle("Успех")
-        msg_box.setText(f"Вид спорта '{sport}' добавлен с {len(criteria)} критериями!")
+        msg_box.setText(f"Команда '{sport}' добавлена с {len(criteria)} критериями!")
         msg_box.setStandardButtons(QMessageBox.Ok)
         msg_box.exec_()
 
-        # Возвращаемся к окну тренера
         self.show()
 
     def showEvent(self, event):
-        """При показе окна обновляем список существующих видов спорта"""
         super().showEvent(event)
-        # Если есть окно добавления, обновляем его existing_sports
         if hasattr(self, 'add_window') and self.add_window:
             existing_names = [item['sport'] for item in self.sports_with_criteria]
             self.add_window.update_existing_sports(existing_names)
@@ -193,6 +201,30 @@ class TrainerSportsWindow(QMainWindow):
 def main():
     app = QApplication(sys.argv)
 
+    # Глобальный стиль для диалогов
+    app.setStyleSheet("""
+        QMessageBox {
+            background-color: white;
+        }
+        QMessageBox QLabel {
+            color: black;
+            background-color: transparent;
+        }
+        QMessageBox QPushButton {
+            background-color: #6C769F;
+            color: white;
+            border: none;
+            border-radius: 15px;
+            padding: 8px 20px;
+            min-width: 80px;
+            font-family: 'Roboto Flex';
+            font-size: 14px;
+        }
+        QMessageBox QPushButton:hover {
+            background-color: #5A6385;
+        }
+    """)
+
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))
     app.setPalette(palette)
@@ -200,7 +232,7 @@ def main():
     window = TrainerSportsWindow(trainer_name="Иван Петров")
     window.show()
 
-    sys.exit(app.exec_())
+    app.exec_()
 
 
 if __name__ == '__main__':

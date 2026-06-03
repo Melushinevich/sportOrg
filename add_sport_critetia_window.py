@@ -2,23 +2,26 @@ import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QLabel, QPushButton, QListWidget,
-    QListWidgetItem, QMessageBox, QComboBox
+    QListWidgetItem, QMessageBox, QComboBox, QLineEdit,
+    QInputDialog
 )
 from PyQt5.QtCore import Qt, QSize, pyqtSignal
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
-
 from registr_window import SupportButton
 
 # Доступные виды спорта
 AVAILABLE_SPORTS = ["Футбол", "Баскетбол", "Волейбол", "Теннис", "Плавание",
                     "Легкая атлетика", "Хоккей", "Бокс", "Самбо", "Гимнастика"]
 
-# Доступные критерии
-AVAILABLE_CRITERIA = [
-    "Скорость", "Выносливость", "Сила", "Техника", "Тактика",
-    "Координация", "Гибкость", "Реакция", "Командная работа",
-    "Лидерство", "Дисциплина", "Стрессоустойчивость", "Мотивация"
+# Заглушка навыков спортсмена
+ATHLETE_SKILLS_STUB = [
+    "Скорость", "Выносливость", "Сила", "Гибкость", "Координация", "Реакция",
+    "Дриблинг", "Пас", "Удар", "Игра головой", "Техника ведения мяча",
+    "Тактическое мышление", "Позиционная игра", "Чтение игры",
+    "Стрессоустойчивость", "Мотивация", "Лидерство", "Дисциплина", "Командная работа",
 ]
+
+AVAILABLE_CRITERIA = ATHLETE_SKILLS_STUB
 
 
 class AddSportCriteriaWindow(QMainWindow):
@@ -28,7 +31,7 @@ class AddSportCriteriaWindow(QMainWindow):
         super().__init__(parent)
         self.existing_sports = existing_sports or []
         self.selected_criteria = []
-        self.setWindowTitle("SPORTORG - Добавление вида спорта")
+        self.setWindowTitle("SPORTORG - Добавление команды")
         self.setFixedSize(1440, 1024)
         self.setup_ui()
 
@@ -37,76 +40,88 @@ class AddSportCriteriaWindow(QMainWindow):
         self.setCentralWidget(central_widget)
 
         main_layout = QVBoxLayout(central_widget)
-        main_layout.setContentsMargins(200, 60, 200, 60)
-        main_layout.setSpacing(20)
+        main_layout.setContentsMargins(100, 40, 100, 40)
+        main_layout.setSpacing(15)
 
         # Верхняя панель
         top_layout = QHBoxLayout()
 
         title_label = QLabel("SPORTORG")
-        title_label.setFont(QFont("UrbanSlavic", 96))
+        title_label.setFont(QFont("UrbanSlavic", 80))
         title_label.setStyleSheet("color: black;")
         top_layout.addWidget(title_label)
 
         top_layout.addStretch()
 
-        add_label = QLabel("ДОБАВЛЕНИЕ")
-        add_label.setFont(QFont("UrbanSlavic", 96))
-        add_label.setStyleSheet("color: #6C769F;")
-        top_layout.addWidget(add_label)
+        trainer_label = QLabel("ТРЕНЕР")
+        trainer_label.setFont(QFont("UrbanSlavic", 80))
+        trainer_label.setStyleSheet("color: #6C769F;")
+        top_layout.addWidget(trainer_label)
 
-        # Кнопка назад
-        self.back_button = QPushButton("←")
-        self.back_button.setFixedSize(55, 55)
-        self.back_button.setFont(QFont("Roboto Flex", 30))
-        self.back_button.setCursor(Qt.PointingHandCursor)
-        self.back_button.setStyleSheet("""
+        self.burger_button = QPushButton(" ")
+        self.burger_button.setIcon(QIcon("burger.png"))
+        self.burger_button.setIconSize(QSize(30, 30))
+        self.burger_button.setFixedSize(55, 55)
+        self.burger_button.setStyleSheet("""
             QPushButton{
                 background:#6C769F;
-                color: white;
                 border-radius:27px;
             }
             QPushButton:hover {
                 background-color: #5A6385;
             }
         """)
-        self.back_button.clicked.connect(self.on_back)
-        top_layout.addWidget(self.back_button)
+        top_layout.addWidget(self.burger_button)
 
         main_layout.addLayout(top_layout)
-        main_layout.addSpacing(40)
+        main_layout.addSpacing(20)
 
-        # Заголовок
-        title = QLabel("Добавление вида спорта")
-        title.setFont(QFont("Roboto Flex", 28, QFont.Bold))
-        title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("color: black; margin-bottom: 20px;")
-        main_layout.addWidget(title)
+        # Поле названия команды
+        self.team_name_input = QLineEdit()
+        self.team_name_input.setPlaceholderText("Название команды")
+        font_input = QFont("Roboto Flex", 16)
+        font_input.setItalic(True)
+        self.team_name_input.setFont(font_input)
+        self.team_name_input.setAlignment(Qt.AlignCenter)
+        self.team_name_input.setStyleSheet("""
+            QLineEdit {
+                background-color: #D9D9D9;
+                border: none;
+                border-radius: 20px;
+                padding: 10px;
+                min-height: 45px;
+                color: black;
+            }
+            QLineEdit::placeholder {
+                color: #555555;
+            }
+        """)
+        main_layout.addWidget(self.team_name_input)
+
+        main_layout.addSpacing(10)
 
         # Выбор вида спорта
-        sport_label = QLabel("Выберите вид спорта:")
-        sport_label.setFont(QFont("Roboto Flex", 18, QFont.Bold))
-        sport_label.setStyleSheet("color: black;")
-        main_layout.addWidget(sport_label)
-
         self.sport_combo = QComboBox()
+        self.sport_combo.addItem("Вид")
         self.sport_combo.addItems(AVAILABLE_SPORTS)
-        self.sport_combo.setFont(QFont("Roboto Flex", 18))
+        font_combo = QFont("Roboto Flex", 16)
+        font_combo.setItalic(True)
+        self.sport_combo.setFont(font_combo)
         self.sport_combo.setStyleSheet("""
             QComboBox {
                 background-color: #D9D9D9;
-                border: 2px solid black;
-                border-radius: 25px;
-                padding: 8px;
+                border: none;
+                border-radius: 20px;
+                padding: 6px 20px;
                 min-height: 45px;
                 color: black;
             }
             QComboBox::drop-down {
                 border: none;
-                width: 35px;
+                width: 30px;
             }
             QComboBox QAbstractItemView {
-                font-size: 16px;
+                font-size: 14px;
                 color: black;
                 background-color: white;
                 selection-background-color: #6C769F;
@@ -117,86 +132,44 @@ class AddSportCriteriaWindow(QMainWindow):
 
         main_layout.addSpacing(15)
 
-        # Выбор критериев
-        criteria_label = QLabel("Выберите критерии оценки:")
-        criteria_label.setFont(QFont("Roboto Flex", 18, QFont.Bold))
+        # Критерии
+        criteria_label = QLabel("Критерии")
+        font_crit = QFont("Roboto Flex", 16)
+        font_crit.setItalic(True)
+        criteria_label.setFont(font_crit)
         criteria_label.setStyleSheet("color: black;")
         main_layout.addWidget(criteria_label)
 
-        # Выпадающий список для добавления критериев
-        criteria_add_layout = QHBoxLayout()
-        criteria_add_layout.setSpacing(15)
-
-        self.criteria_combo = QComboBox()
-        self.criteria_combo.addItems(AVAILABLE_CRITERIA)
-        self.criteria_combo.setFont(QFont("Roboto Flex", 16))
-        self.criteria_combo.setStyleSheet("""
-            QComboBox {
-                background-color: #D9D9D9;
-                border: 2px solid black;
-                border-radius: 25px;
-                padding: 8px;
-                min-height: 45px;
-                color: black;
-            }
-            QComboBox::drop-down {
-                border: none;
-                width: 35px;
-            }
-            QComboBox QAbstractItemView {
-                font-size: 14px;
-                color: black;
-                background-color: white;
-                selection-background-color: #6C769F;
-                selection-color: white;
+        # Контейнер для списка критериев и кнопки добавления
+        criteria_container = QWidget()
+        criteria_container.setStyleSheet("""
+            QWidget {
+                background-color: #F5F5F5;
+                border: 2px solid #6C769F;
+                border-radius: 20px;
             }
         """)
-
-        self.add_criteria_button = QPushButton("+ Добавить критерий")
-        self.add_criteria_button.setFixedSize(180, 45)
-        self.add_criteria_button.setFont(QFont("Roboto Flex", 15))
-        self.add_criteria_button.setCursor(Qt.PointingHandCursor)
-        self.add_criteria_button.setStyleSheet("""
-            QPushButton {
-                background-color: #6C769F;
-                color: white;
-                border: 2px solid black;
-                border-radius: 22px;
-            }
-            QPushButton:hover {
-                background-color: #5A6385;
-            }
-        """)
-        self.add_criteria_button.clicked.connect(self.on_add_criteria)
-
-        criteria_add_layout.addWidget(self.criteria_combo)
-        criteria_add_layout.addWidget(self.add_criteria_button)
-        main_layout.addLayout(criteria_add_layout)
-
-        main_layout.addSpacing(10)
-
-        # Список выбранных критериев
-        selected_label = QLabel("Выбранные критерии:")
-        selected_label.setFont(QFont("Roboto Flex", 16, QFont.Bold))
-        selected_label.setStyleSheet("color: black;")
-        main_layout.addWidget(selected_label)
+        criteria_container_layout = QVBoxLayout(criteria_container)
+        criteria_container_layout.setContentsMargins(10, 10, 10, 10)
+        criteria_container_layout.setSpacing(8)
 
         self.criteria_list_widget = QListWidget()
         self.criteria_list_widget.setStyleSheet("""
             QListWidget {
-                background-color: #F5F5F5;
-                border: 2px solid #6C769F;
-                border-radius: 15px;
-                font-size: 16px;
+                background-color: transparent;
+                border: none;
+                font-size: 14px;
                 font-family: 'Roboto Flex';
-                padding: 10px;
+                padding: 5px;
                 min-height: 200px;
                 max-height: 200px;
                 color: black;
             }
             QListWidget::item {
-                padding: 8px;
-                border-bottom: 1px solid #DDDDDD;
+                padding: 10px;
+                background-color: white;
+                border-radius: 12px;
+                margin: 3px 0;
                 color: black;
             }
             QListWidget::item:selected {
@@ -204,83 +177,60 @@ class AddSportCriteriaWindow(QMainWindow):
                 color: white;
             }
         """)
-        main_layout.addWidget(self.criteria_list_widget)
+        criteria_container_layout.addWidget(self.criteria_list_widget)
 
-        # Кнопка удаления критерия
-        self.remove_criteria_button = QPushButton("- Удалить выбранный критерий")
-        self.remove_criteria_button.setFixedSize(220, 45)
-        self.remove_criteria_button.setFont(QFont("Roboto Flex", 15))
-        self.remove_criteria_button.setCursor(Qt.PointingHandCursor)
-        self.remove_criteria_button.setStyleSheet("""
+        self.add_criteria_button = QPushButton("ДОБАВИТЬ КРИТЕРИЙ")
+        self.add_criteria_button.setFont(QFont("Roboto Flex", 14))
+        self.add_criteria_button.setCursor(Qt.PointingHandCursor)
+        self.add_criteria_button.setStyleSheet("""
             QPushButton {
-                background-color: #EF8354;
+                background-color: #6C769F;
                 color: white;
-                border: 2px solid black;
-                border-radius: 22px;
+                border: none;
+                border-radius: 20px;
+                padding: 10px;
             }
             QPushButton:hover {
-                background-color: #D6754B;
+                background-color: #5A6385;
             }
         """)
-        self.remove_criteria_button.clicked.connect(self.on_remove_criteria)
+        self.add_criteria_button.clicked.connect(self.on_add_criteria)
+        criteria_container_layout.addWidget(self.add_criteria_button)
 
-        remove_layout = QHBoxLayout()
-        remove_layout.addStretch()
-        remove_layout.addWidget(self.remove_criteria_button)
-        remove_layout.addStretch()
-        main_layout.addLayout(remove_layout)
+        main_layout.addWidget(criteria_container)
 
         main_layout.addStretch()
 
-        # Кнопки Сохранить и Отмена
-        save_buttons_layout = QHBoxLayout()
-        save_buttons_layout.setSpacing(30)
-        save_buttons_layout.setAlignment(Qt.AlignCenter)
+        # Кнопка Сохранить
+        save_layout = QHBoxLayout()
+        save_layout.setAlignment(Qt.AlignCenter)
 
         self.save_button = QPushButton("СОХРАНИТЬ")
-        self.save_button.setFixedSize(250, 60)
-        self.save_button.setFont(QFont("Roboto Flex", 18, QFont.Bold))
+        self.save_button.setFixedSize(200, 50)
+        self.save_button.setFont(QFont("Roboto Flex", 16, QFont.Bold))
         self.save_button.setCursor(Qt.PointingHandCursor)
         self.save_button.setStyleSheet("""
             QPushButton {
-                background-color: #2D3142;
-                color: white;
-                border: 2px solid black;
-                border-radius: 30px;
-            }
-            QPushButton:hover {
-                background-color: #40465E;
-            }
-        """)
-        self.save_button.clicked.connect(self.on_save)
-
-        self.cancel_button = QPushButton("ОТМЕНА")
-        self.cancel_button.setFixedSize(250, 60)
-        self.cancel_button.setFont(QFont("Roboto Flex", 18, QFont.Bold))
-        self.cancel_button.setCursor(Qt.PointingHandCursor)
-        self.cancel_button.setStyleSheet("""
-            QPushButton {
                 background-color: #D9D9D9;
                 color: black;
-                border: 2px solid black;
-                border-radius: 30px;
+                border: none;
+                border-radius: 25px;
             }
             QPushButton:hover {
                 background-color: #C0C0C0;
             }
         """)
-        self.cancel_button.clicked.connect(self.on_back)
+        self.save_button.clicked.connect(self.on_save)
 
-        save_buttons_layout.addWidget(self.save_button)
-        save_buttons_layout.addWidget(self.cancel_button)
-        main_layout.addLayout(save_buttons_layout)
+        save_layout.addWidget(self.save_button)
+        main_layout.addLayout(save_layout)
 
         # Нижняя панель
         bottom_layout = QHBoxLayout()
-        bottom_layout.setContentsMargins(0, 20, 0, 0)
+        bottom_layout.setContentsMargins(0, 15, 0, 0)
 
         info_label = QLabel("© 2026 SPORTORG | Все права защищены")
-        info_label.setFont(QFont("Roboto Flex", 10))
+        info_label.setFont(QFont("Roboto Flex", 9))
         info_label.setAlignment(Qt.AlignLeft)
         info_label.setStyleSheet("color: gray;")
 
@@ -296,41 +246,39 @@ class AddSportCriteriaWindow(QMainWindow):
         self.existing_sports = existing_sports
 
     def on_add_criteria(self):
-        criteria = self.criteria_combo.currentText()
-        if criteria not in self.selected_criteria:
-            self.selected_criteria.append(criteria)
-            item = QListWidgetItem(criteria)
-            item.setTextAlignment(Qt.AlignCenter)
-            self.criteria_list_widget.addItem(item)
-        else:
-            self.show_error(f"Критерий '{criteria}' уже добавлен!")
-
-    def on_remove_criteria(self):
-        current_item = self.criteria_list_widget.currentItem()
-        if current_item:
-            criteria = current_item.text()
-            reply = QMessageBox.question(
-                self,
-                "Подтверждение удаления",
-                f"Вы уверены, что хотите удалить критерий '{criteria}'?",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No
-            )
-            if reply == QMessageBox.Yes:
-                self.selected_criteria.remove(criteria)
-                row = self.criteria_list_widget.row(current_item)
-                self.criteria_list_widget.takeItem(row)
-        else:
-            self.show_error("Пожалуйста, выберите критерий для удаления!")
+        criteria, ok = QInputDialog.getItem(
+            self,
+            "Выбор критерия",
+            "Выберите навык спортсмена:",
+            AVAILABLE_CRITERIA
+        )
+        if ok and criteria:
+            if criteria not in self.selected_criteria:
+                self.selected_criteria.append(criteria)
+                item = QListWidgetItem(criteria)
+                item.setTextAlignment(Qt.AlignCenter)
+                item.setFont(QFont("Roboto Flex", 14))
+                self.criteria_list_widget.addItem(item)
+            else:
+                self.show_error(f"Навык '{criteria}' уже добавлен!")
 
     def on_save(self):
+        team_name = self.team_name_input.text().strip()
         sport = self.sport_combo.currentText()
+
+        if not team_name:
+            self.show_error("Введите название команды!")
+            return
+
+        if sport == "Вид":
+            self.show_error("Выберите вид спорта!")
+            return
 
         if sport in self.existing_sports:
             reply = QMessageBox.question(
                 self,
-                "Вид спорта уже добавлен",
-                f"Вид спорта '{sport}' уже был добавлен ранее. Заменить?",
+                "Команда уже добавлена",
+                f"Команда '{team_name}' уже была добавлена ранее. Заменить?",
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No
             )
@@ -341,21 +289,18 @@ class AddSportCriteriaWindow(QMainWindow):
             reply = QMessageBox.question(
                 self,
                 "Нет критериев",
-                "Вы не выбрали ни одного критерия. Продолжить?",
+                "Вы не выбрали ни одного навыка. Продолжить?",
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No
             )
             if reply != QMessageBox.Yes:
                 return
 
-        self.sport_saved.emit(sport, self.selected_criteria.copy())
-        self.close()
-
-    def on_back(self):
+        self.sport_saved.emit(team_name, self.selected_criteria.copy())
         self.close()
 
     def show_error(self, message):
-        msg_box = QMessageBox()
+        msg_box = QMessageBox(self)
         msg_box.setIcon(QMessageBox.Critical)
         msg_box.setWindowTitle("Ошибка")
         msg_box.setText(message)
@@ -371,6 +316,56 @@ class AddSportCriteriaWindow(QMainWindow):
 def main():
     app = QApplication(sys.argv)
 
+    # Глобальный стиль для диалогов
+    app.setStyleSheet("""
+        QMessageBox {
+            background-color: white;
+        }
+        QMessageBox QLabel {
+            color: black;
+            background-color: transparent;
+        }
+        QMessageBox QPushButton {
+            background-color: #6C769F;
+            color: white;
+            border: none;
+            border-radius: 15px;
+            padding: 8px 20px;
+            min-width: 80px;
+            font-family: 'Roboto Flex';
+            font-size: 14px;
+        }
+        QMessageBox QPushButton:hover {
+            background-color: #5A6385;
+        }
+        QInputDialog {
+            background-color: white;
+        }
+        QInputDialog QLabel {
+            color: black;
+            background-color: transparent;
+        }
+        QInputDialog QComboBox {
+            background-color: #D9D9D9;
+            color: black;
+            border: 1px solid #B0B0B0;
+            border-radius: 10px;
+            padding: 5px;
+        }
+        QInputDialog QPushButton {
+            background-color: #6C769F;
+            color: white;
+            border: none;
+            border-radius: 15px;
+            padding: 8px 20px;
+            min-width: 80px;
+            font-family: 'Roboto Flex';
+        }
+        QInputDialog QPushButton:hover {
+            background-color: #5A6385;
+        }
+    """)
+
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))
     app.setPalette(palette)
@@ -378,7 +373,7 @@ def main():
     window = AddSportCriteriaWindow()
     window.show()
 
-    sys.exit(app.exec_())
+    app.exec_()
 
 
 if __name__ == '__main__':

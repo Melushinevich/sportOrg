@@ -8,6 +8,7 @@ from PyQt5.QtCore import Qt, QSize, pyqtSignal
 from PyQt5.QtGui import QFont, QPalette, QColor, QMouseEvent, QIcon
 
 from PyQt5.QtCore import pyqtSignal  # если еще не импортирован
+from scipy.ndimage import black_tophat
 
 
 class CustomLineEdit(QLineEdit):
@@ -145,12 +146,15 @@ class SupportButton(QPushButton):
             QPushButton {
                 background-color: #EF8354;
                 border-radius: 30px;
+                color: black;
             }
             QPushButton:hover {
                 background-color: #EF8354;
+                color: black;
             }
             QPushButton:pressed {
                 background-color: #EF8354;
+                color: black;
             }
         """)
         self.clicked.connect(self.on_click)
@@ -159,6 +163,7 @@ class SupportButton(QPushButton):
         msg_box = QMessageBox()
         msg_box.setIcon(QMessageBox.Information)
         msg_box.setWindowTitle("Техподдержка")
+        msg_box.setStyleSheet("""color: black;""")
         msg_box.setText(
             "Свяжитесь с нами:\n\n📧 Email: support@sportorg.ru\n📞 Телефон: +7 (999) 123-45-67\n💬 Telegram: @sportorg_support")
         msg_box.setStandardButtons(QMessageBox.Ok)
