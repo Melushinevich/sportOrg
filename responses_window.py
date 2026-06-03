@@ -7,14 +7,18 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 from registr_window import SupportButton
+from burger_menu import BurgerMenu, show_burger_menu
 
 
 class ResponsesWindow(QMainWindow):
-    def __init__(self, team_name="Команда 1", sport_name="", parent=None):
+    def __init__(self, team_name=None, sport_name="", parent=None, show_all=False):
         super().__init__(parent)
         self.team_name = team_name
         self.sport_name = sport_name
-        self.setWindowTitle("SPORTORG - Отклики участников")
+        self.show_all = show_all
+
+        title = "Все отклики" if show_all else f"Отклики — {team_name}"
+        self.setWindowTitle(f"SPORTORG - {title}")
         self.setFixedSize(1440, 1024)
         self.setup_ui()
 
@@ -26,7 +30,6 @@ class ResponsesWindow(QMainWindow):
         main_layout.setContentsMargins(60, 40, 60, 40)
         main_layout.setSpacing(25)
 
-        # Верхняя панель
         top_layout = QHBoxLayout()
 
         title_label = QLabel("SPORTORG")
@@ -34,17 +37,18 @@ class ResponsesWindow(QMainWindow):
         title_label.setStyleSheet("color: black;")
         top_layout.addWidget(title_label)
 
-        trainer_label = QLabel("ТРЕНЕР")
-        trainer_label.setFont(QFont("UrbanSlavic", 80))
-        trainer_label.setStyleSheet("color: #6C769F;")
-        top_layout.addWidget(trainer_label)
+        if not self.show_all:
+            trainer_label = QLabel("ТРЕНЕР")
+            trainer_label.setFont(QFont("UrbanSlavic", 80))
+            trainer_label.setStyleSheet("color: #6C769F;")
+            top_layout.addWidget(trainer_label)
+        else:
+            user_label = QLabel("ЯРОСЛАВЛЬ")
+            user_label.setFont(QFont("UrbanSlavic", 80))
+            user_label.setStyleSheet("color: black;")
+            top_layout.addWidget(user_label)
 
         top_layout.addStretch()
-
-        user_label = QLabel("ЯРОСЛАВЛЬ")
-        user_label.setFont(QFont("UrbanSlavic", 80))
-        user_label.setStyleSheet("color: black;")
-        top_layout.addWidget(user_label)
 
         self.burger_button = QPushButton(" ")
         self.burger_button.setIcon(QIcon("burger.png"))
@@ -59,64 +63,76 @@ class ResponsesWindow(QMainWindow):
                 background-color: #5A6385;
             }
         """)
+        self.burger_button.clicked.connect(self.show_burger_menu)
         top_layout.addWidget(self.burger_button)
 
         main_layout.addLayout(top_layout)
         main_layout.addSpacing(30)
 
-        list_title = QLabel("Отклики участников")
+        if self.show_all:
+            list_title = QLabel("Все отклики спортсменов")
+        else:
+            list_title = QLabel(f"Отклики — {self.team_name}")
         list_title.setFont(QFont("Roboto Flex", 20, QFont.Bold))
         list_title.setAlignment(Qt.AlignLeft)
         list_title.setStyleSheet("color: black; margin-bottom: 10px;")
         main_layout.addWidget(list_title)
 
-        # Таблица откликов
         self.table = QTableWidget()
-        self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(["✓", "ФИО", "Вид спорта", "Команда"])
+        if self.show_all:
+            self.table.setColumnCount(5)
+            self.table.setHorizontalHeaderLabels(["✓", "ФИО", "Вид спорта", "Команда", "Навыки"])
+        else:
+            self.table.setColumnCount(4)
+            self.table.setHorizontalHeaderLabels(["✓", "ФИО", "Вид спорта", "Навыки"])
 
-        demo_participants = [
+        all_participants = [
             {
                 "name": "Иванов Иван Петрович", "sport": "Футбол", "team": "Команда 1", "accepted": True,
+                "skills": ["Скорость", "Дриблинг", "Удар", "Тактическое мышление", "Командная работа"],
                 "response_details": {
                     "experience": "5 лет", "achievements": "Чемпион области 2024",
                     "position": "Нападающий", "motivation": "Хочу развиваться в профессиональном спорте",
-                    "availability": "Пн, Ср, Пт 18:00-20:00",
-                    "skills": ["Скорость", "Дриблинг", "Удар", "Тактическое мышление", "Командная работа"]
+                    "availability": "Пн, Ср, Пт 18:00-20:00"
                 }
             },
             {
                 "name": "Петров Алексей Сергеевич", "sport": "Футбол", "team": "Команда 1", "accepted": False,
+                "skills": ["Выносливость", "Пас", "Позиционная игра", "Дисциплина"],
                 "response_details": {
                     "experience": "2 года", "achievements": "Участник городских соревнований",
                     "position": "Защитник", "motivation": "Люблю командные игры",
-                    "availability": "Вт, Чт 19:00-21:00",
-                    "skills": ["Выносливость", "Пас", "Позиционная игра", "Дисциплина"]
+                    "availability": "Вт, Чт 19:00-21:00"
                 }
             },
             {
-                "name": "Сидорова Мария Андреевна", "sport": "Футбол", "team": "Команда 1", "accepted": True,
+                "name": "Сидорова Мария Андреевна", "sport": "Баскетбол", "team": "Команда 2", "accepted": True,
+                "skills": ["Скорость", "Выносливость", "Лидерство", "Мотивация"],
                 "response_details": {
-                    "experience": "7 лет", "achievements": "МС по футболу, призёр чемпионата России",
-                    "position": "Полузащитник", "motivation": "Готовлюсь к профессиональной карьере",
-                    "availability": "Ежедневно 17:00-19:00",
-                    "skills": ["Скорость", "Выносливость", "Техника ведения мяча", "Чтение игры", "Лидерство", "Мотивация"]
+                    "experience": "7 лет", "achievements": "МС по баскетболу",
+                    "position": "Разыгрывающий", "motivation": "Готовлюсь к профессиональной карьере",
+                    "availability": "Ежедневно 17:00-19:00"
                 }
             },
             {
-                "name": "Козлов Дмитрий Владимирович", "sport": "Футбол", "team": "Команда 1", "accepted": False,
+                "name": "Козлов Дмитрий Владимирович", "sport": "Баскетбол", "team": "Команда 2", "accepted": False,
+                "skills": ["Реакция", "Координация", "Стрессоустойчивость"],
                 "response_details": {
                     "experience": "1 год", "achievements": "Новичок",
-                    "position": "Вратарь", "motivation": "Хочу научиться играть в команде",
-                    "availability": "Сб, Вс 10:00-12:00",
-                    "skills": ["Реакция", "Координация", "Стрессоустойчивость"]
+                    "position": "Центровой", "motivation": "Хочу научиться играть в команде",
+                    "availability": "Сб, Вс 10:00-12:00"
                 }
             },
         ]
 
-        self.table.setRowCount(len(demo_participants))
+        if self.show_all:
+            participants = all_participants
+        else:
+            participants = [p for p in all_participants if p["team"] == self.team_name]
 
-        for row, participant in enumerate(demo_participants):
+        self.table.setRowCount(len(participants))
+
+        for row, participant in enumerate(participants):
             checkbox_widget = QWidget()
             checkbox_layout = QHBoxLayout(checkbox_widget)
             checkbox = QCheckBox()
@@ -143,6 +159,7 @@ class ResponsesWindow(QMainWindow):
             skills_text = "<br>".join([f"• {skill}" for skill in details.get("skills", [])])
             tooltip_text = f"""
 <b>{participant['name']}</b><br><br>
+<b>Команда:</b> {participant['team']}<br>
 <b>Опыт:</b> {details['experience']}<br>
 <b>Достижения:</b> {details['achievements']}<br>
 <b>Позиция:</b> {details['position']}<br>
@@ -163,17 +180,39 @@ class ResponsesWindow(QMainWindow):
             sport_item.setToolTip(tooltip_text)
             self.table.setItem(row, 2, sport_item)
 
-            team_item = QTableWidgetItem(participant["team"])
-            team_item.setFont(QFont("Roboto Flex", 14))
-            team_item.setTextAlignment(Qt.AlignCenter)
-            team_item.setToolTip(tooltip_text)
-            self.table.setItem(row, 3, team_item)
+            if self.show_all:
+                team_item = QTableWidgetItem(participant["team"])
+                team_item.setFont(QFont("Roboto Flex", 14))
+                team_item.setTextAlignment(Qt.AlignCenter)
+                team_item.setToolTip(tooltip_text)
+                self.table.setItem(row, 3, team_item)
+
+                skills_display = ", ".join(participant.get("skills", []))
+                skills_item = QTableWidgetItem(skills_display)
+                skills_item.setFont(QFont("Roboto Flex", 13))
+                skills_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+                skills_item.setToolTip(tooltip_text)
+                self.table.setItem(row, 4, skills_item)
+            else:
+                skills_display = ", ".join(participant.get("skills", []))
+                skills_item = QTableWidgetItem(skills_display)
+                skills_item.setFont(QFont("Roboto Flex", 13))
+                skills_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+                skills_item.setToolTip(tooltip_text)
+                self.table.setItem(row, 3, skills_item)
 
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.Stretch)
-        header.setSectionResizeMode(2, QHeaderView.Stretch)
-        header.setSectionResizeMode(3, QHeaderView.Stretch)
+        if self.show_all:
+            header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+            header.setSectionResizeMode(1, QHeaderView.Stretch)
+            header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+            header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
+            header.setSectionResizeMode(4, QHeaderView.Stretch)
+        else:
+            header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+            header.setSectionResizeMode(1, QHeaderView.Stretch)
+            header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+            header.setSectionResizeMode(3, QHeaderView.Stretch)
 
         self.table.verticalHeader().setDefaultSectionSize(50)
 
@@ -195,13 +234,8 @@ class ResponsesWindow(QMainWindow):
                 border: none;
                 background-color: transparent;
             }
-            QTableWidget::item:hover {
-                background-color: #D0D4E6;
-            }
-            QTableWidget::item:selected {
-                background-color: #6C769F;
-                color: white;
-            }
+            QTableWidget::item:hover { background-color: #D0D4E6; }
+            QTableWidget::item:selected { background-color: #6C769F; color: white; }
             QHeaderView::section {
                 background-color: #6C769F;
                 color: white;
@@ -216,30 +250,17 @@ class ResponsesWindow(QMainWindow):
                 border: none;
             }
             QScrollBar:vertical {
-                background: #F5F5F5;
-                width: 12px;
-                margin: 0px;
-                border-radius: 6px;
+                background: #F5F5F5; width: 12px; margin: 0px; border-radius: 6px;
             }
             QScrollBar::handle:vertical {
-                background: #6C769F;
-                min-height: 30px;
-                border-radius: 6px;
+                background: #6C769F; min-height: 30px; border-radius: 6px;
             }
-            QScrollBar::handle:vertical:hover {
-                background: #5A6385;
-            }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-                height: 0px;
-            }
+            QScrollBar::handle:vertical:hover { background: #5A6385; }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }
             QToolTip {
-                background-color: white;
-                color: black;
-                border: 2px solid #6C769F;
-                border-radius: 10px;
-                padding: 12px;
-                font-family: 'Roboto Flex';
-                font-size: 13px;
+                background-color: white; color: black;
+                border: 2px solid #6C769F; border-radius: 10px;
+                padding: 12px; font-family: 'Roboto Flex'; font-size: 13px;
                 max-width: 400px;
             }
         """)
@@ -247,28 +268,25 @@ class ResponsesWindow(QMainWindow):
         main_layout.addWidget(self.table)
         main_layout.addSpacing(30)
 
-        confirm_layout = QHBoxLayout()
-        confirm_layout.setAlignment(Qt.AlignCenter)
+        if not self.show_all:
+            confirm_layout = QHBoxLayout()
+            confirm_layout.setAlignment(Qt.AlignCenter)
 
-        self.confirm_button = QPushButton("ПОДТВЕРДИТЬ ВЫБОР")
-        self.confirm_button.setFixedSize(300, 55)
-        self.confirm_button.setFont(QFont("Roboto Flex", 18, QFont.Bold))
-        self.confirm_button.setCursor(Qt.PointingHandCursor)
-        self.confirm_button.setStyleSheet("""
-            QPushButton {
-                background-color: #6C769F;
-                color: white;
-                border: none;
-                border-radius: 25px;
-            }
-            QPushButton:hover {
-                background-color: #5A6385;
-            }
-        """)
-        self.confirm_button.clicked.connect(self.on_confirm)
-        confirm_layout.addWidget(self.confirm_button)
+            self.confirm_button = QPushButton("ПОДТВЕРДИТЬ ВЫБОР")
+            self.confirm_button.setFixedSize(300, 55)
+            self.confirm_button.setFont(QFont("Roboto Flex", 18, QFont.Bold))
+            self.confirm_button.setCursor(Qt.PointingHandCursor)
+            self.confirm_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #6C769F; color: white;
+                    border: none; border-radius: 25px;
+                }
+                QPushButton:hover { background-color: #5A6385; }
+            """)
+            self.confirm_button.clicked.connect(self.on_confirm)
+            confirm_layout.addWidget(self.confirm_button)
+            main_layout.addLayout(confirm_layout)
 
-        main_layout.addLayout(confirm_layout)
         main_layout.addStretch()
 
         bottom_layout = QHBoxLayout()
@@ -279,13 +297,52 @@ class ResponsesWindow(QMainWindow):
         info_label.setAlignment(Qt.AlignLeft)
         info_label.setStyleSheet("color: gray;")
 
-        self.support_button = SupportButton()
+        self.support_button_widget = SupportButton()
 
         bottom_layout.addWidget(info_label)
         bottom_layout.addStretch()
-        bottom_layout.addWidget(self.support_button)
+        bottom_layout.addWidget(self.support_button_widget)
 
         main_layout.addLayout(bottom_layout)
+
+    def show_burger_menu(self):
+        callbacks = {
+            'home': self.on_go_home,
+            'responses': self.on_go_responses_all,
+            'profile': self.on_go_profile,
+        }
+        show_burger_menu(self, self.burger_button, 'trainer', callbacks)
+
+    def on_go_home(self):
+        if self.menu:
+            self.menu.close()
+        parent = self.parent()
+        while parent:
+            from trainer_sport_window import TrainerSportsWindow
+            if isinstance(parent, TrainerSportsWindow):
+                parent.show()
+                self.close()
+                return
+            parent = parent.parent()
+
+    def on_go_responses_all(self):
+        if self.menu:
+            self.menu.close()
+        if self.show_all:
+            return
+        self.all_responses_window = ResponsesWindow(
+            team_name=None, sport_name="", parent=None, show_all=True
+        )
+        self.all_responses_window.show()
+        self.close()
+
+    def on_go_profile(self):
+        if self.menu:
+            self.menu.close()
+        from data_page_trainer import ProfileWindow
+        self.profile_window = ProfileWindow()
+        self.profile_window.show()
+        self.close()
 
     def on_confirm(self):
         accepted_players = self.get_accepted_players()
@@ -312,28 +369,25 @@ class ResponsesWindow(QMainWindow):
                 checkbox = checkbox_widget.findChild(QCheckBox)
                 if checkbox and checkbox.isChecked():
                     player_name = self.table.item(row, 1).text() if self.table.item(row, 1) else ""
-                    player_skills = []
-                    for demo in self._get_demo_participants():
-                        if demo["name"] == player_name:
-                            player_skills = demo["response_details"].get("skills", [])
-                            break
+                    player_sport = self.table.item(row, 2).text() if self.table.item(row, 2) else ""
+
+                    if self.show_all:
+                        player_team = self.table.item(row, 3).text() if self.table.item(row, 3) else ""
+                        player_skills_text = self.table.item(row, 4).text() if self.table.item(row, 4) else ""
+                    else:
+                        player_team = self.team_name
+                        player_skills_text = self.table.item(row, 3).text() if self.table.item(row, 3) else ""
+
+                    player_skills = [s.strip() for s in player_skills_text.split(",") if s.strip()] if player_skills_text else []
 
                     player_data = {
                         "name": player_name,
-                        "sport": self.table.item(row, 2).text() if self.table.item(row, 2) else "",
-                        "team": self.table.item(row, 3).text() if self.table.item(row, 3) else "",
+                        "sport": player_sport,
+                        "team": player_team,
                         "skills": player_skills
                     }
                     accepted.append(player_data)
         return accepted
-
-    def _get_demo_participants(self):
-        return [
-            {"name": "Иванов Иван Петрович", "response_details": {"skills": ["Скорость", "Дриблинг", "Удар", "Тактическое мышление", "Командная работа"]}},
-            {"name": "Петров Алексей Сергеевич", "response_details": {"skills": ["Выносливость", "Пас", "Позиционная игра", "Дисциплина"]}},
-            {"name": "Сидорова Мария Андреевна", "response_details": {"skills": ["Скорость", "Выносливость", "Техника ведения мяча", "Чтение игры", "Лидерство", "Мотивация"]}},
-            {"name": "Козлов Дмитрий Владимирович", "response_details": {"skills": ["Реакция", "Координация", "Стрессоустойчивость"]}},
-        ]
 
     def closeEvent(self, event):
         if self.parent():
@@ -344,35 +398,22 @@ class ResponsesWindow(QMainWindow):
 def main():
     app = QApplication(sys.argv)
 
-    # Глобальный стиль для диалогов
     app.setStyleSheet("""
-        QMessageBox {
-            background-color: white;
-        }
-        QMessageBox QLabel {
-            color: black;
-            background-color: transparent;
-        }
+        QMessageBox { background-color: white; }
+        QMessageBox QLabel { color: black; background-color: transparent; }
         QMessageBox QPushButton {
-            background-color: #6C769F;
-            color: white;
-            border: none;
-            border-radius: 15px;
-            padding: 8px 20px;
-            min-width: 80px;
-            font-family: 'Roboto Flex';
-            font-size: 14px;
+            background-color: #6C769F; color: white; border: none;
+            border-radius: 15px; padding: 8px 20px; min-width: 80px;
+            font-family: 'Roboto Flex'; font-size: 14px;
         }
-        QMessageBox QPushButton:hover {
-            background-color: #5A6385;
-        }
+        QMessageBox QPushButton:hover { background-color: #5A6385; }
     """)
 
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))
     app.setPalette(palette)
 
-    window = ResponsesWindow(team_name="Команда 1", sport_name="Футбол")
+    window = ResponsesWindow(team_name=None, sport_name="Футбол", show_all=True)
     window.show()
 
     app.exec_()

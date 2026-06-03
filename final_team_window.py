@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 from registr_window import SupportButton
+from burger_menu import BurgerMenu, show_burger_menu
 
 
 class FinalTeamWindow(QMainWindow):
@@ -26,7 +27,6 @@ class FinalTeamWindow(QMainWindow):
         main_layout.setContentsMargins(60, 40, 60, 40)
         main_layout.setSpacing(25)
 
-        # Верхняя панель
         top_layout = QHBoxLayout()
 
         title_label = QLabel("SPORTORG")
@@ -58,16 +58,14 @@ class FinalTeamWindow(QMainWindow):
                 background:#6C769F;
                 border-radius:27px;
             }
-            QPushButton:hover {
-                background-color: #5A6385;
-            }
+            QPushButton:hover { background-color: #5A6385; }
         """)
+        self.burger_button.clicked.connect(self.show_burger_menu)
         top_layout.addWidget(self.burger_button)
 
         main_layout.addLayout(top_layout)
         main_layout.addSpacing(30)
 
-        # Таблица — 3 колонки: ФИО, %-усп., ЗАМЕТКИ
         self.table = QTableWidget()
         self.table.setColumnCount(3)
         self.table.setHorizontalHeaderLabels(["ФИО", "%-усп.", "ЗАМЕТКИ"])
@@ -113,18 +111,13 @@ class FinalTeamWindow(QMainWindow):
                 min-height: 450px;
             }
             QTableWidget::item {
-                padding: 8px;
-                color: black;
+                padding: 8px; color: black;
                 background-color: transparent;
             }
             QHeaderView::section {
-                background-color: #C8C8C8;
-                color: black;
-                border: 1px solid #B0B0B0;
-                border-radius: 0px;
-                padding: 10px;
-                font-size: 16px;
-                font-weight: bold;
+                background-color: #C8C8C8; color: black;
+                border: 1px solid #B0B0B0; border-radius: 0px;
+                padding: 10px; font-size: 16px; font-weight: bold;
                 font-family: 'Roboto Flex';
             }
             QTableCornerButton::section {
@@ -136,7 +129,6 @@ class FinalTeamWindow(QMainWindow):
         main_layout.addWidget(self.table)
         main_layout.addStretch()
 
-        # Две кнопки внизу
         buttons_layout = QHBoxLayout()
         buttons_layout.setSpacing(40)
         buttons_layout.setContentsMargins(20, 0, 20, 20)
@@ -147,14 +139,10 @@ class FinalTeamWindow(QMainWindow):
         self.back_button.setCursor(Qt.PointingHandCursor)
         self.back_button.setStyleSheet("""
             QPushButton {
-                background-color: #6C769F;
-                color: white;
-                border: none;
-                border-radius: 30px;
+                background-color: #6C769F; color: white;
+                border: none; border-radius: 30px;
             }
-            QPushButton:hover {
-                background-color: #5A6385;
-            }
+            QPushButton:hover { background-color: #5A6385; }
         """)
         self.back_button.clicked.connect(self.on_back)
 
@@ -164,14 +152,10 @@ class FinalTeamWindow(QMainWindow):
         self.save_button.setCursor(Qt.PointingHandCursor)
         self.save_button.setStyleSheet("""
             QPushButton {
-                background-color: #6C769F;
-                color: white;
-                border: none;
-                border-radius: 30px;
+                background-color: #6C769F; color: white;
+                border: none; border-radius: 30px;
             }
-            QPushButton:hover {
-                background-color: #5A6385;
-            }
+            QPushButton:hover { background-color: #5A6385; }
         """)
         self.save_button.clicked.connect(self.on_save)
 
@@ -180,6 +164,44 @@ class FinalTeamWindow(QMainWindow):
         buttons_layout.addWidget(self.save_button)
 
         main_layout.addLayout(buttons_layout)
+
+    def show_burger_menu(self):
+        callbacks = {
+            'home': self.on_go_home,
+            'responses': self.on_go_responses_all,
+            'profile': self.on_go_profile,
+        }
+        show_burger_menu(self, self.burger_button, 'trainer', callbacks)
+
+    def on_go_home(self):
+        if self.menu:
+            self.menu.close()
+        parent = self.parent()
+        while parent:
+            from trainer_sport_window import TrainerSportsWindow
+            if isinstance(parent, TrainerSportsWindow):
+                parent.show()
+                self.close()
+                return
+            parent = parent.parent()
+
+    def on_go_responses_all(self):
+        if self.menu:
+            self.menu.close()
+        from responses_window import ResponsesWindow
+        self.all_responses_window = ResponsesWindow(
+            team_name=None, sport_name="", parent=None, show_all=True
+        )
+        self.all_responses_window.show()
+        self.hide()
+
+    def on_go_profile(self):
+        if self.menu:
+            self.menu.close()
+        from data_page_trainer import ProfileWindow
+        self.profile_window = ProfileWindow()
+        self.profile_window.show()
+        self.hide()
 
     def on_back(self):
         if self.parent():
@@ -225,37 +247,22 @@ class FinalTeamWindow(QMainWindow):
 def main():
     app = QApplication(sys.argv)
 
-    # Глобальный стиль для диалогов
     app.setStyleSheet("""
-        QMessageBox {
-            background-color: white;
-        }
-        QMessageBox QLabel {
-            color: black;
-            background-color: transparent;
-        }
+        QMessageBox { background-color: white; }
+        QMessageBox QLabel { color: black; background-color: transparent; }
         QMessageBox QPushButton {
-            background-color: #6C769F;
-            color: white;
-            border: none;
-            border-radius: 15px;
-            padding: 8px 20px;
-            min-width: 80px;
-            font-family: 'Roboto Flex';
-            font-size: 14px;
+            background-color: #6C769F; color: white; border: none;
+            border-radius: 15px; padding: 8px 20px; min-width: 80px;
+            font-family: 'Roboto Flex'; font-size: 14px;
         }
-        QMessageBox QPushButton:hover {
-            background-color: #5A6385;
-        }
+        QMessageBox QPushButton:hover { background-color: #5A6385; }
     """)
 
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))
     app.setPalette(palette)
 
-    demo_players = [
-        {"name": "ФИО", "notes": "Вася лох"}
-    ]
+    demo_players = [{"name": "ФИО", "notes": "Вася лох"}]
     window = FinalTeamWindow(team_name="ВИД 1", players=demo_players)
     window.show()
 

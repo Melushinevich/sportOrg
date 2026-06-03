@@ -8,12 +8,11 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QSize, pyqtSignal
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 from registr_window import SupportButton
+from burger_menu import show_burger_menu  # <-- Добавлен импорт
 
-# Доступные виды спорта
 AVAILABLE_SPORTS = ["Футбол", "Баскетбол", "Волейбол", "Теннис", "Плавание",
                     "Легкая атлетика", "Хоккей", "Бокс", "Самбо", "Гимнастика"]
 
-# Заглушка навыков спортсмена
 ATHLETE_SKILLS_STUB = [
     "Скорость", "Выносливость", "Сила", "Гибкость", "Координация", "Реакция",
     "Дриблинг", "Пас", "Удар", "Игра головой", "Техника ведения мяча",
@@ -43,7 +42,6 @@ class AddSportCriteriaWindow(QMainWindow):
         main_layout.setContentsMargins(100, 40, 100, 40)
         main_layout.setSpacing(15)
 
-        # Верхняя панель
         top_layout = QHBoxLayout()
 
         title_label = QLabel("SPORTORG")
@@ -67,16 +65,15 @@ class AddSportCriteriaWindow(QMainWindow):
                 background:#6C769F;
                 border-radius:27px;
             }
-            QPushButton:hover {
-                background-color: #5A6385;
-            }
+            QPushButton:hover { background-color: #5A6385; }
         """)
+        # ВАЖНО: подключаем бургер-кнопку к функции открытия менюшки
+        self.burger_button.clicked.connect(self.show_burger_menu)
         top_layout.addWidget(self.burger_button)
 
         main_layout.addLayout(top_layout)
         main_layout.addSpacing(20)
 
-        # Поле названия команды
         self.team_name_input = QLineEdit()
         self.team_name_input.setPlaceholderText("Название команды")
         font_input = QFont("Roboto Flex", 16)
@@ -92,15 +89,12 @@ class AddSportCriteriaWindow(QMainWindow):
                 min-height: 45px;
                 color: black;
             }
-            QLineEdit::placeholder {
-                color: #555555;
-            }
+            QLineEdit::placeholder { color: #555555; }
         """)
         main_layout.addWidget(self.team_name_input)
 
         main_layout.addSpacing(10)
 
-        # Выбор вида спорта
         self.sport_combo = QComboBox()
         self.sport_combo.addItem("Вид")
         self.sport_combo.addItems(AVAILABLE_SPORTS)
@@ -116,13 +110,9 @@ class AddSportCriteriaWindow(QMainWindow):
                 min-height: 45px;
                 color: black;
             }
-            QComboBox::drop-down {
-                border: none;
-                width: 30px;
-            }
+            QComboBox::drop-down { border: none; width: 30px; }
             QComboBox QAbstractItemView {
-                font-size: 14px;
-                color: black;
+                font-size: 14px; color: black;
                 background-color: white;
                 selection-background-color: #6C769F;
                 selection-color: white;
@@ -132,7 +122,6 @@ class AddSportCriteriaWindow(QMainWindow):
 
         main_layout.addSpacing(15)
 
-        # Критерии
         criteria_label = QLabel("Критерии")
         font_crit = QFont("Roboto Flex", 16)
         font_crit.setItalic(True)
@@ -140,7 +129,6 @@ class AddSportCriteriaWindow(QMainWindow):
         criteria_label.setStyleSheet("color: black;")
         main_layout.addWidget(criteria_label)
 
-        # Контейнер для списка критериев и кнопки добавления
         criteria_container = QWidget()
         criteria_container.setStyleSheet("""
             QWidget {
@@ -190,18 +178,14 @@ class AddSportCriteriaWindow(QMainWindow):
                 border-radius: 20px;
                 padding: 10px;
             }
-            QPushButton:hover {
-                background-color: #5A6385;
-            }
+            QPushButton:hover { background-color: #5A6385; }
         """)
         self.add_criteria_button.clicked.connect(self.on_add_criteria)
         criteria_container_layout.addWidget(self.add_criteria_button)
 
         main_layout.addWidget(criteria_container)
-
         main_layout.addStretch()
 
-        # Кнопка Сохранить
         save_layout = QHBoxLayout()
         save_layout.setAlignment(Qt.AlignCenter)
 
@@ -216,16 +200,13 @@ class AddSportCriteriaWindow(QMainWindow):
                 border: none;
                 border-radius: 25px;
             }
-            QPushButton:hover {
-                background-color: #C0C0C0;
-            }
+            QPushButton:hover { background-color: #C0C0C0; }
         """)
         self.save_button.clicked.connect(self.on_save)
 
         save_layout.addWidget(self.save_button)
         main_layout.addLayout(save_layout)
 
-        # Нижняя панель
         bottom_layout = QHBoxLayout()
         bottom_layout.setContentsMargins(0, 15, 0, 0)
 
@@ -242,15 +223,45 @@ class AddSportCriteriaWindow(QMainWindow):
 
         main_layout.addLayout(bottom_layout)
 
+    # ВАЖНО: добавляем метод для открытия менюшки
+    def show_burger_menu(self):
+        callbacks = {
+            'home': self.on_go_home,
+            'responses': self.on_go_responses_all,
+            'profile': self.on_go_profile,
+        }
+        show_burger_menu(self, self.burger_button, 'trainer', callbacks)
+
+    def on_go_home(self):
+        # Возврат на главную тренера
+        from trainer_sport_window import TrainerSportsWindow
+        parent = self.parent()
+        if parent and isinstance(parent, TrainerSportsWindow):
+            parent.show()
+        self.close()
+
+    def on_go_responses_all(self):
+        # Переход на все отклики
+        from responses_window import ResponsesWindow
+        self.responses_window = ResponsesWindow(
+            team_name=None, sport_name="", parent=None, show_all=True
+        )
+        self.responses_window.show()
+        self.hide()
+
+    def on_go_profile(self):
+        # Переход в профиль тренера
+        from data_page_trainer import ProfileWindow
+        self.profile_window = ProfileWindow(parent=self)
+        self.profile_window.show()
+        self.hide()
+
     def update_existing_sports(self, existing_sports):
         self.existing_sports = existing_sports
 
     def on_add_criteria(self):
         criteria, ok = QInputDialog.getItem(
-            self,
-            "Выбор критерия",
-            "Выберите навык спортсмена:",
-            AVAILABLE_CRITERIA
+            self, "Выбор критерия", "Выберите навык спортсмена:", AVAILABLE_CRITERIA
         )
         if ok and criteria:
             if criteria not in self.selected_criteria:
@@ -276,22 +287,18 @@ class AddSportCriteriaWindow(QMainWindow):
 
         if sport in self.existing_sports:
             reply = QMessageBox.question(
-                self,
-                "Команда уже добавлена",
+                self, "Команда уже добавлена",
                 f"Команда '{team_name}' уже была добавлена ранее. Заменить?",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
             )
             if reply != QMessageBox.Yes:
                 return
 
         if not self.selected_criteria:
             reply = QMessageBox.question(
-                self,
-                "Нет критериев",
+                self, "Нет критериев",
                 "Вы не выбрали ни одного навыка. Продолжить?",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
             )
             if reply != QMessageBox.Yes:
                 return
@@ -316,54 +323,27 @@ class AddSportCriteriaWindow(QMainWindow):
 def main():
     app = QApplication(sys.argv)
 
-    # Глобальный стиль для диалогов
     app.setStyleSheet("""
-        QMessageBox {
-            background-color: white;
-        }
-        QMessageBox QLabel {
-            color: black;
-            background-color: transparent;
-        }
+        QMessageBox { background-color: white; }
+        QMessageBox QLabel { color: black; background-color: transparent; }
         QMessageBox QPushButton {
-            background-color: #6C769F;
-            color: white;
-            border: none;
-            border-radius: 15px;
-            padding: 8px 20px;
-            min-width: 80px;
-            font-family: 'Roboto Flex';
-            font-size: 14px;
+            background-color: #6C769F; color: white; border: none;
+            border-radius: 15px; padding: 8px 20px; min-width: 80px;
+            font-family: 'Roboto Flex'; font-size: 14px;
         }
-        QMessageBox QPushButton:hover {
-            background-color: #5A6385;
-        }
-        QInputDialog {
-            background-color: white;
-        }
-        QInputDialog QLabel {
-            color: black;
-            background-color: transparent;
-        }
+        QMessageBox QPushButton:hover { background-color: #5A6385; }
+        QInputDialog { background-color: white; }
+        QInputDialog QLabel { color: black; background-color: transparent; }
         QInputDialog QComboBox {
-            background-color: #D9D9D9;
-            color: black;
-            border: 1px solid #B0B0B0;
-            border-radius: 10px;
-            padding: 5px;
+            background-color: #D9D9D9; color: black;
+            border: 1px solid #B0B0B0; border-radius: 10px; padding: 5px;
         }
         QInputDialog QPushButton {
-            background-color: #6C769F;
-            color: white;
-            border: none;
-            border-radius: 15px;
-            padding: 8px 20px;
-            min-width: 80px;
+            background-color: #6C769F; color: white; border: none;
+            border-radius: 15px; padding: 8px 20px; min-width: 80px;
             font-family: 'Roboto Flex';
         }
-        QInputDialog QPushButton:hover {
-            background-color: #5A6385;
-        }
+        QInputDialog QPushButton:hover { background-color: #5A6385; }
     """)
 
     palette = QPalette()

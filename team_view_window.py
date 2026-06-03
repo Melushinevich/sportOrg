@@ -9,6 +9,7 @@ from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 from registr_window import SupportButton
 from responses_window import ResponsesWindow
 from final_team_window import FinalTeamWindow
+from burger_menu import BurgerMenu, show_burger_menu
 
 
 class TeamViewWindow(QMainWindow):
@@ -27,7 +28,6 @@ class TeamViewWindow(QMainWindow):
         main_layout.setContentsMargins(60, 40, 60, 40)
         main_layout.setSpacing(25)
 
-        # Верхняя панель
         top_layout = QHBoxLayout()
 
         title_label = QLabel("SPORTORG")
@@ -59,16 +59,14 @@ class TeamViewWindow(QMainWindow):
                 background:#6C769F;
                 border-radius:27px;
             }
-            QPushButton:hover {
-                background-color: #5A6385;
-            }
+            QPushButton:hover { background-color: #5A6385; }
         """)
+        self.burger_button.clicked.connect(self.show_burger_menu)
         top_layout.addWidget(self.burger_button)
 
         main_layout.addLayout(top_layout)
         main_layout.addSpacing(30)
 
-        # Таблица — 4 фиксированных колонки, БЕЗ закруглений
         self.table = QTableWidget()
         self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels(["ФИО", "%-усп.", "КАЧЕСТВА", "ЗАМЕТКИ"])
@@ -97,18 +95,11 @@ class TeamViewWindow(QMainWindow):
                 selection-color: white;
                 min-height: 450px;
             }
-            QTableWidget::item {
-                padding: 10px;
-                color: black;
-            }
+            QTableWidget::item { padding: 10px; color: black; }
             QHeaderView::section {
-                background-color: #C8C8C8;
-                color: black;
-                border: 1px solid #B0B0B0;
-                border-radius: 0px;
-                padding: 12px;
-                font-size: 16px;
-                font-weight: bold;
+                background-color: #C8C8C8; color: black;
+                border: 1px solid #B0B0B0; border-radius: 0px;
+                padding: 12px; font-size: 16px; font-weight: bold;
                 font-family: 'Roboto Flex';
             }
             QTableCornerButton::section {
@@ -121,7 +112,6 @@ class TeamViewWindow(QMainWindow):
         main_layout.addWidget(self.table)
         main_layout.addSpacing(30)
 
-        # Кнопки управления участниками
         action_buttons_layout = QHBoxLayout()
         action_buttons_layout.setSpacing(15)
         action_buttons_layout.setAlignment(Qt.AlignCenter)
@@ -132,14 +122,10 @@ class TeamViewWindow(QMainWindow):
         self.add_player_button.setCursor(Qt.PointingHandCursor)
         self.add_player_button.setStyleSheet("""
             QPushButton {
-                background-color: #D9D9D9;
-                color: black;
-                border: none;
-                border-radius: 25px;
+                background-color: #D9D9D9; color: black;
+                border: none; border-radius: 25px;
             }
-            QPushButton:hover {
-                background-color: #C0C0C0;
-            }
+            QPushButton:hover { background-color: #C0C0C0; }
         """)
         self.add_player_button.clicked.connect(self.on_add_player)
         action_buttons_layout.addWidget(self.add_player_button)
@@ -150,14 +136,10 @@ class TeamViewWindow(QMainWindow):
         self.remove_player_button.setCursor(Qt.PointingHandCursor)
         self.remove_player_button.setStyleSheet("""
             QPushButton {
-                background-color: #D9D9D9;
-                color: black;
-                border: none;
-                border-radius: 25px;
+                background-color: #D9D9D9; color: black;
+                border: none; border-radius: 25px;
             }
-            QPushButton:hover {
-                background-color: #C0C0C0;
-            }
+            QPushButton:hover { background-color: #C0C0C0; }
         """)
         self.remove_player_button.clicked.connect(self.on_remove_player)
         action_buttons_layout.addWidget(self.remove_player_button)
@@ -165,7 +147,6 @@ class TeamViewWindow(QMainWindow):
         main_layout.addLayout(action_buttons_layout)
         main_layout.addSpacing(40)
 
-        # Кнопка СФОРМИРОВАТЬ СОСТАВ
         btn_layout = QHBoxLayout()
         btn_layout.setAlignment(Qt.AlignCenter)
 
@@ -175,15 +156,10 @@ class TeamViewWindow(QMainWindow):
         self.form_button.setCursor(Qt.PointingHandCursor)
         self.form_button.setStyleSheet("""
             QPushButton {
-                background-color: #6C769F;
-                color: white;
-                border: none;
-                border-radius: 40px;
-                font-size: 22px;
+                background-color: #6C769F; color: white;
+                border: none; border-radius: 40px; font-size: 22px;
             }
-            QPushButton:hover {
-                background-color: #5A6385;
-            }
+            QPushButton:hover { background-color: #5A6385; }
         """)
         self.form_button.clicked.connect(self.on_form_team)
         btn_layout.addWidget(self.form_button)
@@ -191,7 +167,6 @@ class TeamViewWindow(QMainWindow):
         main_layout.addLayout(btn_layout)
         main_layout.addStretch()
 
-        # Нижняя панель
         bottom_layout = QHBoxLayout()
         bottom_layout.setContentsMargins(0, 20, 0, 0)
 
@@ -208,10 +183,44 @@ class TeamViewWindow(QMainWindow):
 
         main_layout.addLayout(bottom_layout)
 
+    def show_burger_menu(self):
+        callbacks = {
+            'home': self.on_go_home,
+            'responses': self.on_go_responses_all,
+            'profile': self.on_go_profile,
+        }
+        show_burger_menu(self, self.burger_button, 'trainer', callbacks)
+
+    def on_go_home(self):
+        if self.menu:
+            self.menu.close()
+        parent = self.parent()
+        while parent:
+            from trainer_sport_window import TrainerSportsWindow
+            if isinstance(parent, TrainerSportsWindow):
+                parent.show()
+                self.close()
+                return
+            parent = parent.parent()
+
+    def on_go_responses_all(self):
+        if self.menu:
+            self.menu.close()
+        self.all_responses_window = ResponsesWindow(
+            team_name=None, sport_name="", parent=None, show_all=True
+        )
+        self.all_responses_window.show()
+        self.hide()
+
+    def on_go_profile(self):
+        if self.menu:
+            self.menu.close()
+        from data_page_trainer import ProfileWindow
+        self.profile_window = ProfileWindow()
+        self.profile_window.show()
+        self.hide()
+
     def add_players_to_table(self, players):
-        """Добавить игроков из окна откликов.
-        Колонка 'КАЧЕСТВА' (индекс 2) заполняется навыками игрока перечислением.
-        Колонки ФИО и КАЧЕСТВА — НЕ редактируемые."""
         for player in players:
             player_name = player.get("name", "")
             is_duplicate = False
@@ -225,20 +234,17 @@ class TeamViewWindow(QMainWindow):
             row = self.table.rowCount()
             self.table.insertRow(row)
 
-            # ФИО (колонка 0) — НЕ редактируемое
             name_item = QTableWidgetItem(player_name)
             name_item.setFont(QFont("Roboto Flex", 14, QFont.Bold))
             name_item.setTextAlignment(Qt.AlignCenter)
             name_item.setFlags(name_item.flags() & ~Qt.ItemIsEditable)
             self.table.setItem(row, 0, name_item)
 
-            # %-усп. (колонка 1) — редактируемое
             percent_item = QTableWidgetItem("")
             percent_item.setFont(QFont("Roboto Flex", 14))
             percent_item.setTextAlignment(Qt.AlignCenter)
             self.table.setItem(row, 1, percent_item)
 
-            # КАЧЕСТВА (колонка 2) — НЕ редактируемое
             skills = player.get("skills", [])
             skills_text = ", ".join(skills) if skills else ""
             qualities_item = QTableWidgetItem(skills_text)
@@ -247,27 +253,21 @@ class TeamViewWindow(QMainWindow):
             qualities_item.setFlags(qualities_item.flags() & ~Qt.ItemIsEditable)
             self.table.setItem(row, 2, qualities_item)
 
-            # ЗАМЕТКИ (колонка 3) — редактируемое
             notes_item = QTableWidgetItem("")
             notes_item.setFont(QFont("Roboto Flex", 14))
             notes_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
             self.table.setItem(row, 3, notes_item)
 
     def on_add_player(self):
-        """Переход на окно с откликами участников"""
         self.responses_window = ResponsesWindow(
-            team_name=self.team_name,
-            sport_name="",
-            parent=self
+            team_name=self.team_name, sport_name="", parent=self, show_all=False
         )
         self.responses_window.show()
         self.hide()
 
     def on_remove_player(self):
-        """Удалить выбранного участника. Работает при клике на ЛЮБОЕ поле строки."""
         try:
             row = self.table.currentRow()
-
             if row < 0 or row >= self.table.rowCount():
                 msg_box = QMessageBox()
                 msg_box.setIcon(QMessageBox.Warning)
@@ -282,11 +282,9 @@ class TeamViewWindow(QMainWindow):
             name = name_item.text() if name_item else f"строка {row + 1}"
 
             reply = QMessageBox.question(
-                self,
-                "Подтверждение удаления",
+                self, "Подтверждение удаления",
                 f"Удалить участника '{name}'?",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
             )
 
             if reply == QMessageBox.Yes:
@@ -301,7 +299,6 @@ class TeamViewWindow(QMainWindow):
             msg_box.exec_()
 
     def on_form_team(self):
-        """Перейти в окно итогового состава"""
         if self.table.rowCount() == 0:
             msg_box = QMessageBox()
             msg_box.setIcon(QMessageBox.Warning)
@@ -320,9 +317,7 @@ class TeamViewWindow(QMainWindow):
             players.append({"name": name, "notes": notes})
 
         self.final_window = FinalTeamWindow(
-            team_name=self.team_name,
-            players=players,
-            parent=self
+            team_name=self.team_name, players=players, parent=self
         )
         self.final_window.show()
         self.hide()
@@ -336,28 +331,15 @@ class TeamViewWindow(QMainWindow):
 def main():
     app = QApplication(sys.argv)
 
-    # Глобальный стиль для диалогов
     app.setStyleSheet("""
-        QMessageBox {
-            background-color: white;
-        }
-        QMessageBox QLabel {
-            color: black;
-            background-color: transparent;
-        }
+        QMessageBox { background-color: white; }
+        QMessageBox QLabel { color: black; background-color: transparent; }
         QMessageBox QPushButton {
-            background-color: #6C769F;
-            color: white;
-            border: none;
-            border-radius: 15px;
-            padding: 8px 20px;
-            min-width: 80px;
-            font-family: 'Roboto Flex';
-            font-size: 14px;
+            background-color: #6C769F; color: white; border: none;
+            border-radius: 15px; padding: 8px 20px; min-width: 80px;
+            font-family: 'Roboto Flex'; font-size: 14px;
         }
-        QMessageBox QPushButton:hover {
-            background-color: #5A6385;
-        }
+        QMessageBox QPushButton:hover { background-color: #5A6385; }
     """)
 
     palette = QPalette()

@@ -9,6 +9,9 @@ from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 from registr_window import SupportButton
 from add_sport_critetia_window import AddSportCriteriaWindow
 from team_view_window import TeamViewWindow
+from responses_window import ResponsesWindow
+from data_page_trainer import ProfileWindow as TrainerProfileWindow
+from burger_menu import show_burger_menu
 
 
 class TrainerSportsWindow(QMainWindow):
@@ -60,6 +63,7 @@ class TrainerSportsWindow(QMainWindow):
                 background-color: #5A6385;
             }
         """)
+        self.burger_button.clicked.connect(self.show_burger_menu)
         top_layout.addWidget(self.burger_button)
 
         main_layout.addLayout(top_layout)
@@ -149,8 +153,30 @@ class TrainerSportsWindow(QMainWindow):
 
         main_layout.addLayout(bottom_layout)
 
+    def show_burger_menu(self):
+        callbacks = {
+            'home': self.on_go_home,
+            'responses': self.on_go_responses_all,
+            'profile': self.on_go_profile,
+        }
+        show_burger_menu(self, self.burger_button, 'trainer', callbacks)
+
+    def on_go_home(self):
+        pass
+
+    def on_go_responses_all(self):
+        self.all_responses_window = ResponsesWindow(
+            team_name=None, sport_name="", parent=None, show_all=True
+        )
+        self.all_responses_window.show()
+        self.hide()
+
+    def on_go_profile(self):
+        self.profile_window = TrainerProfileWindow(parent=self)
+        self.profile_window.show()
+        self.hide()
+
     def add_sport_to_list(self, sport_name, criteria):
-        """Добавить команду в список"""
         item_text = f"🏆 {sport_name}"
         item = QListWidgetItem(item_text)
         item.setFont(QFont("Roboto Flex", 16))
@@ -158,7 +184,6 @@ class TrainerSportsWindow(QMainWindow):
         self.sports_list_widget.addItem(item)
 
     def on_item_clicked(self, item):
-        """Открыть окно команды при двойном клике"""
         data = item.data(Qt.UserRole)
         if data:
             sport_name = data["sport"]
@@ -167,7 +192,6 @@ class TrainerSportsWindow(QMainWindow):
             self.hide()
 
     def on_add_sport(self):
-        """Переход на окно добавления команды"""
         existing_sport_names = [item['sport'] for item in self.sports_with_criteria]
         self.add_window = AddSportCriteriaWindow(existing_sport_names, self)
         self.add_window.sport_saved.connect(self.on_sport_saved)
@@ -175,7 +199,6 @@ class TrainerSportsWindow(QMainWindow):
         self.hide()
 
     def on_sport_saved(self, sport, criteria):
-        """Сохранение команды с критериями и возврат"""
         self.sports_with_criteria.append({
             "sport": sport,
             "criteria": criteria
@@ -201,28 +224,15 @@ class TrainerSportsWindow(QMainWindow):
 def main():
     app = QApplication(sys.argv)
 
-    # Глобальный стиль для диалогов
     app.setStyleSheet("""
-        QMessageBox {
-            background-color: white;
-        }
-        QMessageBox QLabel {
-            color: black;
-            background-color: transparent;
-        }
+        QMessageBox { background-color: white; }
+        QMessageBox QLabel { color: black; background-color: transparent; }
         QMessageBox QPushButton {
-            background-color: #6C769F;
-            color: white;
-            border: none;
-            border-radius: 15px;
-            padding: 8px 20px;
-            min-width: 80px;
-            font-family: 'Roboto Flex';
-            font-size: 14px;
+            background-color: #6C769F; color: white; border: none;
+            border-radius: 15px; padding: 8px 20px; min-width: 80px;
+            font-family: 'Roboto Flex'; font-size: 14px;
         }
-        QMessageBox QPushButton:hover {
-            background-color: #5A6385;
-        }
+        QMessageBox QPushButton:hover { background-color: #5A6385; }
     """)
 
     palette = QPalette()

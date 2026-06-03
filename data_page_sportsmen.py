@@ -2,10 +2,12 @@ import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QLabel, QLineEdit, QPushButton,
-    QComboBox, QDateEdit
+    QComboBox, QDateEdit, QMessageBox
 )
 from PyQt5.QtCore import Qt, QDate, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
+from registr_window import SupportButton
+from burger_menu import show_burger_menu
 
 
 class CustomLineEdit(QLineEdit):
@@ -47,17 +49,14 @@ class CustomLineEdit(QLineEdit):
 
 
 class CustomComboBox(QComboBox):
-    def __init__(self, placeholder="", items=[]):
+    def __init__(self, placeholder="", items=None):
         super().__init__()
-
+        items = items or []
         self.addItems(items)
         self.setEditable(True)
 
-        # Поле ввода
         self.lineEdit().setReadOnly(True)
         self.lineEdit().setAlignment(Qt.AlignCenter)
-
-        # ВОТ ТУТ главное исправление:
         self.lineEdit().setFont(QFont("Roboto Flex", 28, QFont.Thin))
 
         self.setCurrentText(placeholder)
@@ -72,15 +71,13 @@ class CustomComboBox(QComboBox):
                 color: black;
                 padding-right:55px;
             }
-
             QComboBox::drop-down{
                 border:none;
                 width:0px;
             }
-
             QComboBox QAbstractItemView{
                 font-size:24px;
-                font-family:"Roboto Flex";
+                font-family: "Roboto Flex";
             }
         """)
 
@@ -119,7 +116,6 @@ class CustomDateEdit(QDateEdit):
                 color: black;
                 min-height:70px;
             }
-
             QDateEdit::drop-down{
                 border:none;
                 width:0px;
@@ -132,9 +128,9 @@ class CustomDateEdit(QDateEdit):
 
 
 class ProfileWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("SPORTORG - Анкета")
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("SPORTORG - Анкета спортсмена")
         self.setFixedSize(1440, 1024)
         self.setup_ui()
 
@@ -155,12 +151,12 @@ class ProfileWindow(QMainWindow):
 
         top.addStretch()
 
-        trainer = QLabel("СПОРТСМЕН")
-        trainer.setFont(QFont("UrbanSlavic", 96))
-        trainer.setStyleSheet("color:#EF8354;")
-        top.addWidget(trainer)
+        athlete = QLabel("СПОРТСМЕН")
+        athlete.setFont(QFont("UrbanSlavic", 96))
+        athlete.setStyleSheet("color:#EF8354;")
+        top.addWidget(athlete)
 
-        self.burger = QPushButton("")
+        self.burger = QPushButton(" ")
         self.burger.setIcon(QIcon("burger.png"))
         self.burger.setIconSize(QSize(30, 30))
         self.burger.setFixedSize(55, 55)
@@ -172,15 +168,15 @@ class ProfileWindow(QMainWindow):
                 font-size:24px;
             }
         """)
+        self.burger.clicked.connect(self.show_burger_menu)
         top.addWidget(self.burger)
 
         main_layout.addLayout(top)
         main_layout.addSpacing(70)
 
         welcome = QLabel(
-            "Привет! Я-твой виртуальный помощник по подбору команды, в которой ты с удовольствием займешься тем видом"
-            "спорта, который тебе по душе!"
-            "\nПройди регистрацию и выбирай!"
+            "Привет! Я - твой виртуальный помощник по подбору команды, в которой ты с удовольствием займешься тем видом "
+            "спорта, который тебе по душе! \nПройди регистрацию и выбирай!"
         )
         welcome.setAlignment(Qt.AlignCenter)
         welcome.setFont(QFont("Roboto Flex", 20))
@@ -230,6 +226,7 @@ class ProfileWindow(QMainWindow):
             }
         """)
         self.save_button.setFont(QFont("Roboto Flex", 48))
+        self.save_button.clicked.connect(self.on_save)
 
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
@@ -238,9 +235,59 @@ class ProfileWindow(QMainWindow):
 
         main_layout.addLayout(btn_layout)
 
+    def show_burger_menu(self):
+        callbacks = {
+            'home': self.on_go_home,
+            'available_teams': self.on_go_available_teams,
+            'my_skills': self.on_go_my_skills,
+            'profile': self.on_go_profile,
+        }
+        show_burger_menu(self, self.burger, 'athlete', callbacks)
+
+    def on_go_home(self):
+        pass
+
+    def on_go_available_teams(self):
+        msg_box = QMessageBox()
+        msg_box.setIcon(QMessageBox.Information)
+        msg_box.setWindowTitle("Доступные команды")
+        msg_box.setText("Раздел 'Доступные команды' находится в разработке")
+        msg_box.setStandardButtons(QMessageBox.Ok)
+        msg_box.exec_()
+
+    def on_go_my_skills(self):
+        msg_box = QMessageBox()
+        msg_box.setIcon(QMessageBox.Information)
+        msg_box.setWindowTitle("Мои скиллы")
+        msg_box.setText("Раздел 'Мои скиллы' находится в разработке")
+        msg_box.setStandardButtons(QMessageBox.Ok)
+        msg_box.exec_()
+
+    def on_go_profile(self):
+        pass
+
+    def on_save(self):
+        msg_box = QMessageBox()
+        msg_box.setIcon(QMessageBox.Information)
+        msg_box.setWindowTitle("Сохранено")
+        msg_box.setText("Ваши данные сохранены!")
+        msg_box.setStandardButtons(QMessageBox.Ok)
+        msg_box.exec_()
+
 
 def main():
     app = QApplication(sys.argv)
+
+    app.setStyleSheet("""
+        QMessageBox { background-color: white; }
+        QMessageBox QLabel { color: black; background-color: transparent; }
+        QMessageBox QPushButton {
+            background-color: #EF8354; color: white; border: none;
+            border-radius: 15px; padding: 8px 20px; min-width: 80px;
+            font-family: 'Roboto Flex'; font-size: 14px;
+        }
+        QMessageBox QPushButton:hover { background-color: #D6754B; }
+    """)
 
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))
@@ -249,7 +296,7 @@ def main():
     window = ProfileWindow()
     window.show()
 
-    sys.exit(app.exec_())
+    app.exec_()
 
 
 if __name__ == '__main__':

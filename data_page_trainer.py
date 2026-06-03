@@ -2,10 +2,12 @@ import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QLabel, QLineEdit, QPushButton,
-    QComboBox, QDateEdit
+    QComboBox, QDateEdit, QMessageBox
 )
 from PyQt5.QtCore import Qt, QDate, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
+from registr_window import SupportButton
+from burger_menu import show_burger_menu
 
 
 class CustomLineEdit(QLineEdit):
@@ -47,17 +49,14 @@ class CustomLineEdit(QLineEdit):
 
 
 class CustomComboBox(QComboBox):
-    def __init__(self, placeholder="", items=[]):
+    def __init__(self, placeholder="", items=None):
         super().__init__()
-
+        items = items or []
         self.addItems(items)
         self.setEditable(True)
 
-        # Поле ввода
         self.lineEdit().setReadOnly(True)
         self.lineEdit().setAlignment(Qt.AlignCenter)
-
-        # ВОТ ТУТ главное исправление:
         self.lineEdit().setFont(QFont("Roboto Flex", 28, QFont.Thin))
 
         self.setCurrentText(placeholder)
@@ -72,15 +71,13 @@ class CustomComboBox(QComboBox):
                 color: black;
                 padding-right:55px;
             }
-
             QComboBox::drop-down{
                 border:none;
                 width:0px;
             }
-
             QComboBox QAbstractItemView{
                 font-size:24px;
-                font-family:"Roboto Flex";
+                font-family: "Roboto Flex";
             }
         """)
 
@@ -118,7 +115,6 @@ class CustomDateEdit(QDateEdit):
                 color: black;
                 min-height:70px;
             }
-
             QDateEdit::drop-down{
                 border:none;
                 width:0px;
@@ -131,9 +127,9 @@ class CustomDateEdit(QDateEdit):
 
 
 class ProfileWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("SPORTORG - Анкета")
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("SPORTORG - Анкета тренера")
         self.setFixedSize(1440, 1024)
         self.setup_ui()
 
@@ -159,7 +155,7 @@ class ProfileWindow(QMainWindow):
         trainer.setStyleSheet("color:#6C769F;")
         top.addWidget(trainer)
 
-        self.burger = QPushButton("")
+        self.burger = QPushButton(" ")
         self.burger.setIcon(QIcon("burger.png"))
         self.burger.setIconSize(QSize(30, 30))
         self.burger.setFixedSize(55, 55)
@@ -171,6 +167,7 @@ class ProfileWindow(QMainWindow):
                 font-size:24px;
             }
         """)
+        self.burger.clicked.connect(self.show_burger_menu)
         top.addWidget(self.burger)
 
         main_layout.addLayout(top)
@@ -229,6 +226,7 @@ class ProfileWindow(QMainWindow):
             }
         """)
         self.save_button.setFont(QFont("Roboto Flex", 48))
+        self.save_button.clicked.connect(self.on_save)
 
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
@@ -237,9 +235,53 @@ class ProfileWindow(QMainWindow):
 
         main_layout.addLayout(btn_layout)
 
+    def show_burger_menu(self):
+        callbacks = {
+            'home': self.on_go_home,
+            'responses': self.on_go_responses,
+            'profile': self.on_go_profile,
+        }
+        show_burger_menu(self, self.burger, 'trainer', callbacks)
+
+    def on_go_home(self):
+        from trainer_sport_window import TrainerSportsWindow
+        self.home_window = TrainerSportsWindow(trainer_name="Тренер")
+        self.home_window.show()
+        self.close()
+
+    def on_go_responses(self):
+        from responses_window import ResponsesWindow
+        self.responses_window = ResponsesWindow(
+            team_name=None, sport_name="", parent=None, show_all=True
+        )
+        self.responses_window.show()
+        self.hide()
+
+    def on_go_profile(self):
+        pass
+
+    def on_save(self):
+        msg_box = QMessageBox()
+        msg_box.setIcon(QMessageBox.Information)
+        msg_box.setWindowTitle("Сохранено")
+        msg_box.setText("Ваши данные сохранены!")
+        msg_box.setStandardButtons(QMessageBox.Ok)
+        msg_box.exec_()
+
 
 def main():
     app = QApplication(sys.argv)
+
+    app.setStyleSheet("""
+        QMessageBox { background-color: white; }
+        QMessageBox QLabel { color: black; background-color: transparent; }
+        QMessageBox QPushButton {
+            background-color: #6C769F; color: white; border: none;
+            border-radius: 15px; padding: 8px 20px; min-width: 80px;
+            font-family: 'Roboto Flex'; font-size: 14px;
+        }
+        QMessageBox QPushButton:hover { background-color: #5A6385; }
+    """)
 
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))
@@ -248,7 +290,7 @@ def main():
     window = ProfileWindow()
     window.show()
 
-    sys.exit(app.exec_())
+    app.exec_()
 
 
 if __name__ == '__main__':
