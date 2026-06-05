@@ -13,6 +13,7 @@ from responses_window import ResponsesWindow
 from final_team_window import FinalTeamWindow
 from burger_menu import show_burger_menu
 from skill_rating_dialog import SkillsRatingDialog
+from player_contact_dialog import PlayerContactDialog
 
 
 class TeamViewWindow(QMainWindow):
@@ -22,8 +23,8 @@ class TeamViewWindow(QMainWindow):
         self.setWindowTitle(f"SPORTORG - {team_name}")
         self.setFixedSize(1440, 1024)
 
-        # Хранилище навыков и оценок для каждого игрока
-        self.players_data = {}  # {player_name: {"skills": [...], "ratings": {...}}}
+        # Хранилище навыков, оценок и контактов для каждого игрока
+        self.players_data = {}  # {player_name: {"skills": [...], "ratings": {...}, "email": "...", "phone": "..."}}
 
         self.setup_ui()
 
@@ -116,8 +117,7 @@ class TeamViewWindow(QMainWindow):
             }
         """)
 
-        # Обработчики кликов
-        self.table.cellClicked.connect(self.on_cell_clicked)
+        # Обработчик двойного клика
         self.table.cellDoubleClicked.connect(self.on_cell_double_clicked)
 
         main_layout.addWidget(self.table)
@@ -261,13 +261,20 @@ class TeamViewWindow(QMainWindow):
 
             # КАЧЕСТВА
             skills = player.get("skills", [])
-            self.players_data[player_name] = {"skills": skills, "ratings": {}}
+            email = player.get("email", "")
+            phone = player.get("phone", "")
+
+            self.players_data[player_name] = {
+                "skills": skills,
+                "ratings": {},
+                "email": email,
+                "phone": phone
+            }
 
             qualities_item = QTableWidgetItem(self.format_skills_display(skills, {}))
             qualities_item.setFont(QFont("Roboto Flex", 14))
             qualities_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
             qualities_item.setFlags(qualities_item.flags() & ~Qt.ItemIsEditable)
-            qualities_item.setToolTip("Двойной клик для оценки навыков")
             self.table.setItem(row, 2, qualities_item)
 
             # ЗАМЕТКИ
@@ -296,9 +303,8 @@ class TeamViewWindow(QMainWindow):
         if not ratings:
             return None
 
-        # Средний балл = сумма оценок / количество оценённых навыков
         average = sum(ratings.values()) / len(ratings)
-        return round(average, 1)  # Округляем до 1 знака после запятой
+        return round(average, 1)
 
     def update_average_rating(self, row, player_name):
         """Обновляет ячейку 'Балл' для игрока"""
@@ -309,48 +315,48 @@ class TeamViewWindow(QMainWindow):
             if average is not None:
                 percent_item.setText(f"{average}")
             else:
-                percent_item.setText("")  # Если нет оценок — очищаем
-
-    def on_cell_clicked(self, row, column):
-        """Одиночный клик — просто выделяет ячейку"""
-        pass
+                percent_item.setText("")
 
     def on_cell_double_clicked(self, row, column):
-        """Двойной клик на колонке КАЧЕСТВА — открывает меню оценки"""
-        if column != 2:
-            return
-
+        """Обработчик двойного клика"""
         player_name = self.table.item(row, 0).text() if self.table.item(row, 0) else ""
         if not player_name or player_name not in self.players_data:
             return
 
         player_data = self.players_data[player_name]
-        skills = player_data["skills"]
-        ratings = player_data["ratings"]
 
-        if not skills:
-            msg_box = QMessageBox(self)
-            msg_box.setIcon(QMessageBox.Information)
-            msg_box.setWindowTitle("Нет навыков")
-            msg_box.setText(f"У игрока '{player_name}' нет указанных навыков.")
-            msg_box.setStandardButtons(QMessageBox.Ok)
-            msg_box.exec_()
-            return
+        # Если клик на колонке ФИО (0) — показываем контакты
+        if column == 0:
+            email = player_data.get("email", "")
+            phone = player_data.get("phone", "")
 
-        # Открываем диалог оценки
-        dialog = SkillsRatingDialog(player_name, skills, ratings, self)
-        if dialog.exec_() == SkillsRatingDialog.Accepted:
-            # Сохраняем новые оценки
-            new_ratings = dialog.get_ratings()
-            self.players_data[player_name]["ratings"] = new_ratings
+            dialog = PlayerContactDialog(player_name, email, phone, self)
+            dialog.exec_()
 
-            # Обновляем отображение навыков
-            qualities_item = self.table.item(row, 2)
-            if qualities_item:
-                qualities_item.setText(self.format_skills_display(skills, new_ratings))
+        # Если клик на колонке КАЧЕСТВА (2) — открываем оценку навыков
+        elif column == 2:
+            skills = player_data["skills"]
+            ratings = player_data["ratings"]
 
-            # ВАЖНО: Вычисляем и обновляем средний балл
-            self.update_average_rating(row, player_name)
+            if not skills:
+                msg_box = QMessageBox(self)
+                msg_box.setIcon(QMessageBox.Information)
+                msg_box.setWindowTitle("Нет навыков")
+                msg_box.setText(f"У игрока '{player_name}' нет указанных навыков.")
+                msg_box.setStandardButtons(QMessageBox.Ok)
+                msg_box.exec_()
+                return
+
+            dialog = SkillsRatingDialog(player_name, skills, ratings, self)
+            if dialog.exec_() == SkillsRatingDialog.Accepted:
+                new_ratings = dialog.get_ratings()
+                self.players_data[player_name]["ratings"] = new_ratings
+
+                qualities_item = self.table.item(row, 2)
+                if qualities_item:
+                    qualities_item.setText(self.format_skills_display(skills, new_ratings))
+
+                self.update_average_rating(row, player_name)
 
     def on_add_player(self):
         self.responses_window = ResponsesWindow(

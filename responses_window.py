@@ -7,8 +7,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 from registr_window import SupportButton
-from burger_menu import BurgerMenu, show_burger_menu
-from sportOrg import dpi_fix
+from burger_menu import show_burger_menu
 
 
 class ResponsesWindow(QMainWindow):
@@ -87,9 +86,12 @@ class ResponsesWindow(QMainWindow):
             self.table.setColumnCount(4)
             self.table.setHorizontalHeaderLabels(["✓", "ФИО", "Вид спорта", "Навыки"])
 
+        # Демо-данные с email и phone
         all_participants = [
             {
                 "name": "Иванов Иван Петрович", "sport": "Футбол", "team": "Команда 1", "accepted": True,
+                "email": "ivanov@example.com",
+                "phone": "+7 (999) 123-45-67",
                 "skills": ["Скорость", "Дриблинг", "Удар", "Тактическое мышление", "Командная работа"],
                 "response_details": {
                     "experience": "5 лет", "achievements": "Чемпион области 2024",
@@ -99,6 +101,8 @@ class ResponsesWindow(QMainWindow):
             },
             {
                 "name": "Петров Алексей Сергеевич", "sport": "Футбол", "team": "Команда 1", "accepted": False,
+                "email": "petrov@example.com",
+                "phone": "+7 (999) 234-56-78",
                 "skills": ["Выносливость", "Пас", "Позиционная игра", "Дисциплина"],
                 "response_details": {
                     "experience": "2 года", "achievements": "Участник городских соревнований",
@@ -108,6 +112,8 @@ class ResponsesWindow(QMainWindow):
             },
             {
                 "name": "Сидорова Мария Андреевна", "sport": "Баскетбол", "team": "Команда 2", "accepted": True,
+                "email": "sidorova@example.com",
+                "phone": "+7 (999) 345-67-89",
                 "skills": ["Скорость", "Выносливость", "Лидерство", "Мотивация"],
                 "response_details": {
                     "experience": "7 лет", "achievements": "МС по баскетболу",
@@ -117,6 +123,8 @@ class ResponsesWindow(QMainWindow):
             },
             {
                 "name": "Козлов Дмитрий Владимирович", "sport": "Баскетбол", "team": "Команда 2", "accepted": False,
+                "email": "kozlov@example.com",
+                "phone": "+7 (999) 456-78-90",
                 "skills": ["Реакция", "Координация", "Стрессоустойчивость"],
                 "response_details": {
                     "experience": "1 год", "achievements": "Новичок",
@@ -315,7 +323,7 @@ class ResponsesWindow(QMainWindow):
         show_burger_menu(self, self.burger_button, 'trainer', callbacks)
 
     def on_go_home(self):
-        if self.menu:
+        if hasattr(self, 'menu') and self.menu:
             self.menu.close()
         parent = self.parent()
         while parent:
@@ -327,7 +335,7 @@ class ResponsesWindow(QMainWindow):
             parent = parent.parent()
 
     def on_go_responses_all(self):
-        if self.menu:
+        if hasattr(self, 'menu') and self.menu:
             self.menu.close()
         if self.show_all:
             return
@@ -338,7 +346,7 @@ class ResponsesWindow(QMainWindow):
         self.close()
 
     def on_go_profile(self):
-        if self.menu:
+        if hasattr(self, 'menu') and self.menu:
             self.menu.close()
         from data_page_trainer import ProfileWindow
         self.profile_window = ProfileWindow()
@@ -348,7 +356,6 @@ class ResponsesWindow(QMainWindow):
     def on_confirm(self):
         accepted_players = self.get_accepted_players()
 
-        # Если никто не выбран — просто возвращаемся обратно без предупреждения
         if not accepted_players:
             self.close()
             return
@@ -375,13 +382,23 @@ class ResponsesWindow(QMainWindow):
                         player_team = self.team_name
                         player_skills_text = self.table.item(row, 3).text() if self.table.item(row, 3) else ""
 
-                    player_skills = [s.strip() for s in player_skills_text.split(",") if s.strip()] if player_skills_text else []
+                    player_skills = [s.strip() for s in player_skills_text.split(",") if
+                                     s.strip()] if player_skills_text else []
+
+                    # Находим полные данные участника
+                    participant_data = next(
+                        (p for p in [p for p in globals().get('all_participants', []) if p.get('team') == player_team]
+                         if p.get('name') == player_name),
+                        {}
+                    )
 
                     player_data = {
                         "name": player_name,
                         "sport": player_sport,
                         "team": player_team,
-                        "skills": player_skills
+                        "skills": player_skills,
+                        "email": participant_data.get("email", ""),
+                        "phone": participant_data.get("phone", "")
                     }
                     accepted.append(player_data)
         return accepted
@@ -394,7 +411,7 @@ class ResponsesWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-    dpi_fix.apply_dpi_fix(app)
+
     app.setStyleSheet("""
         QMessageBox { background-color: white; }
         QMessageBox QLabel { color: black; background-color: transparent; }

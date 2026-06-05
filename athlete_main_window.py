@@ -2,7 +2,7 @@ import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QLabel, QPushButton, QListWidget,
-    QListWidgetItem, QMessageBox, QScrollArea
+    QListWidgetItem, QMessageBox
 )
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
@@ -14,7 +14,7 @@ class AthleteMainWindow(QMainWindow):
     def __init__(self, athlete_name="ЯРОСЛАВЛЬ", parent=None):
         super().__init__(parent)
         self.athlete_name = athlete_name
-        self.setWindowTitle("SPORTORG - Доступные команды")
+        self.setWindowTitle("SPORTORG - Мои команды")
         self.setFixedSize(1440, 1024)
         self.setup_ui()
 
@@ -60,14 +60,14 @@ class AthleteMainWindow(QMainWindow):
         main_layout.addLayout(top_layout)
         main_layout.addSpacing(30)
 
-        # === Заголовок "Команды" ===
-        list_title = QLabel("Команды")
+        # === Заголовок "Мои команды" ===
+        list_title = QLabel("Мои команды")
         list_title.setFont(QFont("Roboto Flex", 20, QFont.Bold))
         list_title.setAlignment(Qt.AlignLeft)
         list_title.setStyleSheet("color: black; margin-bottom: 10px;")
         main_layout.addWidget(list_title)
 
-        # === Контейнер со списком команд (серый, закруглённый) ===
+        # === Контейнер со списком команд ===
         teams_container = QWidget()
         teams_container.setStyleSheet("""
             QWidget {
@@ -80,7 +80,7 @@ class AthleteMainWindow(QMainWindow):
         teams_container_layout.setContentsMargins(15, 15, 15, 15)
         teams_container_layout.setSpacing(10)
 
-        # Скроллируемый список команд
+        # Скроллируемый список команд (где спортсмен уже принят)
         self.teams_list = QListWidget()
         self.teams_list.setCursor(Qt.PointingHandCursor)
         self.teams_list.setStyleSheet("""
@@ -111,17 +111,13 @@ class AthleteMainWindow(QMainWindow):
             }
         """)
 
-        # Демо-данные команд (только Ярославль)
-        demo_teams = [
-            {"name": "Команда 1", "sport": "Футбол"},
-            {"name": "Команда 2", "sport": "Баскетбол"},
-            {"name": "Команда 3", "sport": "Волейбол"},
-            {"name": "Команда 4", "sport": "Хоккей"},
-            {"name": "Команда 5", "sport": "Теннис"},
+        # Демо-данные: команды, где спортсмен уже принят
+        my_teams = [
+            {"name": "Команда 1", "sport": "Футбол", "status": "Принят"},
+            {"name": "Команда 3", "sport": "Волейбол", "status": "Принят"},
         ]
 
-        for team in demo_teams:
-            # Показываем только название команды и вид спорта
+        for team in my_teams:
             item_text = f"{team['name']} — {team['sport']}"
             item = QListWidgetItem(item_text)
             item.setFont(QFont("Roboto Flex", 20, QFont.StyleItalic))
@@ -168,7 +164,6 @@ class AthleteMainWindow(QMainWindow):
         info_label.setAlignment(Qt.AlignLeft)
         info_label.setStyleSheet("color: gray;")
 
-        # Кнопка поддержки (наушники)
         self.support_button = QPushButton(" ")
         try:
             self.support_button.setIcon(QIcon("headphones.png"))
@@ -198,20 +193,22 @@ class AthleteMainWindow(QMainWindow):
 
     def show_burger_menu(self):
         callbacks = {
-            'home': self.on_go_home,
-            'available_teams': lambda: None,  # Уже на этой странице
+            'home': lambda: None,  # Уже на главной
+            'available_teams': self.on_go_available_teams,
             'my_skills': self.on_go_my_skills,
             'profile': self.on_go_profile,
             'help': self.on_go_help,
         }
         show_burger_menu(self, self.burger_button, 'athlete', callbacks)
 
-    def on_go_home(self):
-        # Уже на главной
-        pass
+    def on_go_available_teams(self):
+        """Переход на окно доступных команд"""
+        from athlete_available_teams import AthleteAvailableTeamsWindow
+        self.available_window = AthleteAvailableTeamsWindow(athlete_name=self.athlete_name)
+        self.available_window.show()
+        self.hide()
 
     def on_go_my_skills(self):
-        # TODO: Открыть окно управления скиллами
         msg_box = QMessageBox(self)
         msg_box.setIcon(QMessageBox.Information)
         msg_box.setWindowTitle("Мои скиллы")
@@ -220,7 +217,6 @@ class AthleteMainWindow(QMainWindow):
         msg_box.exec_()
 
     def on_go_profile(self):
-        # TODO: Открыть профиль спортсмена
         from data_page_sportsmen import ProfileWindow
         self.profile_window = ProfileWindow()
         self.profile_window.show()
@@ -231,69 +227,25 @@ class AthleteMainWindow(QMainWindow):
         self.help_window.show()
 
     def on_apply(self):
-        """Обработка кнопки подачи заявки"""
-        selected_items = self.teams_list.selectedItems()
-
-        if not selected_items:
-            msg_box = QMessageBox(self)
-            msg_box.setIcon(QMessageBox.Warning)
-            msg_box.setWindowTitle("Внимание")
-            msg_box.setText("Выберите команду для подачи заявки!")
-            msg_box.setInformativeText("Кликните по команде в списке, чтобы выбрать её.")
-            msg_box.setStandardButtons(QMessageBox.Ok)
-            msg_box.exec_()
-            return
-
-        # Получаем данные выбранной команды
-        team_data = selected_items[0].data(Qt.UserRole)
-        team_name = team_data.get('name', '')
-
-        msg_box = QMessageBox(self)
-        msg_box.setIcon(QMessageBox.Question)
-        msg_box.setWindowTitle("Подтверждение заявки")
-        msg_box.setText(f"Подать заявку в команду '{team_name}'?")
-        msg_box.setInformativeText("После отправки заявки тренер рассмотрит вашу кандидатуру.")
-        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        msg_box.setDefaultButton(QMessageBox.Yes)
-
-        reply = msg_box.exec_()
-
-        if reply == QMessageBox.Yes:
-            # TODO: Здесь будет логика отправки заявки на сервер
-            success_msg = QMessageBox(self)
-            success_msg.setIcon(QMessageBox.Information)
-            success_msg.setWindowTitle("Заявка отправлена")
-            success_msg.setText(f"Заявка в команду '{team_name}' успешно отправлена!")
-            success_msg.setInformativeText("Тренер получит уведомление и свяжется с вами.")
-            success_msg.setStandardButtons(QMessageBox.Ok)
-            success_msg.exec_()
+        """Открыть окно доступных команд для подачи заявки"""
+        from athlete_available_teams import AthleteAvailableTeamsWindow
+        self.available_window = AthleteAvailableTeamsWindow(athlete_name=self.athlete_name)
+        self.available_window.show()
+        self.hide()
 
 
 def main():
     app = QApplication(sys.argv)
 
-    # Глобальный стиль для QMessageBox
     app.setStyleSheet("""
-        QMessageBox { 
-            background-color: white; 
-        }
-        QMessageBox QLabel { 
-            color: black; 
-            background-color: transparent; 
-        }
+        QMessageBox { background-color: white; }
+        QMessageBox QLabel { color: black; background-color: transparent; }
         QMessageBox QPushButton {
-            background-color: #EF8354; 
-            color: white; 
-            border: none;
-            border-radius: 15px; 
-            padding: 8px 20px; 
-            min-width: 80px;
-            font-family: 'Roboto Flex'; 
-            font-size: 14px;
+            background-color: #EF8354; color: white; border: none;
+            border-radius: 15px; padding: 8px 20px; min-width: 80px;
+            font-family: 'Roboto Flex'; font-size: 14px;
         }
-        QMessageBox QPushButton:hover { 
-            background-color: #D6754B; 
-        }
+        QMessageBox QPushButton:hover { background-color: #D6754B; }
     """)
 
     palette = QPalette()
