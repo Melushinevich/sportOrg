@@ -8,6 +8,7 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont, QPalette, QColor
 
 from registr_window import CustomLineEdit, SupportButton
+from sportOrg import dpi_fix
 
 
 class LoginWindow(QMainWindow):
@@ -201,7 +202,7 @@ class LoginWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-
+    dpi_fix.apply_dpi_fix(app)
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))
     app.setPalette(palette)

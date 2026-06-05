@@ -408,7 +408,7 @@ class RegistrationWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-
+    dpi_fix.apply_dpi_fix(app)
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))
     app.setPalette(palette)

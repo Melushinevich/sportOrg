@@ -8,6 +8,7 @@ from PyQt5.QtCore import Qt, QDate, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 from registr_window import SupportButton
 from burger_menu import show_burger_menu
+from sportOrg import dpi_fix
 
 
 class CustomLineEdit(QLineEdit):
@@ -271,7 +272,7 @@ class ProfileWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-
+    dpi_fix.apply_dpi_fix(app)
     app.setStyleSheet("""
         QMessageBox { background-color: white; }
         QMessageBox QLabel { color: black; background-color: transparent; }

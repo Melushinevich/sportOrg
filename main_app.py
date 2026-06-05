@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import QApplication, QStackedWidget
 from PyQt5.QtGui import QPalette, QColor
 from PyQt5.QtCore import Qt
 
+from sportOrg import dpi_fix
 from start_window import StartWindow
 from registr_window import RegistrationWindow
 from login_window import LoginWindow
@@ -83,7 +84,7 @@ class MainApplication(QStackedWidget):
 
 def main():
     app = QApplication(sys.argv)
-
+    dpi_fix.apply_dpi_fix(app)
     # Устанавливаем белый фон
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))

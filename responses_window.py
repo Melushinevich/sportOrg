@@ -8,6 +8,7 @@ from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 from registr_window import SupportButton
 from burger_menu import BurgerMenu, show_burger_menu
+from sportOrg import dpi_fix
 
 
 class ResponsesWindow(QMainWindow):
@@ -347,13 +348,9 @@ class ResponsesWindow(QMainWindow):
     def on_confirm(self):
         accepted_players = self.get_accepted_players()
 
+        # Если никто не выбран — просто возвращаемся обратно без предупреждения
         if not accepted_players:
-            msg_box = QMessageBox()
-            msg_box.setIcon(QMessageBox.Warning)
-            msg_box.setWindowTitle("Внимание")
-            msg_box.setText("Выберите хотя бы одного участника галочкой для добавления в состав!")
-            msg_box.setStandardButtons(QMessageBox.Ok)
-            msg_box.exec_()
+            self.close()
             return
 
         if self.parent() and hasattr(self.parent(), 'add_players_to_table'):
@@ -397,7 +394,7 @@ class ResponsesWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-
+    dpi_fix.apply_dpi_fix(app)
     app.setStyleSheet("""
         QMessageBox { background-color: white; }
         QMessageBox QLabel { color: black; background-color: transparent; }

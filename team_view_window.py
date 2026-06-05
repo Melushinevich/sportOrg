@@ -1,4 +1,6 @@
 import sys
+import dpi_fix
+
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QLabel, QPushButton, QTableWidget,
@@ -9,7 +11,8 @@ from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 from registr_window import SupportButton
 from responses_window import ResponsesWindow
 from final_team_window import FinalTeamWindow
-from burger_menu import BurgerMenu, show_burger_menu
+from burger_menu import show_burger_menu
+from skill_rating_dialog import SkillsRatingDialog
 
 
 class TeamViewWindow(QMainWindow):
@@ -18,6 +21,10 @@ class TeamViewWindow(QMainWindow):
         self.team_name = team_name
         self.setWindowTitle(f"SPORTORG - {team_name}")
         self.setFixedSize(1440, 1024)
+
+        # Хранилище навыков и оценок для каждого игрока
+        self.players_data = {}  # {player_name: {"skills": [...], "ratings": {...}}}
+
         self.setup_ui()
 
     def setup_ui(self):
@@ -69,10 +76,10 @@ class TeamViewWindow(QMainWindow):
 
         self.table = QTableWidget()
         self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(["ФИО", "%-усп.", "КАЧЕСТВА", "ЗАМЕТКИ"])
+        self.table.setHorizontalHeaderLabels(["ФИО", "Балл", "КАЧЕСТВА", "ЗАМЕТКИ"])
         self.table.setRowCount(0)
 
-        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectItems)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
 
         header = self.table.horizontalHeader()
@@ -108,6 +115,10 @@ class TeamViewWindow(QMainWindow):
                 border-radius: 0px;
             }
         """)
+
+        # Обработчики кликов
+        self.table.cellClicked.connect(self.on_cell_clicked)
+        self.table.cellDoubleClicked.connect(self.on_cell_double_clicked)
 
         main_layout.addWidget(self.table)
         main_layout.addSpacing(30)
@@ -192,7 +203,7 @@ class TeamViewWindow(QMainWindow):
         show_burger_menu(self, self.burger_button, 'trainer', callbacks)
 
     def on_go_home(self):
-        if self.menu:
+        if hasattr(self, 'menu') and self.menu:
             self.menu.close()
         parent = self.parent()
         while parent:
@@ -204,7 +215,7 @@ class TeamViewWindow(QMainWindow):
             parent = parent.parent()
 
     def on_go_responses_all(self):
-        if self.menu:
+        if hasattr(self, 'menu') and self.menu:
             self.menu.close()
         self.all_responses_window = ResponsesWindow(
             team_name=None, sport_name="", parent=None, show_all=True
@@ -213,7 +224,7 @@ class TeamViewWindow(QMainWindow):
         self.hide()
 
     def on_go_profile(self):
-        if self.menu:
+        if hasattr(self, 'menu') and self.menu:
             self.menu.close()
         from data_page_trainer import ProfileWindow
         self.profile_window = ProfileWindow()
@@ -234,29 +245,112 @@ class TeamViewWindow(QMainWindow):
             row = self.table.rowCount()
             self.table.insertRow(row)
 
+            # ФИО
             name_item = QTableWidgetItem(player_name)
             name_item.setFont(QFont("Roboto Flex", 14, QFont.Bold))
             name_item.setTextAlignment(Qt.AlignCenter)
             name_item.setFlags(name_item.flags() & ~Qt.ItemIsEditable)
             self.table.setItem(row, 0, name_item)
 
+            # Балл (пусто, будет заполнен после оценки)
             percent_item = QTableWidgetItem("")
-            percent_item.setFont(QFont("Roboto Flex", 14))
+            percent_item.setFont(QFont("Roboto Flex", 14, QFont.Bold))
             percent_item.setTextAlignment(Qt.AlignCenter)
+            percent_item.setFlags(percent_item.flags() & ~Qt.ItemIsEditable)
             self.table.setItem(row, 1, percent_item)
 
+            # КАЧЕСТВА
             skills = player.get("skills", [])
-            skills_text = ", ".join(skills) if skills else ""
-            qualities_item = QTableWidgetItem(skills_text)
+            self.players_data[player_name] = {"skills": skills, "ratings": {}}
+
+            qualities_item = QTableWidgetItem(self.format_skills_display(skills, {}))
             qualities_item.setFont(QFont("Roboto Flex", 14))
             qualities_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
             qualities_item.setFlags(qualities_item.flags() & ~Qt.ItemIsEditable)
+            qualities_item.setToolTip("Двойной клик для оценки навыков")
             self.table.setItem(row, 2, qualities_item)
 
+            # ЗАМЕТКИ
             notes_item = QTableWidgetItem("")
             notes_item.setFont(QFont("Roboto Flex", 14))
             notes_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
             self.table.setItem(row, 3, notes_item)
+
+    def format_skills_display(self, skills, ratings):
+        if not skills:
+            return ""
+        parts = []
+        for skill in skills:
+            if skill in ratings:
+                parts.append(f"{skill} ({ratings[skill]})")
+            else:
+                parts.append(skill)
+        return ", ".join(parts)
+
+    def calculate_average_rating(self, player_name):
+        """Вычисляет средний балл по всем оценённым навыкам игрока"""
+        if player_name not in self.players_data:
+            return None
+
+        ratings = self.players_data[player_name]["ratings"]
+        if not ratings:
+            return None
+
+        # Средний балл = сумма оценок / количество оценённых навыков
+        average = sum(ratings.values()) / len(ratings)
+        return round(average, 1)  # Округляем до 1 знака после запятой
+
+    def update_average_rating(self, row, player_name):
+        """Обновляет ячейку 'Балл' для игрока"""
+        average = self.calculate_average_rating(player_name)
+
+        percent_item = self.table.item(row, 1)
+        if percent_item:
+            if average is not None:
+                percent_item.setText(f"{average}")
+            else:
+                percent_item.setText("")  # Если нет оценок — очищаем
+
+    def on_cell_clicked(self, row, column):
+        """Одиночный клик — просто выделяет ячейку"""
+        pass
+
+    def on_cell_double_clicked(self, row, column):
+        """Двойной клик на колонке КАЧЕСТВА — открывает меню оценки"""
+        if column != 2:
+            return
+
+        player_name = self.table.item(row, 0).text() if self.table.item(row, 0) else ""
+        if not player_name or player_name not in self.players_data:
+            return
+
+        player_data = self.players_data[player_name]
+        skills = player_data["skills"]
+        ratings = player_data["ratings"]
+
+        if not skills:
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Information)
+            msg_box.setWindowTitle("Нет навыков")
+            msg_box.setText(f"У игрока '{player_name}' нет указанных навыков.")
+            msg_box.setStandardButtons(QMessageBox.Ok)
+            msg_box.exec_()
+            return
+
+        # Открываем диалог оценки
+        dialog = SkillsRatingDialog(player_name, skills, ratings, self)
+        if dialog.exec_() == SkillsRatingDialog.Accepted:
+            # Сохраняем новые оценки
+            new_ratings = dialog.get_ratings()
+            self.players_data[player_name]["ratings"] = new_ratings
+
+            # Обновляем отображение навыков
+            qualities_item = self.table.item(row, 2)
+            if qualities_item:
+                qualities_item.setText(self.format_skills_display(skills, new_ratings))
+
+            # ВАЖНО: Вычисляем и обновляем средний балл
+            self.update_average_rating(row, player_name)
 
     def on_add_player(self):
         self.responses_window = ResponsesWindow(
@@ -269,11 +363,11 @@ class TeamViewWindow(QMainWindow):
         try:
             row = self.table.currentRow()
             if row < 0 or row >= self.table.rowCount():
-                msg_box = QMessageBox()
+                msg_box = QMessageBox(self)
                 msg_box.setIcon(QMessageBox.Warning)
                 msg_box.setWindowTitle("Внимание")
                 msg_box.setText("Выберите участника для удаления!")
-                msg_box.setInformativeText("Кликните по любой ячейке строки спортсмена.")
+                msg_box.setInformativeText("Двойной клик по строке для выделения, затем нажмите 'Удалить'.")
                 msg_box.setStandardButtons(QMessageBox.Ok)
                 msg_box.exec_()
                 return
@@ -288,10 +382,12 @@ class TeamViewWindow(QMainWindow):
             )
 
             if reply == QMessageBox.Yes:
+                if name in self.players_data:
+                    del self.players_data[name]
                 self.table.removeRow(row)
 
         except Exception as e:
-            msg_box = QMessageBox()
+            msg_box = QMessageBox(self)
             msg_box.setIcon(QMessageBox.Critical)
             msg_box.setWindowTitle("Ошибка")
             msg_box.setText(f"Не удалось удалить участника:\n{str(e)}")
@@ -300,7 +396,7 @@ class TeamViewWindow(QMainWindow):
 
     def on_form_team(self):
         if self.table.rowCount() == 0:
-            msg_box = QMessageBox()
+            msg_box = QMessageBox(self)
             msg_box.setIcon(QMessageBox.Warning)
             msg_box.setWindowTitle("Внимание")
             msg_box.setText("Сначала добавьте хотя бы одного участника!")
@@ -314,7 +410,14 @@ class TeamViewWindow(QMainWindow):
             if not name:
                 continue
             notes = self.table.item(row, 3).text() if self.table.item(row, 3) else ""
-            players.append({"name": name, "notes": notes})
+            ratings = self.players_data.get(name, {}).get("ratings", {})
+            average = self.calculate_average_rating(name)
+            players.append({
+                "name": name,
+                "notes": notes,
+                "ratings": ratings,
+                "average": average
+            })
 
         self.final_window = FinalTeamWindow(
             team_name=self.team_name, players=players, parent=self

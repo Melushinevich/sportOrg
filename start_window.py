@@ -8,6 +8,7 @@ from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 
 # Импортируем SupportButton из registr_window
 from registr_window import SupportButton
+from sportOrg import dpi_fix
 
 
 class StartWindow(QMainWindow):
@@ -145,7 +146,7 @@ class StartWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-
+    dpi_fix.apply_dpi_fix(app)
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))
     app.setPalette(palette)

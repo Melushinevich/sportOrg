@@ -12,6 +12,7 @@ MENU_CONFIGS = {
             ('Главная', 'home'),
             ('Отклики спортсменов', 'responses'),
             ('Профиль', 'profile'),
+            ('Справка', 'help'),  # ← Добавлено на постоянной основе
         ],
     },
     'athlete': {
@@ -22,6 +23,7 @@ MENU_CONFIGS = {
             ('Доступные команды', 'available_teams'),
             ('Мои скиллы', 'my_skills'),
             ('Профиль', 'profile'),
+            ('Справка', 'help'),  # ← Добавлено на постоянной основе
         ],
     },
 }
@@ -34,7 +36,6 @@ class BurgerMenu(QFrame):
         self.callbacks = callbacks or {}
         self.config = MENU_CONFIGS.get(user_type, MENU_CONFIGS['trainer'])
 
-        # Включаем авто-заполнение фона
         self.setAutoFillBackground(True)
         palette = self.palette()
         palette.setColor(QPalette.Window, QColor("#F5F5F5"))
@@ -46,7 +47,6 @@ class BurgerMenu(QFrame):
     def setup_ui(self):
         self.setFixedSize(420, 900)
 
-        # Фон через QSS для QFrame
         self.setStyleSheet("""
             QFrame {
                 background-color: #F5F5F5;
@@ -65,7 +65,7 @@ class BurgerMenu(QFrame):
         main_layout.setContentsMargins(30, 20, 30, 20)
         main_layout.setSpacing(0)
 
-        # Шапка: только SPORTORG
+        # Шапка
         header_layout = QHBoxLayout()
 
         title_label = QLabel("SPORTORG")
@@ -108,16 +108,21 @@ class BurgerMenu(QFrame):
                 }
             """)
 
-            callback = self.callbacks.get(action)
-            if callback:
-                button.clicked.connect(self._make_handler(callback))
+            # Обработка клика: если это 'help' — открываем справку,
+            # иначе используем callback из переданного словаря
+            if action == 'help':
+                button.clicked.connect(self._make_help_handler())
+            else:
+                callback = self.callbacks.get(action)
+                if callback:
+                    button.clicked.connect(self._make_handler(callback))
 
             self.menu_buttons.append(button)
             main_layout.addWidget(button)
 
         main_layout.addStretch()
 
-        # Кнопка поддержки с иконкой наушников
+        # Кнопка поддержки
         bottom_layout = QHBoxLayout()
         bottom_layout.addStretch()
 
@@ -158,39 +163,42 @@ class BurgerMenu(QFrame):
         def handler():
             self.hide()
             callback()
+        return handler
 
+    def _make_help_handler(self):
+        """Создаёт обработчик для пункта 'Справка' — открывает HelpWindow"""
+        def handler():
+            self.hide()
+            # Локальный импорт, чтобы избежать циклических зависимостей
+            from help_window import HelpWindow
+            parent_window = self.parent()
+            help_win = HelpWindow(user_type=self.user_type, parent=parent_window)
+            help_win.show()
         return handler
 
 
 def show_burger_menu(window, burger_button, user_type, callbacks):
-    """Показать менюшку внутри окна приложения"""
-    # Всегда создаём новую менюшку для каждого окна
     if not hasattr(window, 'burger_menu') or window.burger_menu is None:
         window.burger_menu = BurgerMenu(
             parent=window,
             user_type=user_type,
             callbacks=callbacks,
         )
-        # Устанавливаем eventFilter на родителя — чтобы меню закрывалось при клике вне
         window.installEventFilter(window.burger_menu)
     else:
-        # Обновляем callbacks и тип пользователя
         window.burger_menu.callbacks = callbacks
         window.burger_menu.user_type = user_type
         window.burger_menu.config = MENU_CONFIGS.get(user_type, MENU_CONFIGS['trainer'])
 
-        # Если менюшка видна — скрываем её (переключатель)
         if window.burger_menu.isVisible():
             window.burger_menu.hide()
             return
 
     btn_pos = burger_button.pos()
 
-    # Менюшка появляется слева от бургер-кнопки
     x = btn_pos.x() - 420 + 20
     y = btn_pos.y() + 60
 
-    # Ограничиваем в пределах родительского окна
     x = max(10, min(x, window.width() - 420 - 10))
     y = max(10, min(y, window.height() - 900 - 10))
 
@@ -199,10 +207,8 @@ def show_burger_menu(window, burger_button, user_type, callbacks):
     window.burger_menu.show()
 
 
-# Перехватчик кликов вне меню — для автозакрытия
 def _outside_click_filter(menu_self, obj, event):
     if event.type() == QEvent.MouseButtonPress:
-        # Проверяем, был ли клик вне менюшки
         pos = event.globalPos()
         if not menu_self.geometry().contains(menu_self.mapFromGlobal(pos)):
             menu_self.hide()
@@ -210,5 +216,4 @@ def _outside_click_filter(menu_self, obj, event):
     return False
 
 
-# Добавляем eventFilter в класс BurgerMenu
 BurgerMenu.eventFilter = lambda self, obj, event: _outside_click_filter(self, obj, event)

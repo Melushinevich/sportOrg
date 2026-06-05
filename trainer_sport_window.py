@@ -14,6 +14,7 @@ from data_page_trainer import ProfileWindow as TrainerProfileWindow
 from burger_menu import show_burger_menu
 
 
+
 class TrainerSportsWindow(QMainWindow):
     sports_added = pyqtSignal(list)
     go_back = pyqtSignal()
@@ -67,7 +68,7 @@ class TrainerSportsWindow(QMainWindow):
         top_layout.addWidget(self.burger_button)
 
         main_layout.addLayout(top_layout)
-        main_layout.addSpacing(50)
+        main_layout.addSpacing(30)
 
         # Заголовок списка
         list_title = QLabel("Команды")
@@ -76,12 +77,12 @@ class TrainerSportsWindow(QMainWindow):
         list_title.setStyleSheet("color: black; margin-bottom: 10px;")
         main_layout.addWidget(list_title)
 
-        # Список команд
+        # Список команд - серый контейнер с белыми карточками
         self.sports_list_widget = QListWidget()
         self.sports_list_widget.setCursor(Qt.PointingHandCursor)
         self.sports_list_widget.setStyleSheet("""
             QListWidget {
-                background-color: #F5F5F5;
+                background-color: #D9D9D9;
                 border: 2px solid #6C769F;
                 border-radius: 20px;
                 font-size: 18px;
@@ -91,15 +92,15 @@ class TrainerSportsWindow(QMainWindow):
                 color: black;
             }
             QListWidget::item {
-                padding: 15px;
-                border-bottom: 1px solid #DDDDDD;
+                background-color: white;
+                padding: 15px 20px;
+                border-radius: 15px;
+                margin: 5px 0;
                 color: black;
-                border-radius: 10px;
-                margin: 2px 0;
+                font-style: italic;
             }
             QListWidget::item:hover {
-                background-color: #D0D4E6;
-                color: black;
+                background-color: #E8E8E8;
             }
             QListWidget::item:selected {
                 background-color: #6C769F;
@@ -109,9 +110,9 @@ class TrainerSportsWindow(QMainWindow):
         self.sports_list_widget.itemDoubleClicked.connect(self.on_item_clicked)
         main_layout.addWidget(self.sports_list_widget)
 
-        # Кнопка ДОБАВИТЬ ВИД
-        self.add_sport_button = QPushButton("ДОБАВИТЬ ВИД")
-        self.add_sport_button.setFixedSize(400, 65)
+        # Кнопка ДОБАВИТЬ КОМАНДУ
+        self.add_sport_button = QPushButton("ДОБАВИТЬ КОМАНДУ")
+        self.add_sport_button.setFixedSize(690, 65)
         self.add_sport_button.setFont(QFont("Roboto Flex", 20))
         self.add_sport_button.setCursor(Qt.PointingHandCursor)
         self.add_sport_button.setStyleSheet("""
@@ -119,7 +120,7 @@ class TrainerSportsWindow(QMainWindow):
                 background-color: #6C769F;
                 color: white;
                 border: none;
-                border-radius: 40px;
+                border-radius: 30px;
                 font-size: 22px;
             }
             QPushButton:hover {
@@ -176,39 +177,50 @@ class TrainerSportsWindow(QMainWindow):
         self.profile_window.show()
         self.hide()
 
-    def add_sport_to_list(self, sport_name, criteria):
-        item_text = f"🏆 {sport_name}"
+    def add_sport_to_list(self, team_name, sport_type, criteria):
+        """Добавить команду в список с отображением вида спорта"""
+        # Формируем текст: название команды слева, вид спорта справа
+        # Используем табуляцию для выравнивания
+        item_text = f"{team_name}\t{sport_type}"
+
         item = QListWidgetItem(item_text)
-        item.setFont(QFont("Roboto Flex", 16))
-        item.setData(Qt.UserRole, {"sport": sport_name, "criteria": criteria})
+        item.setFont(QFont("Roboto Flex", 18, QFont.StyleItalic))
+        item.setData(Qt.UserRole, {
+            "team_name": team_name,
+            "sport_type": sport_type,
+            "criteria": criteria
+        })
+        item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.sports_list_widget.addItem(item)
 
     def on_item_clicked(self, item):
         data = item.data(Qt.UserRole)
         if data:
-            sport_name = data["sport"]
-            self.team_view_window = TeamViewWindow(team_name=sport_name, parent=self)
+            team_name = data["team_name"]
+            self.team_view_window = TeamViewWindow(team_name=team_name, parent=self)
             self.team_view_window.show()
             self.hide()
 
     def on_add_sport(self):
-        existing_sport_names = [item['sport'] for item in self.sports_with_criteria]
-        self.add_window = AddSportCriteriaWindow(existing_sport_names, self)
+        existing_team_names = [item['team_name'] for item in self.sports_with_criteria]
+        self.add_window = AddSportCriteriaWindow(existing_team_names, self)
         self.add_window.sport_saved.connect(self.on_sport_saved)
         self.add_window.show()
         self.hide()
 
-    def on_sport_saved(self, sport, criteria):
+    def on_sport_saved(self, team_name, sport_type, criteria):
+        """Сохранение команды с видом спорта и критериями"""
         self.sports_with_criteria.append({
-            "sport": sport,
+            "team_name": team_name,
+            "sport_type": sport_type,
             "criteria": criteria
         })
-        self.add_sport_to_list(sport, criteria)
+        self.add_sport_to_list(team_name, sport_type, criteria)
 
         msg_box = QMessageBox()
         msg_box.setIcon(QMessageBox.Information)
         msg_box.setWindowTitle("Успех")
-        msg_box.setText(f"Команда '{sport}' добавлена с {len(criteria)} критериями!")
+        msg_box.setText(f"Команда '{team_name}' ({sport_type}) добавлена с {len(criteria)} критериями!")
         msg_box.setStandardButtons(QMessageBox.Ok)
         msg_box.exec_()
 
@@ -217,7 +229,7 @@ class TrainerSportsWindow(QMainWindow):
     def showEvent(self, event):
         super().showEvent(event)
         if hasattr(self, 'add_window') and self.add_window:
-            existing_names = [item['sport'] for item in self.sports_with_criteria]
+            existing_names = [item['team_name'] for item in self.sports_with_criteria]
             self.add_window.update_existing_sports(existing_names)
 
 
