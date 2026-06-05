@@ -5,6 +5,8 @@ HTTP API (JSON): регистрация, логин, скиллы спортсм
   flask run
 
 Переменные: FLASK_SECRET_KEY, LOG_LEVEL, DISABLE_RATE_LIMIT, JWT_SECRET_KEY, PUBLIC_APP_URL.
+PostgreSQL: SPORTORG_DB_HOST (по умолчанию 192.168.1.73), SPORTORG_DB_PORT (5500), SPORTORG_DB_NAME,
+SPORTORG_DB_USER, SPORTORG_DB_PASSWORD — или DATABASE_URL.
 """
 
 import logging
@@ -32,8 +34,20 @@ def configure_logging() -> None:
     logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
 
+def _ensure_postgres_env() -> None:
+    """Параметры PostgreSQL по умолчанию (192.168.1.73:5500), если не заданы в окружении."""
+    if os.environ.get("DATABASE_URL"):
+        return
+    os.environ.setdefault("SPORTORG_DB_HOST", "192.168.1.73")
+    os.environ.setdefault("SPORTORG_DB_PORT", "5500")
+    os.environ.setdefault("SPORTORG_DB_NAME", "postgres")
+    os.environ.setdefault("SPORTORG_DB_USER", "postgres")
+    os.environ.setdefault("SPORTORG_DB_PASSWORD", "12345678")
+
+
 def create_app(testing: bool = False) -> Flask:
     configure_logging()
+    _ensure_postgres_env()
     app = Flask(__name__)
     app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-only-change-me")
     app.config["TESTING"] = testing
@@ -44,6 +58,10 @@ def create_app(testing: bool = False) -> Flask:
     app.register_blueprint(api_bp)
     app.register_blueprint(me_bp)
     app.register_blueprint(teams_bp)
+
+    @app.get("/favicon.ico")
+    def favicon():
+        return "", 204
 
     @app.get("/")
     def index():
@@ -76,6 +94,3 @@ def create_app(testing: bool = False) -> Flask:
         return response
 
     return app
-
-
-app = create_app()

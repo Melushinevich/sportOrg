@@ -3,18 +3,12 @@ import uuid
 
 import pytest
 
-import user_registration.storage as st
-import user_registration.storage_sqlite as sb
+from tests.conftest import _apply_default_db_env
 
 
 @pytest.fixture
-def client(monkeypatch, tmp_path):
-    monkeypatch.delenv("DATABASE_URL", raising=False)
-    monkeypatch.delenv("SPORTORG_DB_HOST", raising=False)
-    monkeypatch.setattr(sb, "DB_FILE", str(tmp_path / "teams_flow.db"))
-    st._sqlite_mod = None
-    st._postgres_mod = None
-
+def client(postgres_db):
+    _apply_default_db_env()
     from app import create_app
 
     return create_app(testing=True).test_client()
@@ -60,7 +54,6 @@ def test_coach_creates_team_and_athlete_applies_and_sees_applications(client):
     coach_token = _login_token(client, email=coach_email)
     athlete_token = _login_token(client, email=athlete_email)
 
-    # coach creates an open team for a sport
     rv_team = client.post(
         "/api/v1/coach/teams",
         headers={"Authorization": f"Bearer {coach_token}"},
@@ -70,7 +63,6 @@ def test_coach_creates_team_and_athlete_applies_and_sees_applications(client):
     assert rv_team.status_code == 201
     team_id = rv_team.get_json()["team_id"]
 
-    # athlete sees available teams and can filter by sport
     rv_list = client.get(
         "/api/v1/available-teams",
         headers={"Authorization": f"Bearer {athlete_token}"},
@@ -87,7 +79,6 @@ def test_coach_creates_team_and_athlete_applies_and_sees_applications(client):
     teams_f = rv_list_filtered.get_json()["teams"]
     assert any(t["team_id"] == team_id for t in teams_f)
 
-    # athlete applies
     rv_apply = client.post(
         f"/api/v1/teams/{team_id}/apply",
         headers={"Authorization": f"Bearer {athlete_token}"},
@@ -95,7 +86,6 @@ def test_coach_creates_team_and_athlete_applies_and_sees_applications(client):
     assert rv_apply.status_code == 201
     assert rv_apply.get_json()["status"] == "pending"
 
-    # athlete sees own applications ("Команды")
     rv_my = client.get(
         "/api/v1/me/applications",
         headers={"Authorization": f"Bearer {athlete_token}"},
@@ -104,11 +94,9 @@ def test_coach_creates_team_and_athlete_applies_and_sees_applications(client):
     apps = rv_my.get_json()["applications"]
     assert any(a["team_id"] == team_id and a["status"] == "pending" for a in apps)
 
-    # second apply -> 409
     rv_apply2 = client.post(
         f"/api/v1/teams/{team_id}/apply",
         headers={"Authorization": f"Bearer {athlete_token}"},
     )
     assert rv_apply2.status_code == 409
     assert rv_apply2.get_json()["code"] == "already_applied"
-

@@ -1,4 +1,6 @@
 .venv/
 .pytest_cache/
+user_registration/users.db
+*.db
 __pycache__/
 *.py[cod]

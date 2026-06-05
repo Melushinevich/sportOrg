@@ -6,7 +6,7 @@ from sportorg.auth.jwt import issue_access_token
 from sportorg.extensions import limiter
 from sportorg.notifications.verification_stub import log_verification_stub
 from user_registration.registration import login_user, register_user
-from user_registration.storage import init_db
+from user_registration.storage import get_db_connection, init_db
 
 log = logging.getLogger("sportorg.api")
 
@@ -20,7 +20,20 @@ def _json_error(message: str, code: str, http_status: int):
 
 @bp.get("/health")
 def health():
-    return jsonify({"status": "ok"})
+    body: dict = {"status": "ok", "storage": "postgres"}
+    try:
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1 AS ok")
+        finally:
+            conn.close()
+        body["db"] = "connected"
+    except Exception as exc:
+        body["status"] = "degraded"
+        body["db"] = "error"
+        body["db_error"] = str(exc)
+    return jsonify(body)
 
 
 @bp.post("/register")

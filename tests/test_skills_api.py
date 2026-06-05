@@ -3,18 +3,12 @@ import uuid
 
 import pytest
 
-import user_registration.storage as st
-import user_registration.storage_sqlite as sb
+from tests.conftest import _apply_default_db_env
 
 
 @pytest.fixture
-def skills_client(monkeypatch, tmp_path):
-    monkeypatch.delenv("DATABASE_URL", raising=False)
-    monkeypatch.delenv("SPORTORG_DB_HOST", raising=False)
-    monkeypatch.setattr(sb, "DB_FILE", str(tmp_path / "skills_users.db"))
-    st._sqlite_mod = None
-    st._postgres_mod = None
-
+def skills_client(postgres_db):
+    _apply_default_db_env()
     from app import create_app
 
     return create_app(testing=True).test_client()
