@@ -78,7 +78,11 @@ def create_app(testing: bool = False) -> Flask:
                     "available_teams": "GET /api/v1/available-teams?sport=... (Bearer, sportsman)",
                     "apply": "POST /api/v1/teams/<team_id>/apply (Bearer, sportsman)",
                     "my_applications": "GET /api/v1/me/applications (Bearer, sportsman)",
-                    "coach_create_team": "POST /api/v1/coach/teams (Bearer, coach)",
+                    "coach_teams": "GET|POST /api/v1/coach/teams (Bearer, coach)",
+                    "coach_team_detail": "GET /api/v1/coach/teams/<id> (Bearer, coach)",
+                    "coach_team_members": "POST|PUT|DELETE /api/v1/coach/teams/<id>/members (Bearer, coach)",
+                    "coach_finalize_roster": "POST /api/v1/coach/teams/<id>/finalize (Bearer, coach)",
+                    "coach_search_sportsmen": "GET /api/v1/coach/sportsmen?search=... (Bearer, coach)",
                 },
             }
         )

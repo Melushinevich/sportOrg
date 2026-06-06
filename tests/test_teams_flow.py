@@ -100,3 +100,108 @@ def test_coach_creates_team_and_athlete_applies_and_sees_applications(client):
     )
     assert rv_apply2.status_code == 409
     assert rv_apply2.get_json()["code"] == "already_applied"
+
+
+def test_coach_teams_list_detail_and_roster(client):
+    coach_email = f"coach2_{uuid.uuid4().hex[:8]}@test.local"
+    athlete_email = f"ath2_{uuid.uuid4().hex[:8]}@test.local"
+
+    _register(client, role="coach", email=coach_email)
+    _register(client, role="sportsman", email=athlete_email)
+
+    coach_token = _login_token(client, email=coach_email)
+    athlete_token = _login_token(client, email=athlete_email)
+
+    rv_create = client.post(
+        "/api/v1/coach/teams",
+        headers={"Authorization": f"Bearer {coach_token}"},
+        data=json.dumps({"sport": "Баскетбол", "team": "Команда 2"}),
+        content_type="application/json",
+    )
+    assert rv_create.status_code == 201
+    team_id = rv_create.get_json()["team_id"]
+
+    rv_list = client.get(
+        "/api/v1/coach/teams",
+        headers={"Authorization": f"Bearer {coach_token}"},
+    )
+    assert rv_list.status_code == 200
+    teams = rv_list.get_json()["teams"]
+    assert any(t["team_id"] == team_id and t["team"] == "Команда 2" and t["sport"] == "Баскетбол" for t in teams)
+
+    rv_login_ath = client.post(
+        "/api/v1/login",
+        data=json.dumps({"email": athlete_email, "password": "secret12"}),
+        content_type="application/json",
+    )
+    athlete_user_id = rv_login_ath.get_json()["user"]["id"]
+
+    rv_skills = client.put(
+        "/api/v1/me/skills",
+        headers={"Authorization": f"Bearer {athlete_token}"},
+        data=json.dumps(
+            {
+                "skills": [
+                    {"name": "Скорость", "rating": 8},
+                    {"name": "Выносливость", "rating": 10},
+                ]
+            }
+        ),
+        content_type="application/json",
+    )
+    assert rv_skills.status_code == 200
+
+    rv_add = client.post(
+        f"/api/v1/coach/teams/{team_id}/members",
+        headers={"Authorization": f"Bearer {coach_token}"},
+        data=json.dumps({"athlete_user_id": athlete_user_id}),
+        content_type="application/json",
+    )
+    assert rv_add.status_code == 201
+    member_id = rv_add.get_json()["member_id"]
+    assert rv_add.get_json()["member"]["full_name"] == "B A"
+    qualities = rv_add.get_json()["member"]["qualities"]
+    assert len(qualities) == 2
+    assert qualities[0]["name"] == "Скорость" and qualities[0]["rating"] == 8
+    assert qualities[1]["name"] == "Выносливость" and qualities[1]["rating"] == 10
+    assert rv_add.get_json()["member"]["score"] == 9.0
+
+    q1, q2 = qualities[0]["quality_id"], qualities[1]["quality_id"]
+    rv_save = client.put(
+        f"/api/v1/coach/teams/{team_id}/members",
+        headers={"Authorization": f"Bearer {coach_token}"},
+        data=json.dumps(
+            {
+                "members": [
+                    {
+                        "member_id": member_id,
+                        "notes": "Стабильно",
+                        "qualities": [
+                            {"quality_id": q1, "rating": 6},
+                            {"quality_id": q2, "rating": 10},
+                        ],
+                    }
+                ]
+            }
+        ),
+        content_type="application/json",
+    )
+    assert rv_save.status_code == 200
+    saved = rv_save.get_json()["members"][0]
+    assert saved["score"] == 8.0
+    assert saved["qualities"][0]["rating"] == 6
+    assert saved["qualities"][1]["rating"] == 10
+    assert saved["notes"] == "Стабильно"
+
+    rv_finalize = client.post(
+        f"/api/v1/coach/teams/{team_id}/finalize",
+        headers={"Authorization": f"Bearer {coach_token}"},
+    )
+    assert rv_finalize.status_code == 200
+    assert rv_finalize.get_json()["is_open"] is False
+
+    rv_avail = client.get(
+        "/api/v1/available-teams",
+        headers={"Authorization": f"Bearer {athlete_token}"},
+    )
+    assert not any(t["team_id"] == team_id for t in rv_avail.get_json()["teams"])
