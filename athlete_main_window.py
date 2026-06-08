@@ -26,7 +26,6 @@ class AthleteMainWindow(QMainWindow):
         main_layout.setContentsMargins(60, 40, 60, 40)
         main_layout.setSpacing(25)
 
-        # === Верхняя панель ===
         top_layout = QHBoxLayout()
 
         title_label = QLabel("SPORTORG")
@@ -60,14 +59,12 @@ class AthleteMainWindow(QMainWindow):
         main_layout.addLayout(top_layout)
         main_layout.addSpacing(30)
 
-        # === Заголовок "Мои команды" ===
         list_title = QLabel("Мои команды")
         list_title.setFont(QFont("Roboto Flex", 20, QFont.Bold))
         list_title.setAlignment(Qt.AlignLeft)
         list_title.setStyleSheet("color: black; margin-bottom: 10px;")
         main_layout.addWidget(list_title)
 
-        # === Контейнер со списком команд ===
         teams_container = QWidget()
         teams_container.setStyleSheet("""
             QWidget {
@@ -80,7 +77,6 @@ class AthleteMainWindow(QMainWindow):
         teams_container_layout.setContentsMargins(15, 15, 15, 15)
         teams_container_layout.setSpacing(10)
 
-        # Скроллируемый список команд (где спортсмен уже принят)
         self.teams_list = QListWidget()
         self.teams_list.setCursor(Qt.PointingHandCursor)
         self.teams_list.setStyleSheet("""
@@ -111,7 +107,6 @@ class AthleteMainWindow(QMainWindow):
             }
         """)
 
-        # Демо-данные: команды, где спортсмен уже принят
         my_teams = [
             {"name": "Команда 1", "sport": "Футбол", "status": "Принят"},
             {"name": "Команда 3", "sport": "Волейбол", "status": "Принят"},
@@ -128,7 +123,6 @@ class AthleteMainWindow(QMainWindow):
         teams_container_layout.addWidget(self.teams_list)
         main_layout.addWidget(teams_container)
 
-        # === Кнопка "ПОДАТЬ ЗАЯВКУ В КОМАНДУ" ===
         self.apply_button = QPushButton("ПОДАТЬ ЗАЯВКУ В КОМАНДУ")
         self.apply_button.setFixedSize(690, 65)
         self.apply_button.setFont(QFont("Roboto Flex", 20))
@@ -155,7 +149,6 @@ class AthleteMainWindow(QMainWindow):
 
         main_layout.addStretch()
 
-        # === Нижняя панель ===
         bottom_layout = QHBoxLayout()
         bottom_layout.setContentsMargins(0, 20, 0, 0)
 
@@ -193,7 +186,7 @@ class AthleteMainWindow(QMainWindow):
 
     def show_burger_menu(self):
         callbacks = {
-            'home': lambda: None,  # Уже на главной
+            'home': lambda: None,
             'available_teams': self.on_go_available_teams,
             'my_skills': self.on_go_my_skills,
             'profile': self.on_go_profile,
@@ -202,19 +195,16 @@ class AthleteMainWindow(QMainWindow):
         show_burger_menu(self, self.burger_button, 'athlete', callbacks)
 
     def on_go_available_teams(self):
-        """Переход на окно доступных команд"""
         from athlete_available_teams import AthleteAvailableTeamsWindow
         self.available_window = AthleteAvailableTeamsWindow(athlete_name=self.athlete_name)
         self.available_window.show()
         self.hide()
 
     def on_go_my_skills(self):
-        msg_box = QMessageBox(self)
-        msg_box.setIcon(QMessageBox.Information)
-        msg_box.setWindowTitle("Мои скиллы")
-        msg_box.setText("Раздел 'Мои скиллы' находится в разработке")
-        msg_box.setStandardButtons(QMessageBox.Ok)
-        msg_box.exec_()
+        from athlete_skills_window import AthleteSkillsWindow
+        self.skills_window = AthleteSkillsWindow(athlete_name=self.athlete_name)
+        self.skills_window.show()
+        self.hide()
 
     def on_go_profile(self):
         from data_page_sportsmen import ProfileWindow
@@ -227,7 +217,6 @@ class AthleteMainWindow(QMainWindow):
         self.help_window.show()
 
     def on_apply(self):
-        """Открыть окно доступных команд для подачи заявки"""
         from athlete_available_teams import AthleteAvailableTeamsWindow
         self.available_window = AthleteAvailableTeamsWindow(athlete_name=self.athlete_name)
         self.available_window.show()

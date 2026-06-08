@@ -26,7 +26,6 @@ class AthleteAvailableTeamsWindow(QMainWindow):
         main_layout.setContentsMargins(60, 40, 60, 40)
         main_layout.setSpacing(25)
 
-        # === Верхняя панель ===
         top_layout = QHBoxLayout()
 
         title_label = QLabel("SPORTORG")
@@ -65,32 +64,28 @@ class AthleteAvailableTeamsWindow(QMainWindow):
         main_layout.addLayout(top_layout)
         main_layout.addSpacing(30)
 
-        # === Заголовок "Доступные команды" ===
         list_title = QLabel("Доступные команды")
         list_title.setFont(QFont("Roboto Flex", 20, QFont.Bold))
         list_title.setAlignment(Qt.AlignLeft)
         list_title.setStyleSheet("color: black; margin-bottom: 10px;")
         main_layout.addWidget(list_title)
 
-        # === Контейнер с таблицей ===
         table_container = QWidget()
         table_container.setStyleSheet("""
             QWidget {
                 background-color: #D9D9D9;
                 border: 2px solid #6C769F;
-                border-radius: 20px;
+                border-radius: 0px;
             }
         """)
         table_container_layout = QVBoxLayout(table_container)
         table_container_layout.setContentsMargins(15, 15, 15, 15)
 
-        # Таблица
         self.table = QTableWidget()
         self.table.setColumnCount(3)
         self.table.setHorizontalHeaderLabels(["Вид спорта", "Команда", "Тренер"])
         self.table.setRowCount(0)
 
-        # Демо-данные
         demo_teams = [
             {"sport": "Футбол", "team": "Команда 1", "trainer": "Иванов И.И."},
             {"sport": "Баскетбол", "team": "Команда 2", "trainer": "Петров П.П."},
@@ -116,7 +111,6 @@ class AthleteAvailableTeamsWindow(QMainWindow):
             trainer_item.setTextAlignment(Qt.AlignCenter)
             self.table.setItem(row, 2, trainer_item)
 
-        # Настройка заголовков
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.Stretch)
         header.setSectionResizeMode(1, QHeaderView.Stretch)
@@ -124,35 +118,41 @@ class AthleteAvailableTeamsWindow(QMainWindow):
 
         self.table.verticalHeader().setDefaultSectionSize(60)
 
-        # Стили таблицы
         self.table.setStyleSheet("""
             QTableWidget {
                 background-color: white;
-                border: none;
-                border-radius: 15px;
+                border: 2px solid #6C769F;
+                border-radius: 0px;
                 font-family: 'Roboto Flex';
                 color: black;
                 selection-background-color: #EF8354;
                 selection-color: white;
+                gridline-color: #B0B0B0;
             }
             QTableWidget::item {
                 padding: 10px;
                 color: black;
+                border: 1px solid #B0B0B0;
             }
             QHeaderView::section {
                 background-color: #C8C8C8;
                 color: black;
                 border: 1px solid #B0B0B0;
-                border-radius: 15px;
+                border-radius: 0px;
                 padding: 12px;
                 font-size: 16px;
                 font-weight: bold;
                 font-family: 'Roboto Flex';
             }
+            QTableCornerButton::section {
+                background-color: #C8C8C8;
+                border: 1px solid #B0B0B0;
+                border-radius: 0px;
+            }
             QScrollBar:vertical {
                 background: #D9D9D9;
                 width: 12px;
-                border-radius: 6px;
+                border-radius: 0px;
             }
             QScrollBar::handle:vertical {
                 background: #EF8354;
@@ -170,7 +170,6 @@ class AthleteAvailableTeamsWindow(QMainWindow):
         table_container_layout.addWidget(self.table)
         main_layout.addWidget(table_container)
 
-        # === Кнопка "ПОДАТЬ ЗАЯВКУ" ===
         self.apply_button = QPushButton("ПОДАТЬ ЗАЯВКУ")
         self.apply_button.setFixedSize(400, 65)
         self.apply_button.setFont(QFont("Roboto Flex", 20))
@@ -197,7 +196,6 @@ class AthleteAvailableTeamsWindow(QMainWindow):
 
         main_layout.addStretch()
 
-        # === Нижняя панель ===
         bottom_layout = QHBoxLayout()
         bottom_layout.setContentsMargins(0, 20, 0, 0)
 
@@ -236,7 +234,7 @@ class AthleteAvailableTeamsWindow(QMainWindow):
     def show_burger_menu(self):
         callbacks = {
             'home': self.on_go_home,
-            'available_teams': lambda: None,  # Уже на этой странице
+            'available_teams': lambda: None,
             'my_skills': self.on_go_my_skills,
             'profile': self.on_go_profile,
             'help': self.on_go_help,
@@ -244,19 +242,16 @@ class AthleteAvailableTeamsWindow(QMainWindow):
         show_burger_menu(self, self.burger_button, 'athlete', callbacks)
 
     def on_go_home(self):
-        """Переход на главную - мои команды"""
         from athlete_main_window import AthleteMainWindow
         self.home_window = AthleteMainWindow(athlete_name=self.athlete_name)
         self.home_window.show()
         self.close()
 
     def on_go_my_skills(self):
-        msg_box = QMessageBox(self)
-        msg_box.setIcon(QMessageBox.Information)
-        msg_box.setWindowTitle("Мои скиллы")
-        msg_box.setText("Раздел 'Мои скиллы' находится в разработке")
-        msg_box.setStandardButtons(QMessageBox.Ok)
-        msg_box.exec_()
+        from athlete_skills_window import AthleteSkillsWindow
+        self.skills_window = AthleteSkillsWindow(athlete_name=self.athlete_name)
+        self.skills_window.show()
+        self.hide()
 
     def on_go_profile(self):
         from data_page_sportsmen import ProfileWindow
@@ -269,7 +264,6 @@ class AthleteAvailableTeamsWindow(QMainWindow):
         self.help_window.show()
 
     def on_apply(self):
-        """Обработка кнопки подачи заявки"""
         selected_items = self.table.selectedItems()
 
         if not selected_items:
@@ -282,7 +276,6 @@ class AthleteAvailableTeamsWindow(QMainWindow):
             msg_box.exec_()
             return
 
-        # Получаем данные выбранной строки
         row = selected_items[0].row()
         sport = self.table.item(row, 0).text()
         team = self.table.item(row, 1).text()

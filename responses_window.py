@@ -17,6 +17,54 @@ class ResponsesWindow(QMainWindow):
         self.sport_name = sport_name
         self.show_all = show_all
 
+        # Демо-данные с email и phone — теперь как атрибут экземпляра
+        self.all_participants = [
+            {
+                "name": "Иванов Иван Петрович", "sport": "Футбол", "team": "Команда 1", "accepted": True,
+                "email": "ivanov@example.com",
+                "phone": "+7 (999) 123-45-67",
+                "skills": ["Скорость", "Дриблинг", "Удар", "Тактическое мышление", "Командная работа"],
+                "response_details": {
+                    "experience": "5 лет", "achievements": "Чемпион области 2024",
+                    "position": "Нападающий", "motivation": "Хочу развиваться в профессиональном спорте",
+                    "availability": "Пн, Ср, Пт 18:00-20:00"
+                }
+            },
+            {
+                "name": "Петров Алексей Сергеевич", "sport": "Футбол", "team": "Команда 1", "accepted": False,
+                "email": "petrov@example.com",
+                "phone": "+7 (999) 234-56-78",
+                "skills": ["Выносливость", "Пас", "Позиционная игра", "Дисциплина"],
+                "response_details": {
+                    "experience": "2 года", "achievements": "Участник городских соревнований",
+                    "position": "Защитник", "motivation": "Люблю командные игры",
+                    "availability": "Вт, Чт 19:00-21:00"
+                }
+            },
+            {
+                "name": "Сидорова Мария Андреевна", "sport": "Баскетбол", "team": "Команда 2", "accepted": True,
+                "email": "sidorova@example.com",
+                "phone": "+7 (999) 345-67-89",
+                "skills": ["Скорость", "Выносливость", "Лидерство", "Мотивация"],
+                "response_details": {
+                    "experience": "7 лет", "achievements": "МС по баскетболу",
+                    "position": "Разыгрывающий", "motivation": "Готовлюсь к профессиональной карьере",
+                    "availability": "Ежедневно 17:00-19:00"
+                }
+            },
+            {
+                "name": "Козлов Дмитрий Владимирович", "sport": "Баскетбол", "team": "Команда 2", "accepted": False,
+                "email": "kozlov@example.com",
+                "phone": "+7 (999) 456-78-90",
+                "skills": ["Реакция", "Координация", "Стрессоустойчивость"],
+                "response_details": {
+                    "experience": "1 год", "achievements": "Новичок",
+                    "position": "Центровой", "motivation": "Хочу научиться играть в команде",
+                    "availability": "Сб, Вс 10:00-12:00"
+                }
+            },
+        ]
+
         title = "Все отклики" if show_all else f"Отклики — {team_name}"
         self.setWindowTitle(f"SPORTORG - {title}")
         self.setFixedSize(1440, 1024)
@@ -86,58 +134,11 @@ class ResponsesWindow(QMainWindow):
             self.table.setColumnCount(4)
             self.table.setHorizontalHeaderLabels(["✓", "ФИО", "Вид спорта", "Навыки"])
 
-        # Демо-данные с email и phone
-        all_participants = [
-            {
-                "name": "Иванов Иван Петрович", "sport": "Футбол", "team": "Команда 1", "accepted": True,
-                "email": "ivanov@example.com",
-                "phone": "+7 (999) 123-45-67",
-                "skills": ["Скорость", "Дриблинг", "Удар", "Тактическое мышление", "Командная работа"],
-                "response_details": {
-                    "experience": "5 лет", "achievements": "Чемпион области 2024",
-                    "position": "Нападающий", "motivation": "Хочу развиваться в профессиональном спорте",
-                    "availability": "Пн, Ср, Пт 18:00-20:00"
-                }
-            },
-            {
-                "name": "Петров Алексей Сергеевич", "sport": "Футбол", "team": "Команда 1", "accepted": False,
-                "email": "petrov@example.com",
-                "phone": "+7 (999) 234-56-78",
-                "skills": ["Выносливость", "Пас", "Позиционная игра", "Дисциплина"],
-                "response_details": {
-                    "experience": "2 года", "achievements": "Участник городских соревнований",
-                    "position": "Защитник", "motivation": "Люблю командные игры",
-                    "availability": "Вт, Чт 19:00-21:00"
-                }
-            },
-            {
-                "name": "Сидорова Мария Андреевна", "sport": "Баскетбол", "team": "Команда 2", "accepted": True,
-                "email": "sidorova@example.com",
-                "phone": "+7 (999) 345-67-89",
-                "skills": ["Скорость", "Выносливость", "Лидерство", "Мотивация"],
-                "response_details": {
-                    "experience": "7 лет", "achievements": "МС по баскетболу",
-                    "position": "Разыгрывающий", "motivation": "Готовлюсь к профессиональной карьере",
-                    "availability": "Ежедневно 17:00-19:00"
-                }
-            },
-            {
-                "name": "Козлов Дмитрий Владимирович", "sport": "Баскетбол", "team": "Команда 2", "accepted": False,
-                "email": "kozlov@example.com",
-                "phone": "+7 (999) 456-78-90",
-                "skills": ["Реакция", "Координация", "Стрессоустойчивость"],
-                "response_details": {
-                    "experience": "1 год", "achievements": "Новичок",
-                    "position": "Центровой", "motivation": "Хочу научиться играть в команде",
-                    "availability": "Сб, Вс 10:00-12:00"
-                }
-            },
-        ]
-
+        # Фильтруем участников
         if self.show_all:
-            participants = all_participants
+            participants = self.all_participants
         else:
-            participants = [p for p in all_participants if p["team"] == self.team_name]
+            participants = [p for p in self.all_participants if p["team"] == self.team_name]
 
         self.table.setRowCount(len(participants))
 
@@ -277,24 +278,24 @@ class ResponsesWindow(QMainWindow):
         main_layout.addWidget(self.table)
         main_layout.addSpacing(30)
 
-        if not self.show_all:
-            confirm_layout = QHBoxLayout()
-            confirm_layout.setAlignment(Qt.AlignCenter)
+        # ИСПРАВЛЕНО: Кнопка "ПОДТВЕРДИТЬ ВЫБОР" теперь всегда отображается
+        confirm_layout = QHBoxLayout()
+        confirm_layout.setAlignment(Qt.AlignCenter)
 
-            self.confirm_button = QPushButton("ПОДТВЕРДИТЬ ВЫБОР")
-            self.confirm_button.setFixedSize(300, 55)
-            self.confirm_button.setFont(QFont("Roboto Flex", 18, QFont.Bold))
-            self.confirm_button.setCursor(Qt.PointingHandCursor)
-            self.confirm_button.setStyleSheet("""
-                QPushButton {
-                    background-color: #6C769F; color: white;
-                    border: none; border-radius: 25px;
-                }
-                QPushButton:hover { background-color: #5A6385; }
-            """)
-            self.confirm_button.clicked.connect(self.on_confirm)
-            confirm_layout.addWidget(self.confirm_button)
-            main_layout.addLayout(confirm_layout)
+        self.confirm_button = QPushButton("ПОДТВЕРДИТЬ ВЫБОР")
+        self.confirm_button.setFixedSize(300, 55)
+        self.confirm_button.setFont(QFont("Roboto Flex", 18, QFont.Bold))
+        self.confirm_button.setCursor(Qt.PointingHandCursor)
+        self.confirm_button.setStyleSheet("""
+            QPushButton {
+                background-color: #6C769F; color: white;
+                border: none; border-radius: 25px;
+            }
+            QPushButton:hover { background-color: #5A6385; }
+        """)
+        self.confirm_button.clicked.connect(self.on_confirm)
+        confirm_layout.addWidget(self.confirm_button)
+        main_layout.addLayout(confirm_layout)
 
         main_layout.addStretch()
 
@@ -360,8 +361,10 @@ class ResponsesWindow(QMainWindow):
             self.close()
             return
 
-        if self.parent() and hasattr(self.parent(), 'add_players_to_table'):
-            self.parent().add_players_to_table(accepted_players)
+        # Если это окно для конкретной команды (show_all=False) — передаем данные родителю
+        if not self.show_all:
+            if self.parent() and hasattr(self.parent(), 'add_players_to_table'):
+                self.parent().add_players_to_table(accepted_players)
 
         self.close()
 
@@ -385,10 +388,10 @@ class ResponsesWindow(QMainWindow):
                     player_skills = [s.strip() for s in player_skills_text.split(",") if
                                      s.strip()] if player_skills_text else []
 
-                    # Находим полные данные участника
+                    # Используем self.all_participants вместо globals()
                     participant_data = next(
-                        (p for p in [p for p in globals().get('all_participants', []) if p.get('team') == player_team]
-                         if p.get('name') == player_name),
+                        (p for p in self.all_participants
+                         if p.get('name') == player_name and p.get('team') == player_team),
                         {}
                     )
 
