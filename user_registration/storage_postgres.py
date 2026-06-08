@@ -155,6 +155,19 @@ def init_db() -> None:
             cur.execute(
                 "CREATE INDEX IF NOT EXISTS idx_tmq_member ON team_member_qualities(team_member_id)"
             )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS team_criteria (
+                    id SERIAL PRIMARY KEY,
+                    team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+                    text VARCHAR(300) NOT NULL DEFAULT '',
+                    sort_order INTEGER NOT NULL DEFAULT 0
+                );
+                """
+            )
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_team_criteria_team ON team_criteria(team_id)"
+            )
         conn.commit()
     finally:
         conn.close()
@@ -372,11 +385,70 @@ def ensure_sport(name: str) -> int:
         conn.close()
 
 
-def create_team(coach_user_id: int, sport_name: str, team_name: str) -> int:
+MAX_TEAM_CRITERIA = 20
+MAX_CRITERION_LEN = 300
+
+
+def _normalize_criteria(criteria: list[Any] | None) -> list[str]:
+    if not criteria:
+        return []
+    if not isinstance(criteria, list):
+        raise ValueError("criteria должен быть массивом строк")
+    if len(criteria) > MAX_TEAM_CRITERIA:
+        raise ValueError(f"Не больше {MAX_TEAM_CRITERIA} критериев")
+    out: list[str] = []
+    for i, item in enumerate(criteria):
+        text = (str(item) if item is not None else "").strip()
+        if not text:
+            raise ValueError(f"criteria[{i}] не может быть пустым")
+        if len(text) > MAX_CRITERION_LEN:
+            raise ValueError(f"criteria[{i}]: не больше {MAX_CRITERION_LEN} символов")
+        out.append(text)
+    return out
+
+
+def _insert_team_criteria(cur, team_id: int, criteria: list[str]) -> None:
+    for i, text in enumerate(criteria):
+        cur.execute(
+            """
+            INSERT INTO team_criteria (team_id, text, sort_order)
+            VALUES (%s, %s, %s)
+            """,
+            (team_id, text, i),
+        )
+
+
+def _fetch_team_criteria(cur, team_id: int) -> list[dict[str, Any]]:
+    cur.execute(
+        """
+        SELECT id AS criterion_id, text, sort_order
+        FROM team_criteria
+        WHERE team_id = %s
+        ORDER BY sort_order ASC, id ASC
+        """,
+        (team_id,),
+    )
+    return [
+        {
+            "criterion_id": int(r["criterion_id"]),
+            "text": r.get("text") or "",
+            "sort_order": int(r["sort_order"]),
+        }
+        for r in cur.fetchall()
+    ]
+
+
+def create_team(
+    coach_user_id: int,
+    sport_name: str,
+    team_name: str,
+    criteria: list[Any] | None = None,
+) -> int:
     sport_id = ensure_sport(sport_name)
     tn = (team_name or "").strip()
     if not tn:
         raise ValueError("Название команды обязательно")
+    crits = _normalize_criteria(criteria)
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
@@ -389,11 +461,55 @@ def create_team(coach_user_id: int, sport_name: str, team_name: str) -> int:
                 (sport_id, tn, coach_user_id),
             )
             row = cur.fetchone()
+            team_id = int(row["id"])
+            _insert_team_criteria(cur, team_id, crits)
         conn.commit()
-        return int(row["id"])
+        return team_id
     except Exception:
         conn.rollback()
         raise
+    finally:
+        conn.close()
+
+
+def get_available_team_detail(team_id: int) -> dict[str, Any] | None:
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    t.id AS team_id,
+                    t.name AS team,
+                    s.name AS sport,
+                    u.id AS coach_id,
+                    p.first_name AS coach_first_name,
+                    p.last_name AS coach_last_name
+                FROM teams t
+                JOIN sports s ON s.id = t.sport_id
+                JOIN users u ON u.id = t.coach_user_id
+                LEFT JOIN profiles p ON p.user_id = u.id
+                WHERE t.id = %s AND t.is_open = TRUE
+                LIMIT 1
+                """,
+                (team_id,),
+            )
+            row = cur.fetchone()
+            if row is None:
+                return None
+            r = dict(row)
+            coach_name = " ".join(
+                x for x in [r.get("coach_last_name") or "", r.get("coach_first_name") or ""] if x
+            ).strip()
+            criteria = _fetch_team_criteria(cur, team_id)
+        return {
+            "team_id": int(r["team_id"]),
+            "sport": r["sport"],
+            "team": r["team"],
+            "coach_id": int(r["coach_id"]),
+            "coach": coach_name or None,
+            "criteria": criteria,
+        }
     finally:
         conn.close()
 
@@ -442,18 +558,21 @@ def list_available_teams(sport_name: str | None = None) -> list[dict[str, Any]]:
             rows = cur.fetchall()
             out: list[dict[str, Any]] = []
             for r in rows:
+                row = dict(r)
                 coach_name = " ".join(
                     x
-                    for x in [r.get("coach_last_name") or "", r.get("coach_first_name") or ""]
+                    for x in [row.get("coach_last_name") or "", row.get("coach_first_name") or ""]
                     if x
                 ).strip()
+                team_id = int(row["team_id"])
                 out.append(
                     {
-                        "team_id": int(r["team_id"]),
-                        "sport": r["sport"],
-                        "team": r["team"],
-                        "coach_id": int(r["coach_id"]),
+                        "team_id": team_id,
+                        "sport": row["sport"],
+                        "team": row["team"],
+                        "coach_id": int(row["coach_id"]),
                         "coach": coach_name or None,
+                        "criteria": _fetch_team_criteria(cur, team_id),
                     }
                 )
             return out
@@ -687,11 +806,13 @@ def get_coach_team_detail(coach_user_id: int, team_id: int) -> dict[str, Any]:
         with conn.cursor() as cur:
             team = _require_coach_team(cur, coach_user_id, team_id)
             members = _fetch_team_members(cur, team_id)
+            criteria = _fetch_team_criteria(cur, team_id)
         return {
             "team_id": int(team["team_id"]),
             "team": team["team"],
             "sport": team["sport"],
             "is_open": bool(team["is_open"]),
+            "criteria": criteria,
             "members": members,
         }
     finally:

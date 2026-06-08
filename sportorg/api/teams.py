@@ -9,6 +9,7 @@ from user_registration.storage import (
     apply_to_team,
     create_team,
     finalize_team_roster,
+    get_available_team_detail,
     get_coach_team_detail,
     init_db,
     list_available_teams,
@@ -58,7 +59,14 @@ def coach_list_teams(user_id: int):
 @require_coach_json
 @limiter.limit("30 per minute")
 def coach_create_team(user_id: int):
-    """Тренер создаёт команду. Тело: { "sport": "Футбол", "team": "Команда 1" }"""
+    """
+    Тренер создаёт команду (анкета: название, вид, критерии).
+    Тело: {
+      "sport": "Футбол",
+      "team": "Команда 1",
+      "criteria": ["Скорость", "Выносливость"]
+    }
+    """
     init_db()
     if not request.is_json:
         return _json_error("Ожидается JSON", "invalid_content_type", 415)
@@ -68,13 +76,19 @@ def coach_create_team(user_id: int):
 
     sport = (data.get("sport") or "").strip()
     team = (data.get("team") or "").strip()
+    criteria = data.get("criteria", [])
     if not sport:
         return _json_error("Поле sport обязательно", "invalid_input", 400)
     if not team:
         return _json_error("Поле team обязательно", "invalid_input", 400)
+    if criteria is None:
+        criteria = []
+    if not isinstance(criteria, list):
+        return _json_error("Поле criteria должно быть массивом строк", "invalid_input", 400)
 
     try:
-        team_id = create_team(user_id, sport, team)
+        team_id = create_team(user_id, sport, team, criteria=criteria)
+        detail = get_coach_team_detail(user_id, team_id)
     except ValueError as exc:
         return _json_error(str(exc), "invalid_input", 400)
     except Exception as exc:  # noqa: BLE001
@@ -82,7 +96,17 @@ def coach_create_team(user_id: int):
         return _json_error(str(exc), "storage_error", 503)
 
     log.info("coach_create_team_ok coach_id=%s team_id=%s", user_id, team_id)
-    return jsonify({"team_id": team_id, "sport": sport, "team": team}), 201
+    return (
+        jsonify(
+            {
+                "team_id": team_id,
+                "sport": sport,
+                "team": team,
+                "criteria": detail.get("criteria", []),
+            }
+        ),
+        201,
+    )
 
 
 @bp.get("/coach/teams/<int:team_id>")
@@ -225,11 +249,25 @@ def coach_finalize_roster(team_id: int, user_id: int):
 @require_sportsman_json
 @limiter.limit("120 per minute")
 def available_teams(user_id: int):
-    """Спортсмен видит открытые команды (заявки тренеров)."""
+    """
+    Страница «Доступные виды»: вид спорта, команда, тренер, критерии.
+    """
     init_db()
     sport = request.args.get("sport")
     rows = list_available_teams(sport_name=sport)
     return jsonify({"teams": rows}), 200
+
+
+@bp.get("/available-teams/<int:team_id>")
+@require_sportsman_json
+@limiter.limit("120 per minute")
+def available_team_detail(team_id: int, user_id: int):
+    """Карточка команды перед откликом: критерии и данные тренера."""
+    init_db()
+    detail = get_available_team_detail(team_id)
+    if detail is None:
+        return _json_error("Команда не найдена или набор закрыт", "not_found", 404)
+    return jsonify(detail), 200
 
 
 @bp.post("/teams/<int:team_id>/apply")

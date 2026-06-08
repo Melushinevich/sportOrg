@@ -57,11 +57,19 @@ def test_coach_creates_team_and_athlete_applies_and_sees_applications(client):
     rv_team = client.post(
         "/api/v1/coach/teams",
         headers={"Authorization": f"Bearer {coach_token}"},
-        data=json.dumps({"sport": "Футбол", "team": "Команда 1"}),
+        data=json.dumps(
+            {
+                "sport": "Футбол",
+                "team": "Команда 1",
+                "criteria": ["Скорость", "Командная игра"],
+            }
+        ),
         content_type="application/json",
     )
     assert rv_team.status_code == 201
-    team_id = rv_team.get_json()["team_id"]
+    body = rv_team.get_json()
+    team_id = body["team_id"]
+    assert len(body["criteria"]) == 2
 
     rv_list = client.get(
         "/api/v1/available-teams",
@@ -69,7 +77,19 @@ def test_coach_creates_team_and_athlete_applies_and_sees_applications(client):
     )
     assert rv_list.status_code == 200
     teams = rv_list.get_json()["teams"]
-    assert any(t["team_id"] == team_id and t["sport"] == "Футбол" for t in teams)
+    row = next(t for t in teams if t["team_id"] == team_id)
+    assert row["sport"] == "Футбол"
+    assert row["team"] == "Команда 1"
+    assert row.get("coach")
+    assert len(row["criteria"]) == 2
+    assert row["criteria"][0]["text"] == "Скорость"
+
+    rv_card = client.get(
+        f"/api/v1/available-teams/{team_id}",
+        headers={"Authorization": f"Bearer {athlete_token}"},
+    )
+    assert rv_card.status_code == 200
+    assert len(rv_card.get_json()["criteria"]) == 2
 
     rv_list_filtered = client.get(
         "/api/v1/available-teams?sport=%D0%A4%D1%83%D1%82%D0%B1%D0%BE%D0%BB",

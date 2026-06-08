@@ -76,6 +76,7 @@ def create_app(testing: bool = False) -> Flask:
                     "login": "POST /api/v1/login",
                     "skills": "GET|POST|PUT /api/v1/me/skills (Bearer, sportsman)",
                     "available_teams": "GET /api/v1/available-teams?sport=... (Bearer, sportsman)",
+                    "available_team_detail": "GET /api/v1/available-teams/<id> (Bearer, sportsman)",
                     "apply": "POST /api/v1/teams/<team_id>/apply (Bearer, sportsman)",
                     "my_applications": "GET /api/v1/me/applications (Bearer, sportsman)",
                     "coach_teams": "GET|POST /api/v1/coach/teams (Bearer, coach)",
