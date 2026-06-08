@@ -31,19 +31,19 @@ class Database:
         with self.get_connection() as conn:
             cursor = conn.cursor()
 
-            # 1. ТАБЛИЦА ПОЛЬЗОВАТЕЛЕЙ
+            # 1. Таблица пользователей
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS users (
                     id SERIAL PRIMARY KEY,
                     email VARCHAR(255) UNIQUE NOT NULL,
                     password_hash VARCHAR(255) NOT NULL,
                     role VARCHAR(50) NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
             print("Таблица 'users' создана")
 
-            # 2. ТАБЛИЦА ПРОФИЛЕЙ
+            # 2. Таблица профилей
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS profiles (
                     id SERIAL PRIMARY KEY,
@@ -54,14 +54,14 @@ class Database:
                     birth_date DATE,
                     phone VARCHAR(20),
                     city VARCHAR(100),
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
                 )
             ''')
             print("Таблица 'profiles' создана")
 
-            # 3. ТАБЛИЦА НАВЫКОВ (справочник)
+            # 3. Таблица навыков (справочник)
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS skills (
                     id SERIAL PRIMARY KEY,
@@ -72,15 +72,15 @@ class Database:
             ''')
             print("Таблица 'skills' создана")
 
-            # 4. ТАБЛИЦА НАВЫКОВ СПОРТСМЕНА
+            # 4. Таблица навыков спортсмена (самооценка)
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS sportsman_skills (
                     id SERIAL PRIMARY KEY,
                     user_id INTEGER NOT NULL,
                     skill_id INTEGER NOT NULL,
                     self_rating INTEGER DEFAULT 5,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
                     FOREIGN KEY (skill_id) REFERENCES skills(id) ON DELETE CASCADE,
                     UNIQUE(user_id, skill_id)
@@ -88,14 +88,14 @@ class Database:
             ''')
             print("Таблица 'sportsman_skills' создана")
 
-            # 5. ТАБЛИЦА ТРЕБОВАНИЙ ТРЕНЕРА
+            # 5. Таблица требований тренера
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS coach_requirements(
                     id SERIAL PRIMARY KEY,
                     user_id INTEGER NOT NULL,
                     skill_id INTEGER NOT NULL,
                     importance INTEGER DEFAULT 5,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
                     FOREIGN KEY (skill_id) REFERENCES skills(id) ON DELETE CASCADE,
                     UNIQUE(user_id, skill_id)
@@ -103,18 +103,18 @@ class Database:
             ''')
             print("Таблица 'coach_requirements' создана")
 
-            # 6. ТАБЛИЦА ВИДОВ СПОРТА (справочник)
+            # 6. Таблица видов спорта (справочник)
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS sports (
                     id SERIAL PRIMARY KEY,
                     name VARCHAR(100) UNIQUE NOT NULL,
                     description TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
             print("Таблица 'sports' создана")
 
-            # 7. ТАБЛИЦА ТРЕБОВАНИЙ К ВИДАМ СПОРТА
+            # 7. Таблица требований к видам спорта
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS sport_requirements (
                     id SERIAL PRIMARY KEY,
@@ -129,17 +129,71 @@ class Database:
             ''')
             print("Таблица 'sport_requirements' создана")
 
-            # БЕЗОПАСНЫЕ ИНДЕКСЫ (только для существующих колонок)
+            # 8. Таблица команд
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS teams (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    coach_id INTEGER NOT NULL,
+                    sport_id INTEGER,
+                    members_count INTEGER NOT NULL,
+                    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (coach_id) REFERENCES users(id) ON DELETE CASCADE,
+                    FOREIGN KEY (sport_id) REFERENCES sports(id) ON DELETE SET NULL
+                )
+            ''')
+            print("Таблица 'teams' создана")
+
+            # 9. Таблица участников команд
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS team_members (
+                    id SERIAL PRIMARY KEY,
+                    team_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    joined_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                    UNIQUE(team_id, user_id)
+                )
+            ''')
+            print("Таблица 'team_members' создана")
+
+            # 10. Таблица оценок тренера
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS coach_assessments (
+                    id SERIAL PRIMARY KEY,
+                    coach_id INTEGER NOT NULL,
+                    sportsman_id INTEGER NOT NULL,
+                    skill_id INTEGER NOT NULL,
+                    rating INTEGER DEFAULT 5,
+                    comment TEXT,
+                    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (coach_id) REFERENCES users(id) ON DELETE CASCADE,
+                    FOREIGN KEY (sportsman_id) REFERENCES users(id) ON DELETE CASCADE,
+                    FOREIGN KEY (skill_id) REFERENCES skills(id) ON DELETE CASCADE,
+                    UNIQUE(coach_id, sportsman_id, skill_id)
+                )
+            ''')
+            print("Таблица 'coach_assessments' создана")
+
+            print("\nВсе 10 таблиц созданы")
+
+            # Индексы
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles(user_id)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_profiles_last_name ON profiles(last_name)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_sportsman_skills_user ON sportsman_skills(user_id)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_coach_requirements_user ON coach_requirements(user_id)')
-
-            # Индексы для новых таблиц (без проверок)
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_sports_name ON sports(name)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_sport_requirements_sport ON sport_requirements(sport_id)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_teams_coach ON teams(coach_id)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_team_members_team ON team_members(team_id)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_team_members_user ON team_members(user_id)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_coach_assessments_coach ON coach_assessments(coach_id)')
+            cursor.execute(
+                'CREATE INDEX IF NOT EXISTS idx_coach_assessments_sportsman ON coach_assessments(sportsman_id)')
 
             print("Индексы созданы")
 
@@ -149,9 +203,6 @@ class Database:
 
     def _insert_skills(self, cursor):
         """Заполнение справочника навыков"""
-
-        # cursor.execute('TRUNCATE TABLE skills RESTART IDENTITY CASCADE')
-
         skills = [
             ('Командность', 'team', 'Умение работать в команде'),
             ('Индивидуальность', 'team', 'Самостоятельность в решениях'),
@@ -187,15 +238,12 @@ class Database:
 
     def _insert_sports(self, cursor):
         """Заполнение справочника видов спорта"""
-
-        # cursor.execute('TRUNCATE TABLE sports RESTART IDENTITY CASCADE')
-
         sports = [
             ('Футбол', 'Командная игра с мячом'),
             ('Баскетбол', 'Командная игра с мячом в кольцо'),
             ('Хоккей', 'Командная игра с шайбой'),
             ('Настольный теннис', 'Индивидуальная игра с ракеткой'),
-            ('Большой теннис ', 'Индивидуальная игра с ракеткой'),
+            ('Большой теннис', 'Индивидуальная игра с ракеткой'),
             ('Биатлон', 'Лыжная гонка с элементами стрельбы'),
             ('Волейбол', 'Командная игра с мячом через сетку'),
             ('Регби', 'Контактная командная игра'),
@@ -203,21 +251,21 @@ class Database:
             ('Лёгкая атлетика (спринт)', 'Бег на короткие дистанции'),
             ('Лёгкая атлетика (стайер)', 'Бег на длинные дистанции'),
             ('Спортивная гимнастика', 'Гимнастические упражнения'),
-            ('Плавание', 'Преодолении вплавь за наименьшее время различных дистанций'),
+            ('Плавание', 'Преодоление дистанций вплавь'),
             ('Велоспорт', 'Велосипедные гонки'),
             ('VR', 'Спорт в виртуальной реальности'),
-            ('Туристическая эстафета', 'Командное прохождение эстафеты с элементами туризма'),
+            ('Туристическая эстафета', 'Командное прохождение эстафеты'),
             ('Взятие города Ж/М', 'Командная игра с кубом и мячом'),
-            ('Русская лапта', 'Командная игра с битой и теннисным мячом'),
-            ('Ярославская лапта', 'Командная игра с лаптиной и теннисным мячом(разновидность лапты)'),
-            ('Тайский футбол', 'Командная игра с элементами футбола через сетку'),
+            ('Русская лапта', 'Командная игра с битой и мячом'),
+            ('Ярославская лапта', 'Разновидность русской лапты'),
+            ('Тайский футбол', 'Футбол с элементами через сетку'),
             ('Бочча', 'Игра на точность'),
             ('Корнхолл', 'Метание мешочков'),
-            ('Бигбол', 'Игра с большим мячом (фитболл) через сетку'),
+            ('Бигбол', 'Игра с большим мячом через сетку'),
             ('Классик', 'Альтернатива керлингу'),
-            ('Ринго', 'Метание резинового кольца через сетку'),
+            ('Ринго', 'Метание резинового кольца'),
             ('Лазертаг', 'Командная игра с лазерным оружием'),
-            ('Дневной дозор', 'Командная игра в виде квеста по городу'),
+            ('Дневной дозор', 'Командная игра-квест по городу'),
             ('Командный интенсив', 'Соревнования на физическую активность'),
         ]
 
@@ -230,7 +278,10 @@ class Database:
 
         print(f"Добавлено видов спорта: {len(sports)}")
 
+    # =========================================================
     # МЕТОДЫ ДЛЯ РАБОТЫ С ПОЛЬЗОВАТЕЛЯМИ
+    # =========================================================
+
     def register_user(self, email, password, last_name, first_name, role='sportsman',
                       patronymic=None, birth_date=None, phone=None, city=None):
         if not email or '@' not in email:
@@ -264,7 +315,7 @@ class Database:
                       birth_date, phone, city))
 
                 role_text = "тренер" if role == 'coach' else "спортсмен"
-                return True, f"{role_text} {last_name} {first_name} успешно зарегистрирован!", user_id
+                return True, f"{role_text} {last_name} {first_name} успешно зарегистрирован", user_id
 
             except psycopg2.IntegrityError as e:
                 if 'email' in str(e):
@@ -395,9 +446,11 @@ class Database:
             ''')
             return [dict(row) for row in cursor.fetchall()]
 
-    # МЕТОДЫ ДЛЯ НАВЫКОВ СПОРТСМЕНА
+    # =========================================================
+    # МЕТОДЫ ДЛЯ НАВЫКОВ СПОРТСМЕНА (самооценка)
+    # =========================================================
+
     def add_sportsman_skill(self, user_id, skill_name, self_rating=5):
-        """Спортсмен выбирает навык и оценивает себя (1-10)"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
 
@@ -419,7 +472,6 @@ class Database:
             return True, f"Навык '{skill_name}' добавлен с оценкой {self_rating}/10"
 
     def get_sportsman_skills(self, user_id):
-        """Получить все навыки спортсмена с его оценками"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -433,7 +485,6 @@ class Database:
             return [dict(row) for row in cursor.fetchall()]
 
     def update_sportsman_skill_rating(self, user_id, skill_name, new_rating):
-        """Спортсмен обновляет свою оценку по навыку"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
 
@@ -457,7 +508,6 @@ class Database:
             return True, f"Оценка по навыку '{skill_name}' обновлена на {new_rating}/10"
 
     def delete_sportsman_skill(self, user_id, skill_name):
-        """Спортсмен удаляет навык из своего профиля"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
 
@@ -477,7 +527,6 @@ class Database:
             return True, f"Навык '{skill_name}' удален"
 
     def get_sportsman_profile_full(self, user_id):
-        """Получить полный профиль спортсмена (личные данные + навыки)"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
 
@@ -507,9 +556,11 @@ class Database:
 
             return result
 
-    #  МЕТОДЫ ДЛЯ ТРЕБОВАНИЙ ТРЕНЕРА
+    # =========================================================
+    # МЕТОДЫ ДЛЯ ТРЕБОВАНИЙ ТРЕНЕРА
+    # =========================================================
+
     def add_coach_requirement(self, user_id, skill_name, importance=5):
-        """Тренер добавляет требование к спортсмену"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
 
@@ -531,7 +582,6 @@ class Database:
             return True, f"Требование '{skill_name}' важность {importance}/10"
 
     def get_coach_requirements(self, user_id):
-        """Получить требования тренера"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -544,7 +594,6 @@ class Database:
             return [dict(row) for row in cursor.fetchall()]
 
     def delete_coach_requirement(self, user_id, skill_name):
-        """Удалить требование тренера"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
 
@@ -560,31 +609,244 @@ class Database:
 
             return True, f"Требование '{skill_name}' удалено"
 
-    def get_all_sports(self):
-        """Получить все виды спорта"""
+    # =========================================================
+    # МЕТОДЫ ДЛЯ ОЦЕНОК ТРЕНЕРА
+    # =========================================================
+
+    def add_coach_assessment(self, coach_id, sportsman_id, skill_name, rating, comment=None):
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute('SELECT * FROM sports ORDER BY name')
+
+            cursor.execute("SELECT role FROM users WHERE id = %s", (coach_id,))
+            user = cursor.fetchone()
+            if not user or user['role'] != 'coach':
+                return False, "Только тренер может оценивать"
+
+            cursor.execute("SELECT id FROM skills WHERE name = %s", (skill_name,))
+            skill = cursor.fetchone()
+            if not skill:
+                return False, f"Навык '{skill_name}' не найден"
+
+            if rating < 1 or rating > 10:
+                return False, "Оценка должна быть от 1 до 10"
+
+            cursor.execute('''
+                INSERT INTO coach_assessments (coach_id, sportsman_id, skill_id, rating, comment)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (coach_id, sportsman_id, skill_id) 
+                DO UPDATE SET rating = %s, comment = %s, updated_at = CURRENT_TIMESTAMP
+            ''', (coach_id, sportsman_id, skill['id'], rating, comment, rating, comment))
+
+            return True, f"Оценка '{skill_name}' = {rating}/10"
+
+    def get_sportsman_assessments(self, sportsman_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT ca.*, s.name as skill_name, 
+                       u.first_name as coach_first_name, u.last_name as coach_last_name
+                FROM coach_assessments ca
+                JOIN skills s ON ca.skill_id = s.id
+                JOIN users u ON ca.coach_id = u.id
+                WHERE ca.sportsman_id = %s
+                ORDER BY ca.created_at DESC
+            ''', (sportsman_id,))
             return [dict(row) for row in cursor.fetchall()]
 
+    def get_coach_assessments(self, coach_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT ca.*, s.name as skill_name,
+                       p.first_name as sportsman_first_name, p.last_name as sportsman_last_name
+                FROM coach_assessments ca
+                JOIN skills s ON ca.skill_id = s.id
+                JOIN profiles p ON ca.sportsman_id = p.user_id
+                WHERE ca.coach_id = %s
+                ORDER BY ca.created_at DESC
+            ''', (coach_id,))
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_average_rating_for_sportsman(self, sportsman_id, skill_name=None):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            if skill_name:
+                cursor.execute('''
+                    SELECT AVG(ca.rating) as avg_rating
+                    FROM coach_assessments ca
+                    JOIN skills s ON ca.skill_id = s.id
+                    WHERE ca.sportsman_id = %s AND s.name = %s
+                ''', (sportsman_id, skill_name))
+                return cursor.fetchone()['avg_rating'] if cursor.fetchone() else None
+            else:
+                cursor.execute('''
+                    SELECT s.name, AVG(ca.rating) as avg_rating
+                    FROM coach_assessments ca
+                    JOIN skills s ON ca.skill_id = s.id
+                    WHERE ca.sportsman_id = %s
+                    GROUP BY s.name
+                    ORDER BY s.name
+                ''', (sportsman_id,))
+                return [dict(row) for row in cursor.fetchall()]
+
+    # =========================================================
     # МЕТОДЫ ДЛЯ СПРАВОЧНИКОВ
+    # =========================================================
+
     def get_all_skills(self):
-        """Получить все навыки из справочника"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT * FROM skills ORDER BY category, name')
             return [dict(row) for row in cursor.fetchall()]
 
     def get_skills_by_category(self, category):
-        """Получить навыки по категории"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT * FROM skills WHERE category = %s ORDER BY name', (category,))
             return [dict(row) for row in cursor.fetchall()]
 
+    def get_all_sports(self):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM sports ORDER BY name')
+            return [dict(row) for row in cursor.fetchall()]
+
+    # =========================================================
+    # МЕТОДЫ ДЛЯ РАБОТЫ С КОМАНДАМИ
+    # =========================================================
+
+    def create_team(self, name, coach_id, sport_id=None):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT role FROM users WHERE id = %s", (coach_id,))
+            user = cursor.fetchone()
+            if not user or user['role'] != 'coach':
+                return False, "Только тренер может создать команду", None
+
+            cursor.execute('''
+                INSERT INTO teams (name, coach_id, sport_id, members_count)
+                VALUES (%s, %s, %s, 1)
+                RETURNING id
+            ''', (name, coach_id, sport_id))
+
+            team_id = cursor.fetchone()['id']
+
+            cursor.execute('''
+                INSERT INTO team_members (team_id, user_id)
+                VALUES (%s, %s)
+            ''', (team_id, coach_id))
+
+            return True, f"Команда '{name}' создана", team_id
+
+    def add_member_to_team(self, team_id, user_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            try:
+                cursor.execute('''
+                    INSERT INTO team_members (team_id, user_id)
+                    VALUES (%s, %s)
+                ''', (team_id, user_id))
+
+                cursor.execute('''
+                    UPDATE teams SET members_count = members_count + 1
+                    WHERE id = %s
+                ''', (team_id,))
+
+                return True, "Игрок добавлен в команду"
+            except Exception as e:
+                return False, f"Ошибка: {e}"
+
+    def remove_member_from_team(self, team_id, user_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            try:
+                cursor.execute('''
+                    DELETE FROM team_members 
+                    WHERE team_id = %s AND user_id = %s
+                ''', (team_id, user_id))
+
+                cursor.execute('''
+                    UPDATE teams SET members_count = members_count - 1
+                    WHERE id = %s
+                ''', (team_id,))
+
+                return True, "Игрок удален из команды"
+            except Exception as e:
+                return False, f"Ошибка: {e}"
+
+    def get_team_members(self, team_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT u.id, u.email, p.first_name, p.last_name, tm.joined_at
+                FROM team_members tm
+                JOIN users u ON tm.user_id = u.id
+                LEFT JOIN profiles p ON u.id = p.user_id
+                WHERE tm.team_id = %s
+                ORDER BY p.last_name
+            ''', (team_id,))
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_team_by_id(self, team_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT t.*, s.name as sport_name,
+                       u.first_name as coach_first_name, u.last_name as coach_last_name
+                FROM teams t
+                LEFT JOIN sports s ON t.sport_id = s.id
+                LEFT JOIN users u ON t.coach_id = u.id
+                WHERE t.id = %s
+            ''', (team_id,))
+            return dict(cursor.fetchone()) if cursor.fetchone() else None
+
+    def get_all_teams(self):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT t.*, s.name as sport_name,
+                       (SELECT COUNT(*) FROM team_members WHERE team_id = t.id) as member_count
+                FROM teams t
+                LEFT JOIN sports s ON t.sport_id = s.id
+                ORDER BY t.created_at DESC
+            ''')
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_coach_teams(self, coach_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT t.*, s.name as sport_name,
+                       (SELECT COUNT(*) FROM team_members WHERE team_id = t.id) as member_count
+                FROM teams t
+                LEFT JOIN sports s ON t.sport_id = s.id
+                WHERE t.coach_id = %s
+                ORDER BY t.created_at DESC
+            ''', (coach_id,))
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_teams_by_sport(self, sport_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT t.*, s.name as sport_name,
+                       (SELECT COUNT(*) FROM team_members WHERE team_id = t.id) as member_count
+                FROM teams t
+                LEFT JOIN sports s ON t.sport_id = s.id
+                WHERE t.sport_id = %s
+                ORDER BY t.created_at DESC
+            ''', (sport_id,))
+            return [dict(row) for row in cursor.fetchall()]
+
+    # =========================================================
     # МЕТОДЫ ДЛЯ ПОИСКА И СООТВЕТСТВИЯ
+    # =========================================================
+
     def find_matching_sportsmen(self, coach_id):
-        """Найти спортсменов, подходящих под требования тренера"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
 
@@ -636,6 +898,10 @@ class Database:
             results.sort(key=lambda x: x['match_percent'], reverse=True)
             return results
 
+    # =========================================================
+    # СТАТИСТИКА
+    # =========================================================
+
     def get_stats(self):
         with self.get_connection() as conn:
             cursor = conn.cursor()
@@ -664,6 +930,15 @@ class Database:
             cursor.execute('SELECT COUNT(*) FROM skills')
             skills_count = cursor.fetchone()['count']
 
+            cursor.execute('SELECT COUNT(*) FROM teams')
+            teams_count = cursor.fetchone()['count']
+
+            cursor.execute('SELECT COUNT(*) FROM team_members')
+            team_members_count = cursor.fetchone()['count']
+
+            cursor.execute('SELECT COUNT(*) FROM coach_assessments')
+            coach_assessments_count = cursor.fetchone()['count']
+
             return {
                 'total_users': total_users,
                 'sportsmen': sportsmen,
@@ -672,13 +947,21 @@ class Database:
                 'skills_assigned': skills_assigned,
                 'coach_requirements': requirements_count,
                 'total_sports': sports_count,
-                'total_skills': skills_count
+                'total_skills': skills_count,
+                'total_teams': teams_count,
+                'total_team_members': team_members_count,
+                'coach_assessments': coach_assessments_count
             }
 
 
 if __name__ == '__main__':
+    print("=" * 50)
+    print("ПОДКЛЮЧЕНИЕ К POSTGRESQL")
+    print("=" * 50)
+
     db = Database()
-    print("\n ИТОГОВАЯ СТАТИСТИКА:")
+
+    print("\nИТОГОВАЯ СТАТИСТИКА:")
     stats = db.get_stats()
     print(f"   Всего пользователей: {stats['total_users']}")
     print(f"   Спортсменов: {stats['sportsmen']}")
@@ -686,5 +969,10 @@ if __name__ == '__main__':
     print(f"   Заполненных профилей: {stats['profiles_completed']}")
     print(f"   Всего навыков в системе: {stats['total_skills']}")
     print(f"   Всего видов спорта: {stats['total_sports']}")
-    print(f"   Назначено навыков: {stats['skills_assigned']}")
+    print(f"   Назначено навыков (самооценка): {stats['skills_assigned']}")
     print(f"   Требований тренеров: {stats['coach_requirements']}")
+    print(f"   Команд: {stats['total_teams']}")
+    print(f"   Участников команд: {stats['total_team_members']}")
+    print(f"   Оценок тренеров: {stats['coach_assessments']}")
+
+    print("\nБаза данных готова к работе")
