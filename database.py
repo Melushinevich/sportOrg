@@ -134,11 +134,11 @@ class Database:
                 CREATE TABLE IF NOT EXISTS teams (
                     id SERIAL PRIMARY KEY,
                     name VARCHAR(100) NOT NULL,
-                    coach_id INTEGER NOT NULL,
+                    coach_user_id INTEGER NOT NULL,
                     sport_id INTEGER,
                     members_count INTEGER NOT NULL,
                     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (coach_id) REFERENCES users(id) ON DELETE CASCADE,
+                    FOREIGN KEY (coach_user_id) REFERENCES users(id) ON DELETE CASCADE,
                     FOREIGN KEY (sport_id) REFERENCES sports(id) ON DELETE SET NULL
                 )
             ''')
@@ -149,11 +149,12 @@ class Database:
                 CREATE TABLE IF NOT EXISTS team_members (
                     id SERIAL PRIMARY KEY,
                     team_id INTEGER NOT NULL,
-                    user_id INTEGER NOT NULL,
+                    athlete_user_id INTEGER NOT NULL,
+                    notes TEXT,
                     joined_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
-                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-                    UNIQUE(team_id, user_id)
+                    FOREIGN KEY (athlete_user_id) REFERENCES users(id) ON DELETE CASCADE,
+                    UNIQUE(team_id, athlete_user_id)
                 )
             ''')
             print("Таблица 'team_members' создана")
@@ -177,7 +178,34 @@ class Database:
             ''')
             print("Таблица 'coach_assessments' создана")
 
-            print("\nВсе 10 таблиц созданы")
+            # 11. Таблица заявок на вступление в команду
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS team_applications (
+                    id SERIAL PRIMARY KEY,
+                    team_id INTEGER NOT NULL,
+                    athlete_user_id INTEGER NOT NULL,
+                    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+                    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
+                    FOREIGN KEY (athlete_user_id) REFERENCES users(id) ON DELETE CASCADE,
+                    UNIQUE(team_id, athlete_user_id)
+                )
+            ''')
+            print("Таблица 'team_applications' создана")
+
+            # 12. Таблица критериев отбора в команду
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS team_criteria (
+                    id SERIAL PRIMARY KEY,
+                    team_id INTEGER NOT NULL,
+                    text VARCHAR(300) NOT NULL DEFAULT '',
+                    sort_order INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
+                )
+            ''')
+            print("Таблица 'team_criteria' создана")
+
+            print("\nВсе 12 таблиц созданы")
 
             # Индексы
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)')
@@ -188,12 +216,16 @@ class Database:
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_coach_requirements_user ON coach_requirements(user_id)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_sports_name ON sports(name)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_sport_requirements_sport ON sport_requirements(sport_id)')
-            cursor.execute('CREATE INDEX IF NOT EXISTS idx_teams_coach ON teams(coach_id)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_teams_coach_user ON teams(coach_user_id)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_teams_sport ON teams(sport_id)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_team_members_team ON team_members(team_id)')
-            cursor.execute('CREATE INDEX IF NOT EXISTS idx_team_members_user ON team_members(user_id)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_team_members_athlete ON team_members(athlete_user_id)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_coach_assessments_coach ON coach_assessments(coach_id)')
-            cursor.execute(
-                'CREATE INDEX IF NOT EXISTS idx_coach_assessments_sportsman ON coach_assessments(sportsman_id)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_coach_assessments_sportsman ON coach_assessments(sportsman_id)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_team_applications_team ON team_applications(team_id)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_team_applications_athlete ON team_applications(athlete_user_id)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_team_applications_status ON team_applications(status)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_team_criteria_team ON team_criteria(team_id)')
 
             print("Индексы созданы")
 
@@ -716,39 +748,39 @@ class Database:
     # МЕТОДЫ ДЛЯ РАБОТЫ С КОМАНДАМИ
     # =========================================================
 
-    def create_team(self, name, coach_id, sport_id=None):
+    def create_team(self, name, coach_user_id, sport_id=None):
         with self.get_connection() as conn:
             cursor = conn.cursor()
 
-            cursor.execute("SELECT role FROM users WHERE id = %s", (coach_id,))
+            cursor.execute("SELECT role FROM users WHERE id = %s", (coach_user_id,))
             user = cursor.fetchone()
             if not user or user['role'] != 'coach':
                 return False, "Только тренер может создать команду", None
 
             cursor.execute('''
-                INSERT INTO teams (name, coach_id, sport_id, members_count)
+                INSERT INTO teams (name, coach_user_id, sport_id, members_count)
                 VALUES (%s, %s, %s, 1)
                 RETURNING id
-            ''', (name, coach_id, sport_id))
+            ''', (name, coach_user_id, sport_id))
 
             team_id = cursor.fetchone()['id']
 
             cursor.execute('''
-                INSERT INTO team_members (team_id, user_id)
+                INSERT INTO team_members (team_id, athlete_user_id)
                 VALUES (%s, %s)
-            ''', (team_id, coach_id))
+            ''', (team_id, coach_user_id))
 
             return True, f"Команда '{name}' создана", team_id
 
-    def add_member_to_team(self, team_id, user_id):
+    def add_member_to_team(self, team_id, athlete_user_id):
         with self.get_connection() as conn:
             cursor = conn.cursor()
 
             try:
                 cursor.execute('''
-                    INSERT INTO team_members (team_id, user_id)
-                    VALUES (%s, %s)
-                ''', (team_id, user_id))
+                    INSERT INTO team_members (team_id, athlete_user_id, notes)
+                    VALUES (%s, %s, NULL)
+                ''', (team_id, athlete_user_id))
 
                 cursor.execute('''
                     UPDATE teams SET members_count = members_count + 1
@@ -759,15 +791,15 @@ class Database:
             except Exception as e:
                 return False, f"Ошибка: {e}"
 
-    def remove_member_from_team(self, team_id, user_id):
+    def remove_member_from_team(self, team_id, athlete_user_id):
         with self.get_connection() as conn:
             cursor = conn.cursor()
 
             try:
                 cursor.execute('''
                     DELETE FROM team_members 
-                    WHERE team_id = %s AND user_id = %s
-                ''', (team_id, user_id))
+                    WHERE team_id = %s AND athlete_user_id = %s
+                ''', (team_id, athlete_user_id))
 
                 cursor.execute('''
                     UPDATE teams SET members_count = members_count - 1
@@ -782,14 +814,24 @@ class Database:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT u.id, u.email, p.first_name, p.last_name, tm.joined_at
+                SELECT u.id, u.email, p.first_name, p.last_name, tm.notes, tm.joined_at
                 FROM team_members tm
-                JOIN users u ON tm.user_id = u.id
+                JOIN users u ON tm.athlete_user_id = u.id
                 LEFT JOIN profiles p ON u.id = p.user_id
                 WHERE tm.team_id = %s
                 ORDER BY p.last_name
             ''', (team_id,))
             return [dict(row) for row in cursor.fetchall()]
+
+    def update_member_notes(self, team_id, athlete_user_id, notes):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE team_members 
+                SET notes = %s
+                WHERE team_id = %s AND athlete_user_id = %s
+            ''', (notes, team_id, athlete_user_id))
+            return True, "Заметки обновлены"
 
     def get_team_by_id(self, team_id):
         with self.get_connection() as conn:
@@ -799,7 +841,7 @@ class Database:
                        u.first_name as coach_first_name, u.last_name as coach_last_name
                 FROM teams t
                 LEFT JOIN sports s ON t.sport_id = s.id
-                LEFT JOIN users u ON t.coach_id = u.id
+                LEFT JOIN users u ON t.coach_user_id = u.id
                 WHERE t.id = %s
             ''', (team_id,))
             return dict(cursor.fetchone()) if cursor.fetchone() else None
@@ -816,7 +858,7 @@ class Database:
             ''')
             return [dict(row) for row in cursor.fetchall()]
 
-    def get_coach_teams(self, coach_id):
+    def get_coach_teams(self, coach_user_id):
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -824,9 +866,9 @@ class Database:
                        (SELECT COUNT(*) FROM team_members WHERE team_id = t.id) as member_count
                 FROM teams t
                 LEFT JOIN sports s ON t.sport_id = s.id
-                WHERE t.coach_id = %s
+                WHERE t.coach_user_id = %s
                 ORDER BY t.created_at DESC
-            ''', (coach_id,))
+            ''', (coach_user_id,))
             return [dict(row) for row in cursor.fetchall()]
 
     def get_teams_by_sport(self, sport_id):
@@ -841,6 +883,106 @@ class Database:
                 ORDER BY t.created_at DESC
             ''', (sport_id,))
             return [dict(row) for row in cursor.fetchall()]
+
+    # =========================================================
+    # МЕТОДЫ ДЛЯ ЗАЯВОК В КОМАНДУ
+    # =========================================================
+
+    def create_application(self, team_id, athlete_user_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT role FROM users WHERE id = %s", (athlete_user_id,))
+            user = cursor.fetchone()
+            if not user or user['role'] != 'sportsman':
+                return False, "Только спортсмен может подать заявку"
+
+            try:
+                cursor.execute('''
+                    INSERT INTO team_applications (team_id, athlete_user_id, status)
+                    VALUES (%s, %s, 'pending')
+                ''', (team_id, athlete_user_id))
+                return True, "Заявка подана"
+            except Exception as e:
+                return False, f"Ошибка: {e}"
+
+    def update_application_status(self, team_id, athlete_user_id, status, coach_user_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT role FROM users WHERE id = %s", (coach_user_id,))
+            user = cursor.fetchone()
+            if not user or user['role'] != 'coach':
+                return False, "Только тренер может менять статус заявки"
+
+            if status not in ['approved', 'rejected']:
+                return False, "Статус должен быть 'approved' или 'rejected'"
+
+            cursor.execute('''
+                UPDATE team_applications 
+                SET status = %s
+                WHERE team_id = %s AND athlete_user_id = %s
+            ''', (status, team_id, athlete_user_id))
+
+            if status == 'approved':
+                self.add_member_to_team(team_id, athlete_user_id)
+
+            return True, f"Заявка {status}"
+
+    def get_team_applications(self, team_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT ta.*, u.email, p.first_name, p.last_name, p.city
+                FROM team_applications ta
+                JOIN users u ON ta.athlete_user_id = u.id
+                LEFT JOIN profiles p ON u.id = p.user_id
+                WHERE ta.team_id = %s
+                ORDER BY ta.created_at DESC
+            ''', (team_id,))
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_user_applications(self, athlete_user_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT ta.*, t.name as team_name
+                FROM team_applications ta
+                JOIN teams t ON ta.team_id = t.id
+                WHERE ta.athlete_user_id = %s
+                ORDER BY ta.created_at DESC
+            ''', (athlete_user_id,))
+            return [dict(row) for row in cursor.fetchall()]
+
+    # =========================================================
+    # МЕТОДЫ ДЛЯ КРИТЕРИЕВ КОМАНДЫ
+    # =========================================================
+
+    def add_team_criterion(self, team_id, text, sort_order=0):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO team_criteria (team_id, text, sort_order)
+                VALUES (%s, %s, %s)
+                RETURNING id
+            ''', (team_id, text, sort_order))
+            return True, "Критерий добавлен", cursor.fetchone()['id']
+
+    def get_team_criteria(self, team_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT * FROM team_criteria
+                WHERE team_id = %s
+                ORDER BY sort_order, id
+            ''', (team_id,))
+            return [dict(row) for row in cursor.fetchall()]
+
+    def delete_team_criterion(self, criterion_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM team_criteria WHERE id = %s', (criterion_id,))
+            return True, "Критерий удален"
 
     # =========================================================
     # МЕТОДЫ ДЛЯ ПОИСКА И СООТВЕТСТВИЯ
@@ -939,6 +1081,12 @@ class Database:
             cursor.execute('SELECT COUNT(*) FROM coach_assessments')
             coach_assessments_count = cursor.fetchone()['count']
 
+            cursor.execute('SELECT COUNT(*) FROM team_applications')
+            team_applications_count = cursor.fetchone()['count']
+
+            cursor.execute('SELECT COUNT(*) FROM team_criteria')
+            team_criteria_count = cursor.fetchone()['count']
+
             return {
                 'total_users': total_users,
                 'sportsmen': sportsmen,
@@ -950,7 +1098,9 @@ class Database:
                 'total_skills': skills_count,
                 'total_teams': teams_count,
                 'total_team_members': team_members_count,
-                'coach_assessments': coach_assessments_count
+                'coach_assessments': coach_assessments_count,
+                'team_applications': team_applications_count,
+                'team_criteria': team_criteria_count
             }
 
 
@@ -974,5 +1124,7 @@ if __name__ == '__main__':
     print(f"   Команд: {stats['total_teams']}")
     print(f"   Участников команд: {stats['total_team_members']}")
     print(f"   Оценок тренеров: {stats['coach_assessments']}")
+    print(f"   Заявок в команды: {stats['team_applications']}")
+    print(f"   Критериев команд: {stats['team_criteria']}")
 
     print("\nБаза данных готова к работе")
