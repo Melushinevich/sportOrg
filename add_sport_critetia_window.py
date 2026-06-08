@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (
     QInputDialog
 )
 from PyQt5.QtCore import Qt, QSize, pyqtSignal
-from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
+from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPixmap
 from registr_window import SupportButton
 from burger_menu import show_burger_menu
 import dpi_fix
@@ -124,10 +124,19 @@ class AddSportCriteriaWindow(QMainWindow):
         trainer_label.setStyleSheet("color: #6C769F;")
         top_layout.addWidget(trainer_label)
 
-        self.burger_button = QPushButton(" ")
-        self.burger_button.setIcon(QIcon("burger.png"))
-        self.burger_button.setIconSize(QSize(30, 30))
+        self.burger_button = QPushButton()
         self.burger_button.setFixedSize(55, 55)
+
+        # Создаём layout для кнопки
+        button_layout = QHBoxLayout(self.burger_button)
+        button_layout.setContentsMargins(0, 0, 0, 0)
+        button_layout.setAlignment(Qt.AlignCenter)
+
+        # Создаём QLabel с иконкой
+        icon_label = QLabel()
+        pixmap = QPixmap("burger.png").scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        icon_label.setPixmap(pixmap)
+        button_layout.addWidget(icon_label)
         self.burger_button.setStyleSheet("""
             QPushButton {
                 background: #6C769F;

@@ -5,13 +5,14 @@ from PyQt5.QtWidgets import (
     QTableWidgetItem, QHeaderView, QMessageBox
 )
 from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
+from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPixmap
 from burger_menu import show_burger_menu
 from help_window import HelpWindow
 
 
 class AthleteAvailableTeamsWindow(QMainWindow):
-    def __init__(self, athlete_name="ЯРОСЛАВЛЬ", parent=None):
+    # ЗАДАЧА 3: "ЯРОСЛАВЛЬ" → "СПОРТСМЕН"
+    def __init__(self, athlete_name="СПОРТСМЕН", parent=None):
         super().__init__(parent)
         self.athlete_name = athlete_name
         self.setWindowTitle("SPORTORG - Доступные команды")
@@ -45,10 +46,19 @@ class AthleteAvailableTeamsWindow(QMainWindow):
         city_label.setStyleSheet("color: black;")
         top_layout.addWidget(city_label)
 
-        self.burger_button = QPushButton(" ")
-        self.burger_button.setIcon(QIcon("burger.png"))
-        self.burger_button.setIconSize(QSize(30, 30))
+        self.burger_button = QPushButton()
         self.burger_button.setFixedSize(55, 55)
+
+        # Создаём layout для кнопки
+        button_layout = QHBoxLayout(self.burger_button)
+        button_layout.setContentsMargins(0, 0, 0, 0)
+        button_layout.setAlignment(Qt.AlignCenter)
+
+        # Создаём QLabel с иконкой
+        icon_label = QLabel()
+        pixmap = QPixmap("burger.png").scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        icon_label.setPixmap(pixmap)
+        button_layout.addWidget(icon_label)
         self.burger_button.setStyleSheet("""
             QPushButton {
                 background: #EF8354;
@@ -196,6 +206,7 @@ class AthleteAvailableTeamsWindow(QMainWindow):
 
         main_layout.addStretch()
 
+        # ЗАДАЧА 4: Убрана кнопка поддержки
         bottom_layout = QHBoxLayout()
         bottom_layout.setContentsMargins(0, 20, 0, 0)
 
@@ -204,30 +215,8 @@ class AthleteAvailableTeamsWindow(QMainWindow):
         info_label.setAlignment(Qt.AlignLeft)
         info_label.setStyleSheet("color: gray;")
 
-        self.support_button = QPushButton(" ")
-        try:
-            self.support_button.setIcon(QIcon("headphones.png"))
-            self.support_button.setIconSize(QSize(35, 35))
-        except Exception:
-            self.support_button.setText("🎧")
-            self.support_button.setFont(QFont("Roboto Flex", 28))
-
-        self.support_button.setFixedSize(65, 65)
-        self.support_button.setCursor(Qt.PointingHandCursor)
-        self.support_button.setStyleSheet("""
-            QPushButton {
-                background-color: #EF8354;
-                border-radius: 32px;
-                border: none;
-            }
-            QPushButton:hover {
-                background-color: #D6754B;
-            }
-        """)
-
         bottom_layout.addWidget(info_label)
         bottom_layout.addStretch()
-        bottom_layout.addWidget(self.support_button)
 
         main_layout.addLayout(bottom_layout)
 
@@ -303,7 +292,6 @@ class AthleteAvailableTeamsWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-
     app.setStyleSheet("""
         QMessageBox { background-color: white; }
         QMessageBox QLabel { color: black; background-color: transparent; }
@@ -319,7 +307,8 @@ def main():
     palette.setColor(QPalette.Window, QColor(255, 255, 255))
     app.setPalette(palette)
 
-    window = AthleteAvailableTeamsWindow(athlete_name="ЯРОСЛАВЛЬ")
+    # ЗАДАЧА 3: "ЯРОСЛАВЛЬ" → "СПОРТСМЕН"
+    window = AthleteAvailableTeamsWindow(athlete_name="СПОРТСМЕН")
     window.show()
 
     app.exec_()

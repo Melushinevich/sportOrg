@@ -2,7 +2,8 @@ from PyQt5.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QApplication
 )
 from PyQt5.QtCore import Qt, QSize, QEvent
-from PyQt5.QtGui import QFont, QIcon, QPalette, QColor
+from PyQt5.QtGui import QFont, QIcon, QPalette, QColor, QPixmap
+import os
 
 MENU_CONFIGS = {
     'trainer': {
@@ -12,7 +13,7 @@ MENU_CONFIGS = {
             ('Главная', 'home'),
             ('Отклики спортсменов', 'responses'),
             ('Профиль', 'profile'),
-            ('Справка', 'help'),  # ← Добавлено на постоянной основе
+            ('Справка', 'help'),
         ],
     },
     'athlete': {
@@ -23,7 +24,7 @@ MENU_CONFIGS = {
             ('Доступные команды', 'available_teams'),
             ('Мои скиллы', 'my_skills'),
             ('Профиль', 'profile'),
-            ('Справка', 'help'),  # ← Добавлено на постоянной основе
+            ('Справка', 'help'),
         ],
     },
 }
@@ -108,8 +109,6 @@ class BurgerMenu(QFrame):
                 }
             """)
 
-            # Обработка клика: если это 'help' — открываем справку,
-            # иначе используем callback из переданного словаря
             if action == 'help':
                 button.clicked.connect(self._make_help_handler())
             else:
@@ -122,27 +121,12 @@ class BurgerMenu(QFrame):
 
         main_layout.addStretch()
 
-        # Кнопка поддержки
+        # Кнопка поддержки — ИКОНКА ПО ЦЕНТРУ через QLabel + QPixmap
         bottom_layout = QHBoxLayout()
         bottom_layout.addStretch()
+        bottom_layout.addSpacing(15)
 
-        self.support_button = QPushButton(" ")
-        icon_loaded = False
-        for icon_path in ["headphones.png", "support.png"]:
-            try:
-                icon = QIcon(icon_path)
-                if not icon.isNull():
-                    self.support_button.setIcon(icon)
-                    self.support_button.setIconSize(QSize(40, 40))
-                    icon_loaded = True
-                    break
-            except Exception:
-                continue
-
-        if not icon_loaded:
-            self.support_button.setText("🎧")
-            self.support_button.setFont(QFont("Roboto Flex", 28))
-
+        self.support_button = QPushButton()
         self.support_button.setFixedSize(65, 65)
         self.support_button.setCursor(Qt.PointingHandCursor)
         self.support_button.setStyleSheet("""
@@ -155,6 +139,34 @@ class BurgerMenu(QFrame):
                 background-color: #D6754B;
             }
         """)
+
+        # Создаём layout для кнопки
+        button_layout = QHBoxLayout(self.support_button)
+        button_layout.setContentsMargins(0, 0, 0, 0)
+        button_layout.setAlignment(Qt.AlignCenter)
+
+        # Ищем файл иконки
+        icon_path = None
+        for path in ["free-icon-support-8016461.png", "support.png", "headphones.png"]:
+            if os.path.exists(path):
+                icon_path = path
+                break
+
+        # Создаём QLabel с иконкой
+        icon_label = QLabel()
+        if icon_path:
+            pixmap = QPixmap(icon_path)
+            # Масштабируем иконку до 30x30
+            pixmap = pixmap.scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            icon_label.setPixmap(pixmap)
+        else:
+            # Fallback на эмодзи
+            icon_label.setText("🎧")
+            icon_label.setFont(QFont("Roboto Flex", 28))
+            icon_label.setStyleSheet("color: white;")
+
+        button_layout.addWidget(icon_label)
+
         bottom_layout.addWidget(self.support_button)
 
         main_layout.addLayout(bottom_layout)
@@ -163,17 +175,17 @@ class BurgerMenu(QFrame):
         def handler():
             self.hide()
             callback()
+
         return handler
 
     def _make_help_handler(self):
-        """Создаёт обработчик для пункта 'Справка' — открывает HelpWindow"""
         def handler():
             self.hide()
-            # Локальный импорт, чтобы избежать циклических зависимостей
             from help_window import HelpWindow
             parent_window = self.parent()
             help_win = HelpWindow(user_type=self.user_type, parent=parent_window)
             help_win.show()
+
         return handler
 
 

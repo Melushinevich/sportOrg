@@ -1,14 +1,12 @@
 import sys
 import dpi_fix
-
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QLabel, QPushButton, QTableWidget,
     QTableWidgetItem, QHeaderView, QMessageBox, QAbstractItemView
 )
 from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
-from registr_window import SupportButton
+from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPixmap
 from responses_window import ResponsesWindow
 from final_team_window import FinalTeamWindow
 from burger_menu import show_burger_menu
@@ -22,10 +20,7 @@ class TeamViewWindow(QMainWindow):
         self.team_name = team_name
         self.setWindowTitle(f"SPORTORG - {team_name}")
         self.setFixedSize(1440, 1024)
-
-        # Хранилище навыков, оценок и контактов для каждого игрока
-        self.players_data = {}  # {player_name: {"skills": [...], "ratings": {...}, "email": "...", "phone": "..."}}
-
+        self.players_data = {}
         self.setup_ui()
 
     def setup_ui(self):
@@ -58,10 +53,19 @@ class TeamViewWindow(QMainWindow):
         trainer_label.setStyleSheet("color: #6C769F;")
         top_layout.addWidget(trainer_label)
 
-        self.burger_button = QPushButton(" ")
-        self.burger_button.setIcon(QIcon("burger.png"))
-        self.burger_button.setIconSize(QSize(30, 30))
+        self.burger_button = QPushButton()
         self.burger_button.setFixedSize(55, 55)
+
+        # Создаём layout для кнопки
+        button_layout = QHBoxLayout(self.burger_button)
+        button_layout.setContentsMargins(0, 0, 0, 0)
+        button_layout.setAlignment(Qt.AlignCenter)
+
+        # Создаём QLabel с иконкой
+        icon_label = QLabel()
+        pixmap = QPixmap("burger.png").scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        icon_label.setPixmap(pixmap)
+        button_layout.addWidget(icon_label)
         self.burger_button.setStyleSheet("""
             QPushButton{
                 background:#6C769F;
@@ -117,7 +121,6 @@ class TeamViewWindow(QMainWindow):
             }
         """)
 
-        # Обработчик двойного клика
         self.table.cellDoubleClicked.connect(self.on_cell_double_clicked)
 
         main_layout.addWidget(self.table)
@@ -178,6 +181,7 @@ class TeamViewWindow(QMainWindow):
         main_layout.addLayout(btn_layout)
         main_layout.addStretch()
 
+        # Нижняя панель — только копирайт (кнопка поддержки убрана)
         bottom_layout = QHBoxLayout()
         bottom_layout.setContentsMargins(0, 20, 0, 0)
 
@@ -186,11 +190,8 @@ class TeamViewWindow(QMainWindow):
         info_label.setAlignment(Qt.AlignLeft)
         info_label.setStyleSheet("color: gray;")
 
-        self.support_button = SupportButton()
-
         bottom_layout.addWidget(info_label)
         bottom_layout.addStretch()
-        bottom_layout.addWidget(self.support_button)
 
         main_layout.addLayout(bottom_layout)
 
@@ -245,21 +246,18 @@ class TeamViewWindow(QMainWindow):
             row = self.table.rowCount()
             self.table.insertRow(row)
 
-            # ФИО
             name_item = QTableWidgetItem(player_name)
             name_item.setFont(QFont("Roboto Flex", 14, QFont.Bold))
             name_item.setTextAlignment(Qt.AlignCenter)
             name_item.setFlags(name_item.flags() & ~Qt.ItemIsEditable)
             self.table.setItem(row, 0, name_item)
 
-            # Балл (пусто, будет заполнен после оценки)
             percent_item = QTableWidgetItem("")
             percent_item.setFont(QFont("Roboto Flex", 14, QFont.Bold))
             percent_item.setTextAlignment(Qt.AlignCenter)
             percent_item.setFlags(percent_item.flags() & ~Qt.ItemIsEditable)
             self.table.setItem(row, 1, percent_item)
 
-            # КАЧЕСТВА
             skills = player.get("skills", [])
             email = player.get("email", "")
             phone = player.get("phone", "")
@@ -277,7 +275,6 @@ class TeamViewWindow(QMainWindow):
             qualities_item.setFlags(qualities_item.flags() & ~Qt.ItemIsEditable)
             self.table.setItem(row, 2, qualities_item)
 
-            # ЗАМЕТКИ
             notes_item = QTableWidgetItem("")
             notes_item.setFont(QFont("Roboto Flex", 14))
             notes_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
@@ -295,21 +292,16 @@ class TeamViewWindow(QMainWindow):
         return ", ".join(parts)
 
     def calculate_average_rating(self, player_name):
-        """Вычисляет средний балл по всем оценённым навыкам игрока"""
         if player_name not in self.players_data:
             return None
-
         ratings = self.players_data[player_name]["ratings"]
         if not ratings:
             return None
-
         average = sum(ratings.values()) / len(ratings)
         return round(average, 1)
 
     def update_average_rating(self, row, player_name):
-        """Обновляет ячейку 'Балл' для игрока"""
         average = self.calculate_average_rating(player_name)
-
         percent_item = self.table.item(row, 1)
         if percent_item:
             if average is not None:
@@ -318,22 +310,18 @@ class TeamViewWindow(QMainWindow):
                 percent_item.setText("")
 
     def on_cell_double_clicked(self, row, column):
-        """Обработчик двойного клика"""
         player_name = self.table.item(row, 0).text() if self.table.item(row, 0) else ""
         if not player_name or player_name not in self.players_data:
             return
 
         player_data = self.players_data[player_name]
 
-        # Если клик на колонке ФИО (0) — показываем контакты
         if column == 0:
             email = player_data.get("email", "")
             phone = player_data.get("phone", "")
-
             dialog = PlayerContactDialog(player_name, email, phone, self)
             dialog.exec_()
 
-        # Если клик на колонке КАЧЕСТВА (2) — открываем оценку навыков
         elif column == 2:
             skills = player_data["skills"]
             ratings = player_data["ratings"]
@@ -439,7 +427,6 @@ class TeamViewWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-
     app.setStyleSheet("""
         QMessageBox { background-color: white; }
         QMessageBox QLabel { color: black; background-color: transparent; }

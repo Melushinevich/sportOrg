@@ -2,23 +2,19 @@ import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QLabel, QLineEdit, QPushButton,
-    QComboBox, QDateEdit, QMessageBox
+    QComboBox, QMessageBox
 )
-from PyQt5.QtCore import Qt, QDate, QSize
-from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
-from registr_window import SupportButton
+from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPixmap
 from burger_menu import show_burger_menu
-from sportOrg import dpi_fix
+from help_window import HelpWindow
 
 
 class CustomLineEdit(QLineEdit):
     def __init__(self, placeholder_text="", is_phone=False):
         super().__init__()
-        self.placeholder_text = placeholder_text
-        self.is_placeholder_active = True
-        self.setText(placeholder_text)
         self.setAlignment(Qt.AlignCenter)
-
+        self.setPlaceholderText(placeholder_text)
         self.setStyleSheet("""
             QLineEdit{
                 background:#D9D9D9;
@@ -28,31 +24,20 @@ class CustomLineEdit(QLineEdit):
                 color: black;
                 min-height:70px;
             }
+            QLineEdit::placeholder {
+                color: #555555;
+            }
         """)
 
-        self.focusInEvent = self.on_focus_in
-        self.focusOutEvent = self.on_focus_out
-
-    def on_focus_in(self, event):
-        if self.is_placeholder_active:
-            self.clear()
-            self.is_placeholder_active = False
-        super().focusInEvent(event)
-
-    def on_focus_out(self, event):
-        if not self.text():
-            self.setText(self.placeholder_text)
-            self.is_placeholder_active = True
-        super().focusOutEvent(event)
-
     def get_real_text(self):
-        return "" if self.is_placeholder_active else self.text()
+        return self.text().strip()
 
 
 class CustomComboBox(QComboBox):
     def __init__(self, placeholder="", items=None):
+        if items is None:
+            items = []
         super().__init__()
-        items = items or []
         self.addItems(items)
         self.setEditable(True)
 
@@ -99,34 +84,6 @@ class CustomComboBox(QComboBox):
         super().resizeEvent(event)
 
 
-class CustomDateEdit(QDateEdit):
-    def __init__(self):
-        super().__init__()
-        self.setDate(QDate.currentDate())
-        self.setDisplayFormat("dd.MM.yyyy")
-        self.setCalendarPopup(True)
-        self.lineEdit().setAlignment(Qt.AlignCenter)
-
-        self.setStyleSheet("""
-            QDateEdit{
-                background:#D9D9D9;
-                border:2px solid black;
-                border-radius:30px;
-                font-size:25px;
-                color: black;
-                min-height:70px;
-            }
-            QDateEdit::drop-down{
-                border:none;
-                width:0px;
-            }
-        """)
-
-    def mousePressEvent(self, event):
-        self.showCalendarPopup()
-        super().mousePressEvent(event)
-
-
 class ProfileWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -156,10 +113,19 @@ class ProfileWindow(QMainWindow):
         trainer.setStyleSheet("color:#6C769F;")
         top.addWidget(trainer)
 
-        self.burger = QPushButton(" ")
-        self.burger.setIcon(QIcon("burger.png"))
-        self.burger.setIconSize(QSize(30, 30))
-        self.burger.setFixedSize(55, 55)
+        self.burger_button = QPushButton()
+        self.burger_button.setFixedSize(55, 55)
+
+        # Создаём layout для кнопки
+        button_layout = QHBoxLayout(self.burger_button)
+        button_layout.setContentsMargins(0, 0, 0, 0)
+        button_layout.setAlignment(Qt.AlignCenter)
+
+        # Создаём QLabel с иконкой
+        icon_label = QLabel()
+        pixmap = QPixmap("burger.png").scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        icon_label.setPixmap(pixmap)
+        button_layout.addWidget(icon_label)
         self.burger.setStyleSheet("""
             QPushButton{
                 background:#6C769F;
@@ -185,16 +151,17 @@ class ProfileWindow(QMainWindow):
         main_layout.addWidget(welcome)
 
         self.fio_input = CustomLineEdit("Фамилия Имя Отчество")
-        self.fio_input.setFont(QFont("Roboto Flex", 96, QFont.Thin))
+        self.fio_input.setFont(QFont("Roboto Flex", 25))
         main_layout.addWidget(self.fio_input)
 
         row2 = QHBoxLayout()
 
-        self.birth_date = CustomDateEdit()
-        self.birth_date.setFont(QFont("Roboto Flex", 96, QFont.Thin))
+        # ЗАДАЧА 1: Замена CustomDateEdit на CustomLineEdit("Дата рождения")
+        self.birth_date = CustomLineEdit("Дата рождения")
+        self.birth_date.setFont(QFont("Roboto Flex", 25))
 
         self.gender_combo = CustomComboBox("Пол", ["Мужской", "Женский"])
-        self.gender_combo.setFont(QFont("Roboto Flex", 96, QFont.Thin))
+        self.gender_combo.setFont(QFont("Roboto Flex", 28, QFont.Thin))
 
         row2.addWidget(self.birth_date)
         row2.addWidget(self.gender_combo)
@@ -206,8 +173,8 @@ class ProfileWindow(QMainWindow):
         self.city_input = CustomLineEdit("Город проживания")
         self.phone_input = CustomLineEdit("Номер телефона")
 
-        self.city_input.setFont(QFont("Roboto Flex", 96, QFont.Thin))
-        self.phone_input.setFont(QFont("Roboto Flex", 96, QFont.Thin))
+        self.city_input.setFont(QFont("Roboto Flex", 25))
+        self.phone_input.setFont(QFont("Roboto Flex", 25))
 
         row3.addWidget(self.city_input)
         row3.addWidget(self.phone_input)
@@ -236,11 +203,26 @@ class ProfileWindow(QMainWindow):
 
         main_layout.addLayout(btn_layout)
 
+        # ЗАДАЧА 4: Убрана кнопка поддержки
+        bottom_layout = QHBoxLayout()
+        bottom_layout.setContentsMargins(0, 20, 0, 0)
+
+        info_label = QLabel("© 2026 SPORTORG | Все права защищены")
+        info_label.setFont(QFont("Roboto Flex", 10))
+        info_label.setAlignment(Qt.AlignLeft)
+        info_label.setStyleSheet("color: gray;")
+
+        bottom_layout.addWidget(info_label)
+        bottom_layout.addStretch()
+
+        main_layout.addLayout(bottom_layout)
+
     def show_burger_menu(self):
         callbacks = {
             'home': self.on_go_home,
             'responses': self.on_go_responses,
-            'profile': self.on_go_profile,
+            'profile': lambda: None,
+            'help': self.on_go_help,
         }
         show_burger_menu(self, self.burger, 'trainer', callbacks)
 
@@ -258,11 +240,12 @@ class ProfileWindow(QMainWindow):
         self.responses_window.show()
         self.hide()
 
-    def on_go_profile(self):
-        pass
+    def on_go_help(self):
+        self.help_window = HelpWindow(user_type='trainer', parent=self)
+        self.help_window.show()
 
     def on_save(self):
-        msg_box = QMessageBox()
+        msg_box = QMessageBox(self)
         msg_box.setIcon(QMessageBox.Information)
         msg_box.setWindowTitle("Сохранено")
         msg_box.setText("Ваши данные сохранены!")
@@ -272,18 +255,6 @@ class ProfileWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-    dpi_fix.apply_dpi_fix(app)
-    app.setStyleSheet("""
-        QMessageBox { background-color: white; }
-        QMessageBox QLabel { color: black; background-color: transparent; }
-        QMessageBox QPushButton {
-            background-color: #6C769F; color: white; border: none;
-            border-radius: 15px; padding: 8px 20px; min-width: 80px;
-            font-family: 'Roboto Flex'; font-size: 14px;
-        }
-        QMessageBox QPushButton:hover { background-color: #5A6385; }
-    """)
-
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))
     app.setPalette(palette)
@@ -291,7 +262,7 @@ def main():
     window = ProfileWindow()
     window.show()
 
-    app.exec_()
+    sys.exit(app.exec_())
 
 
 if __name__ == '__main__':

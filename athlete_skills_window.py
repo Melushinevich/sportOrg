@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (
     QInputDialog
 )
 from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
+from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPixmap
 from burger_menu import show_burger_menu
 from help_window import HelpWindow
 
@@ -19,7 +19,8 @@ AVAILABLE_SKILLS = [
 
 
 class AthleteSkillsWindow(QMainWindow):
-    def __init__(self, athlete_name="ЯРОСЛАВЛЬ", parent=None):
+    # ЗАДАЧА 3: "ЯРОСЛАВЛЬ" → "СПОРТСМЕН"
+    def __init__(self, athlete_name="СПОРТСМЕН", parent=None):
         super().__init__(parent)
         self.athlete_name = athlete_name
         self.setWindowTitle("SPORTORG - Мои скиллы")
@@ -34,7 +35,6 @@ class AthleteSkillsWindow(QMainWindow):
         main_layout.setContentsMargins(60, 40, 60, 40)
         main_layout.setSpacing(25)
 
-        # === Верхняя панель ===
         top_layout = QHBoxLayout()
 
         title_label = QLabel("SPORTORG")
@@ -49,10 +49,19 @@ class AthleteSkillsWindow(QMainWindow):
         athlete_label.setStyleSheet("color: #EF8354;")
         top_layout.addWidget(athlete_label)
 
-        self.burger_button = QPushButton(" ")
-        self.burger_button.setIcon(QIcon("burger.png"))
-        self.burger_button.setIconSize(QSize(30, 30))
+        self.burger_button = QPushButton()
         self.burger_button.setFixedSize(55, 55)
+
+        # Создаём layout для кнопки
+        button_layout = QHBoxLayout(self.burger_button)
+        button_layout.setContentsMargins(0, 0, 0, 0)
+        button_layout.setAlignment(Qt.AlignCenter)
+
+        # Создаём QLabel с иконкой
+        icon_label = QLabel()
+        pixmap = QPixmap("burger.png").scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        icon_label.setPixmap(pixmap)
+        button_layout.addWidget(icon_label)
         self.burger_button.setStyleSheet("""
             QPushButton {
                 background: #EF8354;
@@ -68,14 +77,12 @@ class AthleteSkillsWindow(QMainWindow):
         main_layout.addLayout(top_layout)
         main_layout.addSpacing(30)
 
-        # === Заголовок "Скиллы" ===
         list_title = QLabel("Скиллы")
         list_title.setFont(QFont("Roboto Flex", 20, QFont.Bold))
         list_title.setAlignment(Qt.AlignLeft)
         list_title.setStyleSheet("color: black; margin-bottom: 10px;")
         main_layout.addWidget(list_title)
 
-        # === Контейнер с таблицей ===
         skills_container = QWidget()
         skills_container.setStyleSheet("""
             QWidget {
@@ -87,21 +94,17 @@ class AthleteSkillsWindow(QMainWindow):
         skills_container_layout = QVBoxLayout(skills_container)
         skills_container_layout.setContentsMargins(15, 15, 15, 15)
 
-        # Таблица скиллов
         self.table = QTableWidget()
         self.table.setColumnCount(2)
         self.table.setHorizontalHeaderLabels(["Скилл", "Оценка по 10 б шкале"])
         self.table.setRowCount(0)
 
-        # Настройка заголовков
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.Stretch)
         header.setSectionResizeMode(1, QHeaderView.Stretch)
 
-        # Увеличенная высота строк
         self.table.verticalHeader().setDefaultSectionSize(70)
 
-        # Стили таблицы - ПРЯМОУГОЛЬНАЯ, без закруглений
         self.table.setStyleSheet("""
             QTableWidget {
                 background-color: white;
@@ -152,17 +155,14 @@ class AthleteSkillsWindow(QMainWindow):
             }
         """)
 
-        # Обработчик клика по таблице
         self.table.cellClicked.connect(self.on_cell_clicked)
 
         skills_container_layout.addWidget(self.table)
 
-        # === Кнопка "ДОБАВИТЬ СКИЛЛ" внутри контейнера ===
         self.add_skill_button = QPushButton("ДОБАВИТЬ СКИЛЛ")
         self.add_skill_button.setFixedSize(690, 65)
         self.add_skill_button.setFont(QFont("Roboto Flex", 20))
         self.add_skill_button.setCursor(Qt.PointingHandCursor)
-        # ИСПРАВЛЕНО: color: white; (убрал color: black; в конце)
         self.add_skill_button.setStyleSheet("""
             QPushButton {
                 background-color: #EF8354;
@@ -185,7 +185,6 @@ class AthleteSkillsWindow(QMainWindow):
 
         main_layout.addWidget(skills_container)
 
-        # === Кнопка "СОХРАНИТЬ" ===
         save_layout = QHBoxLayout()
         save_layout.setAlignment(Qt.AlignCenter)
 
@@ -211,7 +210,7 @@ class AthleteSkillsWindow(QMainWindow):
 
         main_layout.addStretch()
 
-        # === Нижняя панель ===
+        # ЗАДАЧА 4: Убрана кнопка поддержки
         bottom_layout = QHBoxLayout()
         bottom_layout.setContentsMargins(0, 20, 0, 0)
 
@@ -220,31 +219,8 @@ class AthleteSkillsWindow(QMainWindow):
         info_label.setAlignment(Qt.AlignLeft)
         info_label.setStyleSheet("color: gray;")
 
-        self.support_button = QPushButton(" ")
-        try:
-            self.support_button.setIcon(QIcon("headphones.png"))
-            self.support_button.setIconSize(QSize(35, 35))
-        except Exception:
-            self.support_button.setText("")
-            self.support_button.setFont(QFont("Roboto Flex", 28))
-
-        self.support_button.setFixedSize(65, 65)
-        self.support_button.setCursor(Qt.PointingHandCursor)
-        self.support_button.setStyleSheet("""
-            QPushButton {
-                background-color: #EF8354;
-                border-radius: 32px;
-                border: none;
-                color: white; /* ИСПРАВЛЕНО: белый текст на кнопке поддержки */
-            }
-            QPushButton:hover {
-                background-color: #D6754B;
-            }
-        """)
-
         bottom_layout.addWidget(info_label)
         bottom_layout.addStretch()
-        bottom_layout.addWidget(self.support_button)
 
         main_layout.addLayout(bottom_layout)
 
@@ -281,16 +257,13 @@ class AthleteSkillsWindow(QMainWindow):
         self.help_window.show()
 
     def on_cell_clicked(self, row, column):
-        """При клике на ячейку оценки (колонка 1) — показываем combobox"""
         if column != 1:
             return
 
-        # Проверяем, есть ли уже combobox в этой ячейке
         existing_widget = self.table.cellWidget(row, column)
         if existing_widget and isinstance(existing_widget, QComboBox):
             return
 
-        # Создаём combobox с оценками 1-10
         combo = QComboBox()
         combo.addItem("—")
         for i in range(1, 11):
@@ -318,22 +291,16 @@ class AthleteSkillsWindow(QMainWindow):
             }
         """)
 
-        # Устанавливаем текущее значение если есть
         current_text = self.table.item(row, column).text() if self.table.item(row, column) else ""
         if current_text:
             combo.setCurrentText(current_text)
 
-        # При изменении значения — обновляем ячейку
         combo.currentTextChanged.connect(lambda text, r=row: self.on_rating_changed(r, text))
 
-        # Вставляем combobox в ячейку
         self.table.setCellWidget(row, column, combo)
-
-        # Открываем список сразу
         combo.showPopup()
 
     def on_rating_changed(self, row, text):
-        """Сохраняем выбранную оценку в ячейку"""
         if text == "—":
             text = ""
 
@@ -341,11 +308,9 @@ class AthleteSkillsWindow(QMainWindow):
         if item:
             item.setText(text)
 
-        # Убираем combobox после выбора
         self.table.removeCellWidget(row, 1)
 
     def on_add_skill(self):
-        """Добавить новый навык из списка"""
         skill, ok = QInputDialog.getItem(
             self,
             "Выбор навыка",
@@ -354,7 +319,6 @@ class AthleteSkillsWindow(QMainWindow):
         )
 
         if ok and skill:
-            # Проверяем, нет ли уже такого навыка
             for row in range(self.table.rowCount()):
                 item = self.table.item(row, 0)
                 if item and item.text() == skill:
@@ -366,24 +330,20 @@ class AthleteSkillsWindow(QMainWindow):
                     msg_box.exec_()
                     return
 
-            # Добавляем новую строку
             row = self.table.rowCount()
             self.table.insertRow(row)
 
-            # Название навыка
             skill_item = QTableWidgetItem(skill)
             skill_item.setFont(QFont("Roboto Flex", 16))
             skill_item.setTextAlignment(Qt.AlignCenter)
             self.table.setItem(row, 0, skill_item)
 
-            # Оценка (пустая)
             rating_item = QTableWidgetItem("")
             rating_item.setFont(QFont("Roboto Flex", 16))
             rating_item.setTextAlignment(Qt.AlignCenter)
             self.table.setItem(row, 1, rating_item)
 
     def on_save(self):
-        """Сохранить скиллы"""
         if self.table.rowCount() == 0:
             msg_box = QMessageBox(self)
             msg_box.setIcon(QMessageBox.Warning)
@@ -393,7 +353,6 @@ class AthleteSkillsWindow(QMainWindow):
             msg_box.exec_()
             return
 
-        # Собираем данные
         skills_data = []
         for row in range(self.table.rowCount()):
             skill = self.table.item(row, 0).text() if self.table.item(row, 0) else ""
@@ -412,9 +371,6 @@ class AthleteSkillsWindow(QMainWindow):
 def main():
     app = QApplication(sys.argv)
 
-    # ИСПРАВЛЕНО: Стили для диалоговых окон
-    # 1. Текст сообщений (QLabel) теперь явно черный.
-    # 2. Текст кнопок (QPushButton) внутри диалогов теперь белый (был конфликт цветов).
     app.setStyleSheet("""
         QMessageBox { 
             background-color: white; 
@@ -468,7 +424,8 @@ def main():
     palette.setColor(QPalette.Window, QColor(255, 255, 255))
     app.setPalette(palette)
 
-    window = AthleteSkillsWindow(athlete_name="ЯРОСЛАВЛЬ")
+    # ЗАДАЧА 3: "ЯРОСЛАВЛЬ" → "СПОРТСМЕН"
+    window = AthleteSkillsWindow(athlete_name="СПОРТСМЕН")
     window.show()
 
     app.exec_()

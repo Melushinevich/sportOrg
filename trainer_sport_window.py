@@ -5,14 +5,12 @@ from PyQt5.QtWidgets import (
     QListWidgetItem, QMessageBox
 )
 from PyQt5.QtCore import Qt, QSize, pyqtSignal
-from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
-from registr_window import SupportButton
+from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPixmap
 from add_sport_critetia_window import AddSportCriteriaWindow
 from team_view_window import TeamViewWindow
 from responses_window import ResponsesWindow
 from data_page_trainer import ProfileWindow as TrainerProfileWindow
 from burger_menu import show_burger_menu
-
 
 
 class TrainerSportsWindow(QMainWindow):
@@ -36,7 +34,6 @@ class TrainerSportsWindow(QMainWindow):
         main_layout.setContentsMargins(60, 40, 60, 40)
         main_layout.setSpacing(25)
 
-        # Верхняя панель
         top_layout = QHBoxLayout()
 
         title_label = QLabel("SPORTORG")
@@ -51,10 +48,19 @@ class TrainerSportsWindow(QMainWindow):
         trainer_label.setStyleSheet("color: #6C769F;")
         top_layout.addWidget(trainer_label)
 
-        self.burger_button = QPushButton(" ")
-        self.burger_button.setIcon(QIcon("burger.png"))
-        self.burger_button.setIconSize(QSize(30, 30))
+        self.burger_button = QPushButton()
         self.burger_button.setFixedSize(55, 55)
+
+        # Создаём layout для кнопки
+        button_layout = QHBoxLayout(self.burger_button)
+        button_layout.setContentsMargins(0, 0, 0, 0)
+        button_layout.setAlignment(Qt.AlignCenter)
+
+        # Создаём QLabel с иконкой
+        icon_label = QLabel()
+        pixmap = QPixmap("burger.png").scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        icon_label.setPixmap(pixmap)
+        button_layout.addWidget(icon_label)
         self.burger_button.setStyleSheet("""
             QPushButton{
                 background:#6C769F;
@@ -70,14 +76,12 @@ class TrainerSportsWindow(QMainWindow):
         main_layout.addLayout(top_layout)
         main_layout.addSpacing(30)
 
-        # Заголовок списка
         list_title = QLabel("Команды")
         list_title.setFont(QFont("Roboto Flex", 20, QFont.Bold))
         list_title.setAlignment(Qt.AlignLeft)
         list_title.setStyleSheet("color: black; margin-bottom: 10px;")
         main_layout.addWidget(list_title)
 
-        # Список команд - серый контейнер с белыми карточками
         self.sports_list_widget = QListWidget()
         self.sports_list_widget.setCursor(Qt.PointingHandCursor)
         self.sports_list_widget.setStyleSheet("""
@@ -110,7 +114,6 @@ class TrainerSportsWindow(QMainWindow):
         self.sports_list_widget.itemDoubleClicked.connect(self.on_item_clicked)
         main_layout.addWidget(self.sports_list_widget)
 
-        # Кнопка ДОБАВИТЬ КОМАНДУ
         self.add_sport_button = QPushButton("ДОБАВИТЬ КОМАНДУ")
         self.add_sport_button.setFixedSize(690, 65)
         self.add_sport_button.setFont(QFont("Roboto Flex", 20))
@@ -137,7 +140,7 @@ class TrainerSportsWindow(QMainWindow):
 
         main_layout.addStretch()
 
-        # Нижняя панель
+        # Нижняя панель — только копирайт (кнопка поддержки убрана)
         bottom_layout = QHBoxLayout()
         bottom_layout.setContentsMargins(0, 20, 0, 0)
 
@@ -146,11 +149,8 @@ class TrainerSportsWindow(QMainWindow):
         info_label.setAlignment(Qt.AlignLeft)
         info_label.setStyleSheet("color: gray;")
 
-        self.support_button = SupportButton()
-
         bottom_layout.addWidget(info_label)
         bottom_layout.addStretch()
-        bottom_layout.addWidget(self.support_button)
 
         main_layout.addLayout(bottom_layout)
 
@@ -178,11 +178,7 @@ class TrainerSportsWindow(QMainWindow):
         self.hide()
 
     def add_sport_to_list(self, team_name, sport_type, criteria):
-        """Добавить команду в список с отображением вида спорта"""
-        # Формируем текст: название команды слева, вид спорта справа
-        # Используем табуляцию для выравнивания
         item_text = f"{team_name}\t{sport_type}"
-
         item = QListWidgetItem(item_text)
         item.setFont(QFont("Roboto Flex", 18, QFont.StyleItalic))
         item.setData(Qt.UserRole, {
@@ -209,7 +205,6 @@ class TrainerSportsWindow(QMainWindow):
         self.hide()
 
     def on_sport_saved(self, team_name, sport_type, criteria):
-        """Сохранение команды с видом спорта и критериями"""
         self.sports_with_criteria.append({
             "team_name": team_name,
             "sport_type": sport_type,

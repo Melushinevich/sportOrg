@@ -6,9 +6,8 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
-from registr_window import SupportButton
-from burger_menu import BurgerMenu, show_burger_menu
-from sportOrg import dpi_fix
+from burger_menu import show_burger_menu
+from help_window import HelpWindow
 
 
 class FinalTeamWindow(QMainWindow):
@@ -166,17 +165,30 @@ class FinalTeamWindow(QMainWindow):
 
         main_layout.addLayout(buttons_layout)
 
+        # ЗАДАЧА 4: Убрана кнопка поддержки
+        bottom_layout = QHBoxLayout()
+        bottom_layout.setContentsMargins(0, 20, 0, 0)
+
+        info_label = QLabel("© 2026 SPORTORG | Все права защищены")
+        info_label.setFont(QFont("Roboto Flex", 10))
+        info_label.setAlignment(Qt.AlignLeft)
+        info_label.setStyleSheet("color: gray;")
+
+        bottom_layout.addWidget(info_label)
+        bottom_layout.addStretch()
+
+        main_layout.addLayout(bottom_layout)
+
     def show_burger_menu(self):
         callbacks = {
             'home': self.on_go_home,
             'responses': self.on_go_responses_all,
             'profile': self.on_go_profile,
+            'help': self.on_go_help,
         }
         show_burger_menu(self, self.burger_button, 'trainer', callbacks)
 
     def on_go_home(self):
-        if self.menu:
-            self.menu.close()
         parent = self.parent()
         while parent:
             from trainer_sport_window import TrainerSportsWindow
@@ -187,8 +199,6 @@ class FinalTeamWindow(QMainWindow):
             parent = parent.parent()
 
     def on_go_responses_all(self):
-        if self.menu:
-            self.menu.close()
         from responses_window import ResponsesWindow
         self.all_responses_window = ResponsesWindow(
             team_name=None, sport_name="", parent=None, show_all=True
@@ -197,12 +207,14 @@ class FinalTeamWindow(QMainWindow):
         self.hide()
 
     def on_go_profile(self):
-        if self.menu:
-            self.menu.close()
         from data_page_trainer import ProfileWindow
         self.profile_window = ProfileWindow()
         self.profile_window.show()
         self.hide()
+
+    def on_go_help(self):
+        self.help_window = HelpWindow(user_type='trainer', parent=self)
+        self.help_window.show()
 
     def on_back(self):
         if self.parent():
@@ -211,7 +223,7 @@ class FinalTeamWindow(QMainWindow):
 
     def on_save(self):
         if self.table.rowCount() == 0:
-            msg_box = QMessageBox()
+            msg_box = QMessageBox(self)
             msg_box.setIcon(QMessageBox.Warning)
             msg_box.setWindowTitle("Внимание")
             msg_box.setText("Таблица пуста!")
@@ -232,7 +244,7 @@ class FinalTeamWindow(QMainWindow):
                 "notes": notes
             })
 
-        msg_box = QMessageBox()
+        msg_box = QMessageBox(self)
         msg_box.setIcon(QMessageBox.Information)
         msg_box.setWindowTitle("Сохранено")
         msg_box.setText(f"Итоговый состав '{self.team_name}' сохранён! ({len(final_data)} чел.)")
@@ -247,7 +259,7 @@ class FinalTeamWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-    dpi_fix.apply_dpi_fix(app)
+
     app.setStyleSheet("""
         QMessageBox { background-color: white; }
         QMessageBox QLabel { color: black; background-color: transparent; }

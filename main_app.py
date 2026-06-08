@@ -84,6 +84,7 @@ class MainApplication(QStackedWidget):
 
 def main():
     app = QApplication(sys.argv)
+
     dpi_fix.apply_dpi_fix(app)
     # Устанавливаем белый фон
     palette = QPalette()

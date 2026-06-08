@@ -5,8 +5,7 @@ from PyQt5.QtWidgets import (
     QTableWidgetItem, QHeaderView, QCheckBox, QMessageBox
 )
 from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
-from registr_window import SupportButton
+from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPixmap
 from burger_menu import show_burger_menu
 
 
@@ -17,7 +16,6 @@ class ResponsesWindow(QMainWindow):
         self.sport_name = sport_name
         self.show_all = show_all
 
-        # Демо-данные с email и phone — теперь как атрибут экземпляра
         self.all_participants = [
             {
                 "name": "Иванов Иван Петрович", "sport": "Футбол", "team": "Команда 1", "accepted": True,
@@ -98,10 +96,19 @@ class ResponsesWindow(QMainWindow):
 
         top_layout.addStretch()
 
-        self.burger_button = QPushButton(" ")
-        self.burger_button.setIcon(QIcon("burger.png"))
-        self.burger_button.setIconSize(QSize(30, 30))
+        self.burger_button = QPushButton()
         self.burger_button.setFixedSize(55, 55)
+
+        # Создаём layout для кнопки
+        button_layout = QHBoxLayout(self.burger_button)
+        button_layout.setContentsMargins(0, 0, 0, 0)
+        button_layout.setAlignment(Qt.AlignCenter)
+
+        # Создаём QLabel с иконкой
+        icon_label = QLabel()
+        pixmap = QPixmap("burger.png").scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        icon_label.setPixmap(pixmap)
+        button_layout.addWidget(icon_label)
         self.burger_button.setStyleSheet("""
             QPushButton{
                 background:#6C769F;
@@ -134,7 +141,6 @@ class ResponsesWindow(QMainWindow):
             self.table.setColumnCount(4)
             self.table.setHorizontalHeaderLabels(["✓", "ФИО", "Вид спорта", "Навыки"])
 
-        # Фильтруем участников
         if self.show_all:
             participants = self.all_participants
         else:
@@ -278,7 +284,6 @@ class ResponsesWindow(QMainWindow):
         main_layout.addWidget(self.table)
         main_layout.addSpacing(30)
 
-        # ИСПРАВЛЕНО: Кнопка "ПОДТВЕРДИТЬ ВЫБОР" теперь всегда отображается
         confirm_layout = QHBoxLayout()
         confirm_layout.setAlignment(Qt.AlignCenter)
 
@@ -299,6 +304,7 @@ class ResponsesWindow(QMainWindow):
 
         main_layout.addStretch()
 
+        # ЗАДАЧА 4: Убрана кнопка поддержки
         bottom_layout = QHBoxLayout()
         bottom_layout.setContentsMargins(0, 20, 0, 0)
 
@@ -307,11 +313,8 @@ class ResponsesWindow(QMainWindow):
         info_label.setAlignment(Qt.AlignLeft)
         info_label.setStyleSheet("color: gray;")
 
-        self.support_button_widget = SupportButton()
-
         bottom_layout.addWidget(info_label)
         bottom_layout.addStretch()
-        bottom_layout.addWidget(self.support_button_widget)
 
         main_layout.addLayout(bottom_layout)
 
@@ -320,12 +323,11 @@ class ResponsesWindow(QMainWindow):
             'home': self.on_go_home,
             'responses': self.on_go_responses_all,
             'profile': self.on_go_profile,
+            'help': self.on_go_help,
         }
         show_burger_menu(self, self.burger_button, 'trainer', callbacks)
 
     def on_go_home(self):
-        if hasattr(self, 'menu') and self.menu:
-            self.menu.close()
         parent = self.parent()
         while parent:
             from trainer_sport_window import TrainerSportsWindow
@@ -336,8 +338,6 @@ class ResponsesWindow(QMainWindow):
             parent = parent.parent()
 
     def on_go_responses_all(self):
-        if hasattr(self, 'menu') and self.menu:
-            self.menu.close()
         if self.show_all:
             return
         self.all_responses_window = ResponsesWindow(
@@ -347,12 +347,15 @@ class ResponsesWindow(QMainWindow):
         self.close()
 
     def on_go_profile(self):
-        if hasattr(self, 'menu') and self.menu:
-            self.menu.close()
         from data_page_trainer import ProfileWindow
         self.profile_window = ProfileWindow()
         self.profile_window.show()
         self.close()
+
+    def on_go_help(self):
+        from help_window import HelpWindow
+        self.help_window = HelpWindow(user_type='trainer', parent=self)
+        self.help_window.show()
 
     def on_confirm(self):
         accepted_players = self.get_accepted_players()
@@ -361,7 +364,6 @@ class ResponsesWindow(QMainWindow):
             self.close()
             return
 
-        # Если это окно для конкретной команды (show_all=False) — передаем данные родителю
         if not self.show_all:
             if self.parent() and hasattr(self.parent(), 'add_players_to_table'):
                 self.parent().add_players_to_table(accepted_players)
@@ -388,7 +390,6 @@ class ResponsesWindow(QMainWindow):
                     player_skills = [s.strip() for s in player_skills_text.split(",") if
                                      s.strip()] if player_skills_text else []
 
-                    # Используем self.all_participants вместо globals()
                     participant_data = next(
                         (p for p in self.all_participants
                          if p.get('name') == player_name and p.get('team') == player_team),
