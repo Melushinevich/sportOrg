@@ -6,8 +6,9 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
-from burger_menu import show_burger_menu
-from help_window import HelpWindow
+from .assets import asset_path
+from .burger_menu import show_burger_menu
+from .help_window import HelpWindow
 
 
 class FinalTeamWindow(QMainWindow):
@@ -30,14 +31,14 @@ class FinalTeamWindow(QMainWindow):
         top_layout = QHBoxLayout()
 
         title_label = QLabel("SPORTORG")
-        title_label.setFont(QFont("UrbanSlavic", 80))
+        title_label.setFont(QFont("Arial", 80))
         title_label.setStyleSheet("color: black;")
         top_layout.addWidget(title_label)
 
         top_layout.addStretch()
 
         final_label = QLabel(f"ИТОГ - {self.team_name}")
-        final_label.setFont(QFont("UrbanSlavic", 80))
+        final_label.setFont(QFont("Arial", 80))
         final_label.setStyleSheet("color: black;")
         final_label.setAlignment(Qt.AlignCenter)
         top_layout.addWidget(final_label)
@@ -45,12 +46,12 @@ class FinalTeamWindow(QMainWindow):
         top_layout.addStretch()
 
         trainer_label = QLabel("ТРЕНЕР")
-        trainer_label.setFont(QFont("UrbanSlavic", 80))
+        trainer_label.setFont(QFont("Arial", 80))
         trainer_label.setStyleSheet("color: #6C769F;")
         top_layout.addWidget(trainer_label)
 
         self.burger_button = QPushButton(" ")
-        self.burger_button.setIcon(QIcon("burger.png"))
+        self.burger_button.setIcon(QIcon(asset_path("burger.png")))
         self.burger_button.setIconSize(QSize(30, 30))
         self.burger_button.setFixedSize(55, 55)
         self.burger_button.setStyleSheet("""
@@ -72,7 +73,7 @@ class FinalTeamWindow(QMainWindow):
 
         self.table.setRowCount(max(len(self.players), 1))
 
-        font_italic = QFont("Roboto Flex", 16)
+        font_italic = QFont("Helvetica Neue", 16)
         font_italic.setItalic(True)
 
         for row, player in enumerate(self.players):
@@ -104,7 +105,7 @@ class FinalTeamWindow(QMainWindow):
                 border: 2px solid #6C769F;
                 border-radius: 15px;
                 gridline-color: #B0B0B0;
-                font-family: 'Roboto Flex';
+                font-family: 'Helvetica Neue';
                 color: black;
                 selection-background-color: #6C769F;
                 selection-color: white;
@@ -118,7 +119,7 @@ class FinalTeamWindow(QMainWindow):
                 background-color: #C8C8C8; color: black;
                 border: 1px solid #B0B0B0; border-radius: 0px;
                 padding: 10px; font-size: 16px; font-weight: bold;
-                font-family: 'Roboto Flex';
+                font-family: 'Helvetica Neue';
             }
             QTableCornerButton::section {
                 background-color: #C8C8C8;
@@ -135,7 +136,7 @@ class FinalTeamWindow(QMainWindow):
 
         self.back_button = QPushButton("ВЕРНУТЬСЯ")
         self.back_button.setFixedSize(380, 60)
-        self.back_button.setFont(QFont("Roboto Flex", 20))
+        self.back_button.setFont(QFont("Helvetica Neue", 20))
         self.back_button.setCursor(Qt.PointingHandCursor)
         self.back_button.setStyleSheet("""
             QPushButton {
@@ -148,7 +149,7 @@ class FinalTeamWindow(QMainWindow):
 
         self.save_button = QPushButton("СОХРАНИТЬ")
         self.save_button.setFixedSize(380, 60)
-        self.save_button.setFont(QFont("Roboto Flex", 20))
+        self.save_button.setFont(QFont("Helvetica Neue", 20))
         self.save_button.setCursor(Qt.PointingHandCursor)
         self.save_button.setStyleSheet("""
             QPushButton {
@@ -170,7 +171,7 @@ class FinalTeamWindow(QMainWindow):
         bottom_layout.setContentsMargins(0, 20, 0, 0)
 
         info_label = QLabel("© 2026 SPORTORG | Все права защищены")
-        info_label.setFont(QFont("Roboto Flex", 10))
+        info_label.setFont(QFont("Helvetica Neue", 10))
         info_label.setAlignment(Qt.AlignLeft)
         info_label.setStyleSheet("color: gray;")
 
@@ -191,7 +192,7 @@ class FinalTeamWindow(QMainWindow):
     def on_go_home(self):
         parent = self.parent()
         while parent:
-            from trainer_sport_window import TrainerSportsWindow
+            from .trainer_sport_window import TrainerSportsWindow
             if isinstance(parent, TrainerSportsWindow):
                 parent.show()
                 self.close()
@@ -199,7 +200,7 @@ class FinalTeamWindow(QMainWindow):
             parent = parent.parent()
 
     def on_go_responses_all(self):
-        from responses_window import ResponsesWindow
+        from .responses_window import ResponsesWindow
         self.all_responses_window = ResponsesWindow(
             team_name=None, sport_name="", parent=None, show_all=True
         )
@@ -207,7 +208,7 @@ class FinalTeamWindow(QMainWindow):
         self.hide()
 
     def on_go_profile(self):
-        from data_page_trainer import ProfileWindow
+        from .data_page_trainer import ProfileWindow
         self.profile_window = ProfileWindow()
         self.profile_window.show()
         self.hide()
@@ -266,7 +267,7 @@ def main():
         QMessageBox QPushButton {
             background-color: #6C769F; color: white; border: none;
             border-radius: 15px; padding: 8px 20px; min-width: 80px;
-            font-family: 'Roboto Flex'; font-size: 14px;
+            font-family: 'Helvetica Neue'; font-size: 14px;
         }
         QMessageBox QPushButton:hover { background-color: #5A6385; }
     """)

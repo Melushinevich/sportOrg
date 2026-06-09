@@ -1,14 +1,14 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QStackedWidget
-from PyQt5.QtGui import QPalette, QColor
-from PyQt5.QtCore import Qt
 
-from sportOrg import dpi_fix
-from start_window import StartWindow
-from registr_window import RegistrationWindow
-from login_window import LoginWindow
-from data_page_sportsmen import ProfileWindow as SportsmanProfileWindow
-from data_page_trainer import ProfileWindow as TrainerProfileWindow
+from . import dpi_fix  # env для Qt — до импорта QApplication
+from PyQt5.QtWidgets import QApplication, QStackedWidget
+from PyQt5.QtGui import QFont, QPalette, QColor
+from PyQt5.QtCore import Qt
+from .data_page_sportsmen import ProfileWindow as SportsmanProfileWindow
+from .data_page_trainer import ProfileWindow as TrainerProfileWindow
+from .login_window import LoginWindow
+from .registr_window import RegistrationWindow
+from .start_window import StartWindow
 
 
 class MainApplication(QStackedWidget):
@@ -84,6 +84,7 @@ class MainApplication(QStackedWidget):
 
 def main():
     app = QApplication(sys.argv)
+    app.setFont(QFont("Helvetica Neue", 14))
 
     dpi_fix.apply_dpi_fix(app)
     # Устанавливаем белый фон

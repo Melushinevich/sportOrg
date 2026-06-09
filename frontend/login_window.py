@@ -7,8 +7,10 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont, QPalette, QColor
 
-from registr_window import CustomLineEdit, SupportButton
-from sportOrg import dpi_fix
+from . import dpi_fix
+from .api_client import ApiError, ROLE_API_TO_UI, SportOrgApi
+from .registr_window import CustomLineEdit, SupportButton
+from .session import session
 
 
 class LoginWindow(QMainWindow):
@@ -19,6 +21,7 @@ class LoginWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
+        self.api = SportOrgApi()
         self.setWindowTitle("SPORTORG - Вход")
         self.setFixedSize(1440, 1024)
         self.setup_ui()
@@ -35,7 +38,7 @@ class LoginWindow(QMainWindow):
 
         # Заголовок SPORTORG
         title_label = QLabel("SPORTORG")
-        title_font = QFont("UrbanSlavic", 128)
+        title_font = QFont("Arial", 72)
         title_label.setFont(title_font)
         title_label.setAlignment(Qt.AlignCenter)
         title_label.setStyleSheet("color: black; margin-bottom: 10px;")
@@ -43,7 +46,7 @@ class LoginWindow(QMainWindow):
 
         # Подзаголовок "АВТОРИЗАЦИЯ"
         subtitle_label = QLabel("АВТОРИЗАЦИЯ")
-        subtitle_font = QFont("Roboto Flex", 40)
+        subtitle_font = QFont("Helvetica Neue", 40)
         subtitle_label.setFont(subtitle_font)
         subtitle_label.setAlignment(Qt.AlignCenter)
         subtitle_label.setStyleSheet("color: black;")
@@ -54,12 +57,12 @@ class LoginWindow(QMainWindow):
 
         # Поле ПОЧТА
         self.email_input = CustomLineEdit("ПОЧТА", is_password=False)
-        self.email_input.setFont(QFont("Roboto Flex", 128, QFont.Thin))
+        self.email_input.setFont(QFont("Helvetica Neue", 28, QFont.Normal))
         main_layout.addWidget(self.email_input)
 
         # Поле ПАРОЛЬ
         self.password_input = CustomLineEdit("ПАРОЛЬ", is_password=True)
-        self.password_input.setFont(QFont("Roboto Flex", 128, QFont.Thin))
+        self.password_input.setFont(QFont("Helvetica Neue", 28, QFont.Normal))
         main_layout.addWidget(self.password_input)
 
         # Добавляем растяжку
@@ -68,7 +71,7 @@ class LoginWindow(QMainWindow):
         # Кнопка ВОЙТИ
         self.login_button = QPushButton("ВОЙТИ")
         self.login_button.setMinimumHeight(91)
-        self.login_button.setFont(QFont("Roboto Flex", 14))
+        self.login_button.setFont(QFont("Helvetica Neue", 14))
         self.login_button.setCursor(Qt.PointingHandCursor)
         self.login_button.setStyleSheet("""
             QPushButton {
@@ -94,7 +97,7 @@ class LoginWindow(QMainWindow):
         register_hint_layout.setAlignment(Qt.AlignCenter)
 
         self.register_hint_button = QPushButton("Нет аккаунта? Зарегистрироваться")
-        self.register_hint_button.setFont(QFont("Roboto Flex", 16))
+        self.register_hint_button.setFont(QFont("Helvetica Neue", 16))
         self.register_hint_button.setCursor(Qt.PointingHandCursor)
         self.register_hint_button.setStyleSheet("""
             QPushButton {
@@ -118,7 +121,7 @@ class LoginWindow(QMainWindow):
 
         # Копирайт слева
         info_label = QLabel("© 2026 SPORTORG | Все права защищены")
-        info_label.setFont(QFont("Roboto Flex", 10))
+        info_label.setFont(QFont("Helvetica Neue", 10))
         info_label.setAlignment(Qt.AlignLeft)
         info_label.setStyleSheet("color: gray;")
 
@@ -137,37 +140,53 @@ class LoginWindow(QMainWindow):
         password = self.password_input.get_real_text()
 
         errors = []
-        if not email or email == "ПОЧТА":
+        if not email:
             errors.append("Введите почту")
         elif '@' not in email:
             errors.append("Введите корректную почту")
 
-        if not password or password == "ПАРОЛЬ":
+        if not password:
             errors.append("Введите пароль")
-        elif len(password) < 4:
-            errors.append("Пароль должен содержать минимум 4 символа")
+        elif len(password) < 6:
+            errors.append("Пароль должен содержать минимум 6 символов")
 
         if errors:
             self.show_error_message("\n".join(errors))
         else:
-            # Здесь будет реальная проверка credentials в базе данных
-            # Пока сделаем заглушку - проверяем по коду
             self.authenticate_user(email, password)
 
     def authenticate_user(self, email, password):
-        """Аутентификация пользователя (заглушка - потом подключим БД)"""
-        # TODO: Заменить на реальную проверку в базе данных
+        """Вход через API /api/v1/login."""
+        self.login_button.setEnabled(False)
+        try:
+            result = self.api.login(email=email, password=password)
+        except ApiError as exc:
+            if exc.code == "unauthorized":
+                self.show_error_message("Неверная почта или пароль")
+            else:
+                self.show_error_message(str(exc))
+            return
+        except Exception as exc:  # noqa: BLE001
+            self.show_error_message(f"Ошибка входа: {exc}")
+            return
+        finally:
+            self.login_button.setEnabled(True)
 
-        # Для теста: admin@test.com / 1234 - спортсмен
-        if email == "admin@test.com" and password == "1234":
-            self.show_success_message("Добро пожаловать!", "СПОРТСМЕН")
-            self.login_success.emit(email, "СПОРТСМЕН")
-        # Для теста: trainer@test.com / 1234 - тренер
-        elif email == "trainer@test.com" and password == "1234":
-            self.show_success_message("Добро пожаловать!", "ТРЕНЕР")
-            self.login_success.emit(email, "ТРЕНЕР")
-        else:
-            self.show_error_message("Неверная почта или пароль")
+        user = result.get("user") or {}
+        role_api = (user.get("role") or "").lower()
+        role_ui = ROLE_API_TO_UI.get(role_api)
+        if not role_ui:
+            self.show_error_message("Неизвестная роль пользователя")
+            return
+
+        session.user_id = int(user.get("id") or 0) or None
+        session.email = user.get("email") or email
+        session.role_api = role_api
+        session.role_ui = role_ui
+        session.access_token = result.get("access_token")
+
+        self.show_success_message("Добро пожаловать!", role_ui)
+        self.login_success.emit(email, role_ui)
 
     def show_error_message(self, message):
         """Показать сообщение об ошибке"""
@@ -175,6 +194,7 @@ class LoginWindow(QMainWindow):
         msg_box.setIcon(QMessageBox.Critical)
         msg_box.setWindowTitle("Ошибка входа")
         msg_box.setText(message)
+        msg_box.setStyleSheet("QLabel { color: black; }")
         msg_box.setStandardButtons(QMessageBox.Ok)
         msg_box.exec_()
 
@@ -184,6 +204,7 @@ class LoginWindow(QMainWindow):
         msg_box.setIcon(QMessageBox.Information)
         msg_box.setWindowTitle("Успешный вход")
         msg_box.setText(f"{message}\nРоль: {role}")
+        msg_box.setStyleSheet("QLabel { color: black; }")
         msg_box.setStandardButtons(QMessageBox.Ok)
         msg_box.exec_()
 
@@ -193,11 +214,8 @@ class LoginWindow(QMainWindow):
 
     def clear_fields(self):
         """Очистить поля ввода"""
-        self.email_input.setText("ПОЧТА")
-        self.email_input.is_placeholder_active = True
-        self.password_input.setText("ПАРОЛЬ")
-        self.password_input.is_placeholder_active = True
-        self.password_input.setEchoMode(QLineEdit.Normal)
+        self.email_input.clear()
+        self.password_input.clear()
 
 
 def main():

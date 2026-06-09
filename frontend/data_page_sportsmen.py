@@ -6,18 +6,17 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, QDate, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPixmap
-from burger_menu import show_burger_menu
-from help_window import HelpWindow
+from .assets import asset_path
+from .burger_menu import show_burger_menu
+from .help_window import HelpWindow
+from .navigation import open_screen
 
 
 class CustomLineEdit(QLineEdit):
     def __init__(self, placeholder_text="", is_phone=False):
         super().__init__()
-        self.placeholder_text = placeholder_text
-        self.is_placeholder_active = True
-        self.setText(placeholder_text)
         self.setAlignment(Qt.AlignCenter)
-
+        self.setPlaceholderText(placeholder_text)
         self.setStyleSheet("""
             QLineEdit{
                 background:#D9D9D9;
@@ -29,23 +28,8 @@ class CustomLineEdit(QLineEdit):
             }
         """)
 
-        self.focusInEvent = self.on_focus_in
-        self.focusOutEvent = self.on_focus_out
-
-    def on_focus_in(self, event):
-        if self.is_placeholder_active:
-            self.clear()
-            self.is_placeholder_active = False
-        super().focusInEvent(event)
-
-    def on_focus_out(self, event):
-        if not self.text():
-            self.setText(self.placeholder_text)
-            self.is_placeholder_active = True
-        super().focusOutEvent(event)
-
     def get_real_text(self):
-        return "" if self.is_placeholder_active else self.text()
+        return self.text().strip()
 
 
 class CustomComboBox(QComboBox):
@@ -58,7 +42,7 @@ class CustomComboBox(QComboBox):
 
         self.lineEdit().setReadOnly(True)
         self.lineEdit().setAlignment(Qt.AlignCenter)
-        self.lineEdit().setFont(QFont("Roboto Flex", 28, QFont.Thin))
+        self.lineEdit().setFont(QFont("Helvetica Neue", 28, QFont.Thin))
 
         self.setCurrentText(placeholder)
 
@@ -78,7 +62,7 @@ class CustomComboBox(QComboBox):
             }
             QComboBox QAbstractItemView{
                 font-size:24px;
-                font-family: "Roboto Flex";
+                font-family: "Helvetica Neue";
             }
         """)
 
@@ -146,14 +130,14 @@ class ProfileWindow(QMainWindow):
         top = QHBoxLayout()
 
         title = QLabel("SPORTORG")
-        title.setFont(QFont("UrbanSlavic", 96))
+        title.setFont(QFont("Arial", 96))
         title.setStyleSheet("color: black;")
         top.addWidget(title)
 
         top.addStretch()
 
         trainer = QLabel("СПОРТСМЕН")
-        trainer.setFont(QFont("UrbanSlavic", 96))
+        trainer.setFont(QFont("Arial", 96))
         trainer.setStyleSheet("color:#EF8354;")
         top.addWidget(trainer)
 
@@ -167,10 +151,10 @@ class ProfileWindow(QMainWindow):
 
         # Создаём QLabel с иконкой
         icon_label = QLabel()
-        pixmap = QPixmap("burger.png").scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        pixmap = QPixmap(asset_path("burger.png")).scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         icon_label.setPixmap(pixmap)
         button_layout.addWidget(icon_label)
-        self.burger.setStyleSheet("""
+        self.burger_button.setStyleSheet("""
             QPushButton{
                 background:#EF8354;
                 color:white;
@@ -178,8 +162,8 @@ class ProfileWindow(QMainWindow):
                 font-size:24px;
             }
         """)
-        self.burger.clicked.connect(self.show_burger_menu)
-        top.addWidget(self.burger)
+        self.burger_button.clicked.connect(self.show_burger_menu)
+        top.addWidget(self.burger_button)
 
         main_layout.addLayout(top)
         main_layout.addSpacing(70)
@@ -190,21 +174,21 @@ class ProfileWindow(QMainWindow):
             "\nПройди регистрацию и выбирай! "
         )
         welcome.setAlignment(Qt.AlignCenter)
-        welcome.setFont(QFont("Roboto Flex", 20))
+        welcome.setFont(QFont("Helvetica Neue", 20))
         welcome.setStyleSheet("color: black;")
         main_layout.addWidget(welcome)
 
         self.fio_input = CustomLineEdit("Фамилия Имя Отчество")
-        self.fio_input.setFont(QFont("Roboto Flex", 96, QFont.Thin))
+        self.fio_input.setFont(QFont("Helvetica Neue", 25))
         main_layout.addWidget(self.fio_input)
 
         row2 = QHBoxLayout()
 
         self.birth_date = CustomDateEdit()
-        self.birth_date.setFont(QFont("Roboto Flex", 96, QFont.Thin))
+        self.birth_date.setFont(QFont("Helvetica Neue", 25))
 
         self.gender_combo = CustomComboBox("Пол", ["Мужской", "Женский"])
-        self.gender_combo.setFont(QFont("Roboto Flex", 96, QFont.Thin))
+        self.gender_combo.setFont(QFont("Helvetica Neue", 25))
 
         row2.addWidget(self.birth_date)
         row2.addWidget(self.gender_combo)
@@ -216,8 +200,8 @@ class ProfileWindow(QMainWindow):
         self.city_input = CustomLineEdit("Город проживания")
         self.phone_input = CustomLineEdit("Номер телефона")
 
-        self.city_input.setFont(QFont("Roboto Flex", 96, QFont.Thin))
-        self.phone_input.setFont(QFont("Roboto Flex", 96, QFont.Thin))
+        self.city_input.setFont(QFont("Helvetica Neue", 25))
+        self.phone_input.setFont(QFont("Helvetica Neue", 25))
 
         row3.addWidget(self.city_input)
         row3.addWidget(self.phone_input)
@@ -236,7 +220,7 @@ class ProfileWindow(QMainWindow):
                 font-size:28px;
             }
         """)
-        self.save_button.setFont(QFont("Roboto Flex", 48))
+        self.save_button.setFont(QFont("Helvetica Neue", 48))
         self.save_button.clicked.connect(self.on_save)
 
         btn_layout = QHBoxLayout()
@@ -254,25 +238,22 @@ class ProfileWindow(QMainWindow):
             'profile': lambda: None,
             'help': self.on_go_help,
         }
-        show_burger_menu(self, self.burger, 'athlete', callbacks)
+        show_burger_menu(self, self.burger_button, 'athlete', callbacks)
 
     def on_go_home(self):
-        from athlete_main_window import AthleteMainWindow
-        self.home_window = AthleteMainWindow()
-        self.home_window.show()
-        self.close()
+        from .athlete_main_window import AthleteMainWindow
+
+        self.home_window = open_screen(self, AthleteMainWindow)
 
     def on_go_available_teams(self):
-        from athlete_available_teams import AthleteAvailableTeamsWindow
-        self.available_window = AthleteAvailableTeamsWindow()
-        self.available_window.show()
-        self.hide()
+        from .athlete_available_teams import AthleteAvailableTeamsWindow
+
+        self.available_window = open_screen(self, AthleteAvailableTeamsWindow)
 
     def on_go_my_skills(self):
-        from athlete_skills_window import AthleteSkillsWindow
-        self.skills_window = AthleteSkillsWindow()
-        self.skills_window.show()
-        self.hide()
+        from .athlete_skills_window import AthleteSkillsWindow
+
+        self.skills_window = open_screen(self, AthleteSkillsWindow)
 
     def on_go_help(self):
         self.help_window = HelpWindow(user_type='athlete', parent=self)

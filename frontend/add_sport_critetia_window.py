@@ -7,9 +7,10 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, QSize, pyqtSignal
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPixmap
-from registr_window import SupportButton
-from burger_menu import show_burger_menu
-import dpi_fix
+from . import dpi_fix
+from .assets import asset_path
+from .burger_menu import show_burger_menu
+from .registr_window import SupportButton
 
 AVAILABLE_SPORTS = ["Футбол", "Баскетбол", "Волейбол", "Теннис", "Плавание",
                     "Легкая атлетика", "Хоккей", "Бокс", "Самбо", "Гимнастика"]
@@ -36,7 +37,7 @@ class CustomComboBox(QComboBox):
 
         self.lineEdit().setReadOnly(True)
         self.lineEdit().setAlignment(Qt.AlignCenter)
-        font_combo = QFont("Roboto Flex", 28)
+        font_combo = QFont("Helvetica Neue", 28)
         font_combo.setItalic(True)
         self.lineEdit().setFont(font_combo)
 
@@ -57,7 +58,7 @@ class CustomComboBox(QComboBox):
             }
             QComboBox QAbstractItemView {
                 font-size: 20px;
-                font-family: 'Roboto Flex';
+                font-family: 'Helvetica Neue';
                 color: black;
                 background-color: white;
                 selection-background-color: #6C769F;
@@ -113,14 +114,14 @@ class AddSportCriteriaWindow(QMainWindow):
         top_layout = QHBoxLayout()
 
         title_label = QLabel("SPORTORG")
-        title_label.setFont(QFont("UrbanSlavic", 96))
+        title_label.setFont(QFont("Arial", 96))
         title_label.setStyleSheet("color: black;")
         top_layout.addWidget(title_label)
 
         top_layout.addStretch()
 
         trainer_label = QLabel("ТРЕНЕР")
-        trainer_label.setFont(QFont("UrbanSlavic", 96))
+        trainer_label.setFont(QFont("Arial", 96))
         trainer_label.setStyleSheet("color: #6C769F;")
         top_layout.addWidget(trainer_label)
 
@@ -134,7 +135,7 @@ class AddSportCriteriaWindow(QMainWindow):
 
         # Создаём QLabel с иконкой
         icon_label = QLabel()
-        pixmap = QPixmap("burger.png").scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        pixmap = QPixmap(asset_path("burger.png")).scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         icon_label.setPixmap(pixmap)
         button_layout.addWidget(icon_label)
         self.burger_button.setStyleSheet("""
@@ -155,7 +156,7 @@ class AddSportCriteriaWindow(QMainWindow):
         # === Поле "Название команды" ===
         self.team_name_input = QLineEdit()
         self.team_name_input.setPlaceholderText("Название команды")
-        font_input = QFont("Roboto Flex", 28)
+        font_input = QFont("Helvetica Neue", 28)
         font_input.setItalic(True)
         self.team_name_input.setFont(font_input)
         self.team_name_input.setAlignment(Qt.AlignCenter)
@@ -180,7 +181,7 @@ class AddSportCriteriaWindow(QMainWindow):
 
         # === Заголовок "Критерии" ===
         criteria_label = QLabel("Критерии")
-        font_crit = QFont("Roboto Flex", 28)
+        font_crit = QFont("Helvetica Neue", 28)
         font_crit.setItalic(True)
         criteria_label.setFont(font_crit)
         criteria_label.setStyleSheet("color: black;")
@@ -206,7 +207,7 @@ class AddSportCriteriaWindow(QMainWindow):
                 background-color: transparent;
                 border: none;
                 font-size: 20px;
-                font-family: 'Roboto Flex';
+                font-family: 'Helvetica Neue';
                 padding: 5px;
                 min-height: 250px;
                 color: black;
@@ -227,7 +228,7 @@ class AddSportCriteriaWindow(QMainWindow):
         criteria_container_layout.addWidget(self.criteria_list_widget)
 
         self.add_criteria_button = QPushButton("ДОБАВИТЬ КРИТЕРИЙ")
-        self.add_criteria_button.setFont(QFont("Roboto Flex", 20))
+        self.add_criteria_button.setFont(QFont("Helvetica Neue", 20))
         self.add_criteria_button.setCursor(Qt.PointingHandCursor)
         self.add_criteria_button.setStyleSheet("""
             QPushButton {
@@ -253,7 +254,7 @@ class AddSportCriteriaWindow(QMainWindow):
 
         self.save_button = QPushButton("СОХРАНИТЬ")
         self.save_button.setFixedSize(400, 70)
-        self.save_button.setFont(QFont("Roboto Flex", 22))
+        self.save_button.setFont(QFont("Helvetica Neue", 22))
         self.save_button.setCursor(Qt.PointingHandCursor)
         self.save_button.setStyleSheet("""
             QPushButton {
@@ -282,14 +283,14 @@ class AddSportCriteriaWindow(QMainWindow):
         show_burger_menu(self, self.burger_button, 'trainer', callbacks)
 
     def on_go_home(self):
-        from trainer_sport_window import TrainerSportsWindow
+        from .trainer_sport_window import TrainerSportsWindow
         parent = self.parent()
         if parent and isinstance(parent, TrainerSportsWindow):
             parent.show()
         self.close()
 
     def on_go_responses_all(self):
-        from responses_window import ResponsesWindow
+        from .responses_window import ResponsesWindow
         self.responses_window = ResponsesWindow(
             team_name=None, sport_name="", parent=None, show_all=True
         )
@@ -297,7 +298,7 @@ class AddSportCriteriaWindow(QMainWindow):
         self.hide()
 
     def on_go_profile(self):
-        from data_page_trainer import ProfileWindow
+        from .data_page_trainer import ProfileWindow
         self.profile_window = ProfileWindow(parent=self)
         self.profile_window.show()
         self.hide()
@@ -314,7 +315,7 @@ class AddSportCriteriaWindow(QMainWindow):
                 self.selected_criteria.append(criteria)
                 item = QListWidgetItem(criteria)
                 item.setTextAlignment(Qt.AlignCenter)
-                item.setFont(QFont("Roboto Flex", 20))
+                item.setFont(QFont("Helvetica Neue", 20))
                 self.criteria_list_widget.addItem(item)
             else:
                 self.show_error(f"Навык '{criteria}' уже добавлен!")
@@ -376,7 +377,7 @@ def main():
         QMessageBox QPushButton {
             background-color: #6C769F; color: white; border: none;
             border-radius: 15px; padding: 8px 20px; min-width: 80px;
-            font-family: 'Roboto Flex'; font-size: 14px;
+            font-family: 'Helvetica Neue'; font-size: 14px;
         }
         QMessageBox QPushButton:hover { background-color: #5A6385; }
         QInputDialog { background-color: white; }
@@ -388,7 +389,7 @@ def main():
         QInputDialog QPushButton {
             background-color: #6C769F; color: white; border: none;
             border-radius: 15px; padding: 8px 20px; min-width: 80px;
-            font-family: 'Roboto Flex';
+            font-family: 'Helvetica Neue';
         }
         QInputDialog QPushButton:hover { background-color: #5A6385; }
     """)

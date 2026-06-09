@@ -2,8 +2,11 @@ from PyQt5.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QApplication
 )
 from PyQt5.QtCore import Qt, QSize, QEvent
-from PyQt5.QtGui import QFont, QIcon, QPalette, QColor, QPixmap
 import os
+
+from PyQt5.QtGui import QFont, QIcon, QPalette, QColor, QPixmap
+
+from .assets import asset_path
 
 MENU_CONFIGS = {
     'trainer': {
@@ -70,7 +73,7 @@ class BurgerMenu(QFrame):
         header_layout = QHBoxLayout()
 
         title_label = QLabel("SPORTORG")
-        title_label.setFont(QFont("UrbanSlavic", 60))
+        title_label.setFont(QFont("Arial", 60))
         title_label.setStyleSheet("color: black; background: transparent;")
         header_layout.addWidget(title_label)
 
@@ -91,7 +94,7 @@ class BurgerMenu(QFrame):
         self.menu_buttons = []
         for label, action in self.config['items']:
             button = QPushButton(label)
-            font = QFont("Roboto Flex", 22)
+            font = QFont("Helvetica Neue", 22)
             font.setItalic(True)
             button.setFont(font)
             button.setCursor(Qt.PointingHandCursor)
@@ -147,7 +150,8 @@ class BurgerMenu(QFrame):
 
         # Ищем файл иконки
         icon_path = None
-        for path in ["free-icon-support-8016461.png", "support.png", "headphones.png"]:
+        for name in ["free-icon-support-8016461.png", "support.png", "headphones.png"]:
+            path = asset_path(name)
             if os.path.exists(path):
                 icon_path = path
                 break
@@ -162,7 +166,7 @@ class BurgerMenu(QFrame):
         else:
             # Fallback на эмодзи
             icon_label.setText("🎧")
-            icon_label.setFont(QFont("Roboto Flex", 28))
+            icon_label.setFont(QFont("Helvetica Neue", 28))
             icon_label.setStyleSheet("color: white;")
 
         button_layout.addWidget(icon_label)
@@ -181,7 +185,7 @@ class BurgerMenu(QFrame):
     def _make_help_handler(self):
         def handler():
             self.hide()
-            from help_window import HelpWindow
+            from .help_window import HelpWindow
             parent_window = self.parent()
             help_win = HelpWindow(user_type=self.user_type, parent=parent_window)
             help_win.show()

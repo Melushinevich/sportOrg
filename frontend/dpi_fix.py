@@ -16,8 +16,5 @@ from PyQt5.QtCore import Qt
 
 
 def apply_dpi_fix(app: QApplication):
-    """Вызвать сразу после создания QApplication"""
-    # Отключаем автоматическое масштабирование
-    app.setAttribute(Qt.AA_EnableHighDpiScaling, False)
-    # Используем 96 DPI как базовое (стандарт Windows)
-    app.setAttribute(Qt.AA_Use96Dpi, True)
+    """Вызвать сразу после создания QApplication (масштаб задаётся через env выше)."""
+    _ = app

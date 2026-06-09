@@ -27,7 +27,11 @@ def _database_url() -> str:
 
 
 def get_db_connection() -> psycopg.Connection[dict[str, Any]]:
-    return psycopg.connect(_database_url(), row_factory=dict_row)
+    return psycopg.connect(
+        _database_url(),
+        row_factory=dict_row,
+        connect_timeout=int(os.environ.get("SPORTORG_DB_CONNECT_TIMEOUT", "10")),
+    )
 
 
 def init_db() -> None:

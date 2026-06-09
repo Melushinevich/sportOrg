@@ -10,19 +10,19 @@ from PyQt5.QtGui import QFont, QPalette, QColor, QMouseEvent, QIcon
 from PyQt5.QtCore import pyqtSignal  # если еще не импортирован
 from scipy.ndimage import black_tophat
 
+from . import dpi_fix
+from .api_client import ApiError, SportOrgApi
+from .assets import asset_path
+
 
 class CustomLineEdit(QLineEdit):
-    """Кастомное поле ввода с плейсхолдером по центру и радиусом скругления 40"""
+    """Поле ввода с серым placeholder (исчезает при клике/вводе)."""
 
     def __init__(self, placeholder_text="", is_password=False):
         super().__init__()
-        self.placeholder_text = placeholder_text
-        self.is_placeholder_active = True
         self.is_password = is_password
-
-        # Устанавливаем текст-плейсхолдер
-        self.setText(placeholder_text)
         self.setAlignment(Qt.AlignCenter)
+        self.setPlaceholderText(placeholder_text)
         self.setStyleSheet("""
             QLineEdit {
                 background-color: #D9D9D9;
@@ -37,38 +37,11 @@ class CustomLineEdit(QLineEdit):
             }
         """)
         self.setMinimumHeight(95)
-
-        # Если это поле пароля, изначально не используем режим пароля (чтобы показать плейсхолдер)
-        if self.is_password:
-            self.setEchoMode(QLineEdit.Normal)
-
-        # Подключаем события фокуса
-        self.focusInEvent = self.on_focus_in
-        self.focusOutEvent = self.on_focus_out
-
-    def on_focus_in(self, event):
-        if self.is_placeholder_active:
-            self.clear()
-            self.is_placeholder_active = False
-            # При фокусе и если это поле пароля - включаем режим пароля
-            if self.is_password:
-                self.setEchoMode(QLineEdit.Password)
-        super().focusInEvent(event)
-
-    def on_focus_out(self, event):
-        if not self.text():
-            self.setText(self.placeholder_text)
-            self.is_placeholder_active = True
-            # Если это поле пароля и плейсхолдер активен - отключаем режим пароля
-            if self.is_password:
-                self.setEchoMode(QLineEdit.Normal)
-        super().focusOutEvent(event)
+        if is_password:
+            self.setEchoMode(QLineEdit.Password)
 
     def get_real_text(self):
-        """Возвращает реальный введенный текст (не плейсхолдер)"""
-        if self.is_placeholder_active:
-            return ""
-        return self.text()
+        return self.text().strip()
 
 
 class CustomRadioButton(QPushButton):
@@ -83,7 +56,7 @@ class CustomRadioButton(QPushButton):
         self.default_color = color
         self.active_color = color  # Цвет когда кнопка выбрана
         self.inactive_color = "#D9D9D9"  # Серый когда не выбрана
-        self.setFont(QFont("Roboto Flex", 14, QFont.Thin))
+        self.setFont(QFont("Helvetica Neue", 14, QFont.Thin))
         self.update_style(False)
         self.clicked.connect(self.on_click)
 
@@ -140,7 +113,7 @@ class SupportButton(QPushButton):
         super().__init__()
         self.setFixedSize(60, 60)
         self.setCursor(Qt.PointingHandCursor)
-        self.setIcon(QIcon("free-icon-support-8016461.png"))
+        self.setIcon(QIcon(asset_path("free-icon-support-8016461.png")))
         self.setIconSize(QSize(35, 35))
         self.setStyleSheet("""
             QPushButton {
@@ -176,6 +149,7 @@ class RegistrationWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
+        self.api = SportOrgApi()
         self.setWindowTitle("SPORTORG")
         self.setFixedSize(1440, 1024)
         self.setup_ui()
@@ -192,7 +166,7 @@ class RegistrationWindow(QMainWindow):
 
         # Заголовок SPORTORG
         title_label = QLabel("SPORTORG")
-        title_font = QFont("UrbanSlavic", 96)
+        title_font = QFont("Arial", 72)
         title_label.setFont(title_font)
         title_label.setAlignment(Qt.AlignCenter)
         title_label.setStyleSheet("color: black; margin-top: 20px; margin-bottom: 10px;")  # Добавил margin-top
@@ -200,7 +174,7 @@ class RegistrationWindow(QMainWindow):
 
         # Подзаголовок "РЕГИСТРАЦИЯ"
         subtitle_label = QLabel("РЕГИСТРАЦИЯ")
-        subtitle_font = QFont("Roboto Flex", 40)
+        subtitle_font = QFont("Helvetica Neue", 40)
         subtitle_label.setFont(subtitle_font)
         subtitle_label.setAlignment(Qt.AlignCenter)
         subtitle_label.setStyleSheet("color: black;")
@@ -208,22 +182,22 @@ class RegistrationWindow(QMainWindow):
 
         # Поле ПОЧТА
         self.email_input = CustomLineEdit("ПОЧТА", is_password=False)
-        self.email_input.setFont(QFont("Roboto Flex", 128, QFont.Thin))
+        self.email_input.setFont(QFont("Helvetica Neue", 28))
         main_layout.addWidget(self.email_input)
 
         # Поле ПАРОЛЬ
         self.password_input = CustomLineEdit("ПАРОЛЬ", is_password=True)
-        self.password_input.setFont(QFont("Roboto Flex", 128, QFont.Thin))
+        self.password_input.setFont(QFont("Helvetica Neue", 28))
         main_layout.addWidget(self.password_input)
 
         # Поле ПОДТВЕРЖДЕНИЕ ПАРОЛЯ
         self.confirm_password_input = CustomLineEdit("ПОДТВЕРДИТЕ ПАРОЛЬ", is_password=True)
-        self.confirm_password_input.setFont(QFont("Roboto Flex", 128, QFont.Thin))
+        self.confirm_password_input.setFont(QFont("Helvetica Neue", 28))
         main_layout.addWidget(self.confirm_password_input)
 
         # Блок выбора роли
         role_label = QLabel("ВЫБЕРИТЕ ВАШУ РОЛЬ")
-        role_label.setFont(QFont("Roboto Flex", 40))
+        role_label.setFont(QFont("Helvetica Neue", 40))
         role_label.setAlignment(Qt.AlignCenter)
         role_label.setStyleSheet("color: black; margin-top: 20px; margin-bottom: 5px;")
         main_layout.addWidget(role_label)
@@ -250,7 +224,7 @@ class RegistrationWindow(QMainWindow):
         # Кнопка ЗАРЕГИСТРИРОВАТЬСЯ
         self.register_button = QPushButton("ЗАРЕГИСТРИРОВАТЬСЯ")
         self.register_button.setMinimumHeight(91)
-        self.register_button.setFont(QFont("Roboto Flex", 14))
+        self.register_button.setFont(QFont("Helvetica Neue", 14))
         self.register_button.setCursor(Qt.PointingHandCursor)
         self.register_button.setStyleSheet("""
             QPushButton {
@@ -275,7 +249,7 @@ class RegistrationWindow(QMainWindow):
         login_hint_layout.setAlignment(Qt.AlignCenter)
 
         self.login_hint_button = QPushButton("Уже есть аккаунт? Войти")
-        self.login_hint_button.setFont(QFont("Roboto Flex", 16))
+        self.login_hint_button.setFont(QFont("Helvetica Neue", 16))
         self.login_hint_button.setCursor(Qt.PointingHandCursor)
         self.login_hint_button.setStyleSheet("""
             QPushButton {
@@ -299,7 +273,7 @@ class RegistrationWindow(QMainWindow):
 
         # Копирайт слева (растягивается, чтобы кнопка ушла вправо)
         info_label = QLabel("© 2026 SPORTORG | Все права защищены")
-        info_label.setFont(QFont("Roboto Flex", 10))
+        info_label.setFont(QFont("Helvetica Neue", 10))
         info_label.setAlignment(Qt.AlignLeft)
         info_label.setStyleSheet("color: gray;")
 
@@ -342,17 +316,17 @@ class RegistrationWindow(QMainWindow):
         role = self.get_selected_role()
 
         errors = []
-        if not email or email == "ПОЧТА":
+        if not email:
             errors.append("Введите почту")
         elif '@' not in email:
             errors.append("Введите корректную почту")
 
-        if not password or password == "ПАРОЛЬ":
+        if not password:
             errors.append("Введите пароль")
-        elif len(password) < 4:
-            errors.append("Пароль должен содержать минимум 4 символа")
+        elif len(password) < 6:
+            errors.append("Пароль должен содержать минимум 6 символов")
 
-        if not confirm_password or confirm_password == "ПОДТВЕРДИТЕ ПАРОЛЬ":
+        if not confirm_password:
             errors.append("Подтвердите пароль")
         elif password != confirm_password:
             errors.append("Пароли не совпадают")
@@ -362,8 +336,30 @@ class RegistrationWindow(QMainWindow):
 
         if errors:
             self.show_error_message("\n".join(errors))
-        else:
-            self.show_success_message(f"Регистрация успешна!\nРоль: {role}\nПочта: {email}")
+            return
+
+        self.register_button.setEnabled(False)
+        try:
+            result = self.api.register(
+                email=email,
+                password=password,
+                password2=confirm_password,
+                role_ui=role,
+            )
+        except ApiError as exc:
+            self.show_error_message(str(exc))
+            return
+        except Exception as exc:  # noqa: BLE001
+            self.show_error_message(f"Ошибка регистрации: {exc}")
+            return
+        finally:
+            self.register_button.setEnabled(True)
+
+        api_role = result.get("role", "")
+        role_label = "СПОРТСМЕН" if api_role == "sportsman" else "ТРЕНЕР"
+        self.show_success_message(
+            f"Регистрация успешна!\nРоль: {role_label}\nПочта: {email}"
+        )
 
     def show_error_message(self, message):
         msg_box = QMessageBox()
@@ -371,7 +367,7 @@ class RegistrationWindow(QMainWindow):
         msg_box.setWindowTitle("Ошибка")
         msg_box.setText("Пожалуйста, исправьте следующие ошибки:")
         msg_box.setInformativeText(message)
-        msg_box.setStyleSheet("color: black;")
+        msg_box.setStyleSheet("QLabel { color: black; }")
         msg_box.setStandardButtons(QMessageBox.Ok)
         msg_box.exec_()
 
@@ -380,6 +376,7 @@ class RegistrationWindow(QMainWindow):
         msg_box.setIcon(QMessageBox.Information)
         msg_box.setWindowTitle("Успех")
         msg_box.setText(message)
+        msg_box.setStyleSheet("QLabel { color: black; }")
         msg_box.setStandardButtons(QMessageBox.Ok)
 
         # Ждем, пока пользователь нажмет OK
@@ -390,15 +387,9 @@ class RegistrationWindow(QMainWindow):
         password = self.password_input.get_real_text()
         role = self.get_selected_role()
 
-        # Очищаем поля после успешной регистрации
-        self.email_input.setText("ПОЧТА")
-        self.email_input.is_placeholder_active = True
-        self.password_input.setText("ПАРОЛЬ")
-        self.password_input.is_placeholder_active = True
-        self.password_input.setEchoMode(QLineEdit.Normal)
-        self.confirm_password_input.setText("ПОДТВЕРДИТЕ ПАРОЛЬ")
-        self.confirm_password_input.is_placeholder_active = True
-        self.confirm_password_input.setEchoMode(QLineEdit.Normal)
+        self.email_input.clear()
+        self.password_input.clear()
+        self.confirm_password_input.clear()
         self.role_sportsman.setChecked(False)
         self.role_trainer.setChecked(False)
 

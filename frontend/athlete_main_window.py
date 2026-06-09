@@ -6,8 +6,9 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPixmap
-from burger_menu import show_burger_menu
-from help_window import HelpWindow
+from .assets import asset_path
+from .burger_menu import show_burger_menu
+from .help_window import HelpWindow
 
 
 class AthleteMainWindow(QMainWindow):
@@ -30,14 +31,14 @@ class AthleteMainWindow(QMainWindow):
         top_layout = QHBoxLayout()
 
         title_label = QLabel("SPORTORG")
-        title_label.setFont(QFont("UrbanSlavic", 96))
+        title_label.setFont(QFont("Arial", 96))
         title_label.setStyleSheet("color: black;")
         top_layout.addWidget(title_label)
 
         top_layout.addStretch()
 
         athlete_label = QLabel(self.athlete_name)
-        athlete_label.setFont(QFont("UrbanSlavic", 96))
+        athlete_label.setFont(QFont("Arial", 96))
         athlete_label.setStyleSheet("color: #EF8354;")
         top_layout.addWidget(athlete_label)
 
@@ -51,7 +52,7 @@ class AthleteMainWindow(QMainWindow):
 
         # Создаём QLabel с иконкой
         icon_label = QLabel()
-        pixmap = QPixmap("burger.png").scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        pixmap = QPixmap(asset_path("burger.png")).scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         icon_label.setPixmap(pixmap)
         button_layout.addWidget(icon_label)
         self.burger_button.setStyleSheet("""
@@ -70,7 +71,7 @@ class AthleteMainWindow(QMainWindow):
         main_layout.addSpacing(30)
 
         list_title = QLabel("Мои команды")
-        list_title.setFont(QFont("Roboto Flex", 20, QFont.Bold))
+        list_title.setFont(QFont("Helvetica Neue", 20, QFont.Bold))
         list_title.setAlignment(Qt.AlignLeft)
         list_title.setStyleSheet("color: black; margin-bottom: 10px;")
         main_layout.addWidget(list_title)
@@ -94,7 +95,7 @@ class AthleteMainWindow(QMainWindow):
                 background-color: transparent;
                 border: none;
                 font-size: 20px;
-                font-family: 'Roboto Flex';
+                font-family: 'Helvetica Neue';
                 padding: 5px;
                 min-height: 250px;
                 color: black;
@@ -125,7 +126,7 @@ class AthleteMainWindow(QMainWindow):
         for team in my_teams:
             item_text = f"{team['name']} — {team['sport']}"
             item = QListWidgetItem(item_text)
-            item.setFont(QFont("Roboto Flex", 20, QFont.StyleItalic))
+            item.setFont(QFont("Helvetica Neue", 20, QFont.StyleItalic))
             item.setTextAlignment(Qt.AlignCenter)
             item.setData(Qt.UserRole, team)
             self.teams_list.addItem(item)
@@ -135,7 +136,7 @@ class AthleteMainWindow(QMainWindow):
 
         self.apply_button = QPushButton("ПОДАТЬ ЗАЯВКУ В КОМАНДУ")
         self.apply_button.setFixedSize(690, 65)
-        self.apply_button.setFont(QFont("Roboto Flex", 20))
+        self.apply_button.setFont(QFont("Helvetica Neue", 20))
         self.apply_button.setCursor(Qt.PointingHandCursor)
         self.apply_button.setStyleSheet("""
             QPushButton {
@@ -164,7 +165,7 @@ class AthleteMainWindow(QMainWindow):
         bottom_layout.setContentsMargins(0, 20, 0, 0)
 
         info_label = QLabel("© 2026 SPORTORG | Все права защищены")
-        info_label.setFont(QFont("Roboto Flex", 10))
+        info_label.setFont(QFont("Helvetica Neue", 10))
         info_label.setAlignment(Qt.AlignLeft)
         info_label.setStyleSheet("color: gray;")
 
@@ -184,19 +185,19 @@ class AthleteMainWindow(QMainWindow):
         show_burger_menu(self, self.burger_button, 'athlete', callbacks)
 
     def on_go_available_teams(self):
-        from athlete_available_teams import AthleteAvailableTeamsWindow
+        from .athlete_available_teams import AthleteAvailableTeamsWindow
         self.available_window = AthleteAvailableTeamsWindow(athlete_name=self.athlete_name)
         self.available_window.show()
         self.hide()
 
     def on_go_my_skills(self):
-        from athlete_skills_window import AthleteSkillsWindow
+        from .athlete_skills_window import AthleteSkillsWindow
         self.skills_window = AthleteSkillsWindow(athlete_name=self.athlete_name)
         self.skills_window.show()
         self.hide()
 
     def on_go_profile(self):
-        from data_page_sportsmen import ProfileWindow
+        from .data_page_sportsmen import ProfileWindow
         self.profile_window = ProfileWindow()
         self.profile_window.show()
         self.hide()
@@ -206,7 +207,7 @@ class AthleteMainWindow(QMainWindow):
         self.help_window.show()
 
     def on_apply(self):
-        from athlete_available_teams import AthleteAvailableTeamsWindow
+        from .athlete_available_teams import AthleteAvailableTeamsWindow
         self.available_window = AthleteAvailableTeamsWindow(athlete_name=self.athlete_name)
         self.available_window.show()
         self.hide()
@@ -220,7 +221,7 @@ def main():
         QMessageBox QPushButton {
             background-color: #EF8354; color: white; border: none;
             border-radius: 15px; padding: 8px 20px; min-width: 80px;
-            font-family: 'Roboto Flex'; font-size: 14px;
+            font-family: 'Helvetica Neue'; font-size: 14px;
         }
         QMessageBox QPushButton:hover { background-color: #D6754B; }
     """)

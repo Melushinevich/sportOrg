@@ -23,7 +23,7 @@ class SkillsRatingDialog(QDialog):
 
         # Заголовок
         title = QLabel(f"Оцените навыки игрока: {self.player_name}")
-        title.setFont(QFont("Roboto Flex", 20, QFont.Bold))
+        title.setFont(QFont("Helvetica Neue", 20, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color: black;")
         main_layout.addWidget(title)
@@ -50,14 +50,14 @@ class SkillsRatingDialog(QDialog):
             row = QHBoxLayout()
 
             skill_label = QLabel(skill)
-            skill_label.setFont(QFont("Roboto Flex", 16))
+            skill_label.setFont(QFont("Helvetica Neue", 16))
             skill_label.setStyleSheet("color: black;")
             skill_label.setFixedWidth(250)
             row.addWidget(skill_label)
 
             combo = QComboBox()
             combo.addItems(["—", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"])
-            combo.setFont(QFont("Roboto Flex", 16))
+            combo.setFont(QFont("Helvetica Neue", 16))
             combo.setFixedSize(100, 40)
 
             # Устанавливаем текущую оценку если есть
@@ -100,7 +100,7 @@ class SkillsRatingDialog(QDialog):
 
         cancel_button = QPushButton("ОТМЕНА")
         cancel_button.setFixedSize(200, 50)
-        cancel_button.setFont(QFont("Roboto Flex", 16))
+        cancel_button.setFont(QFont("Helvetica Neue", 16))
         cancel_button.setCursor(Qt.PointingHandCursor)
         cancel_button.setStyleSheet("""
             QPushButton {
@@ -115,7 +115,7 @@ class SkillsRatingDialog(QDialog):
 
         save_button = QPushButton("СОХРАНИТЬ")
         save_button.setFixedSize(200, 50)
-        save_button.setFont(QFont("Roboto Flex", 16))
+        save_button.setFont(QFont("Helvetica Neue", 16))
         save_button.setCursor(Qt.PointingHandCursor)
         save_button.setStyleSheet("""
             QPushButton {

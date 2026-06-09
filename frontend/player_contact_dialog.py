@@ -23,7 +23,7 @@ class PlayerContactDialog(QDialog):
 
         # Заголовок с именем
         title = QLabel(self.player_name)
-        title.setFont(QFont("Roboto Flex", 24, QFont.Bold))
+        title.setFont(QFont("Helvetica Neue", 24, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color: black;")
         main_layout.addWidget(title)
@@ -45,7 +45,7 @@ class PlayerContactDialog(QDialog):
             email_layout.addWidget(email_icon)
 
             email_label = QLabel(self.email)
-            email_label.setFont(QFont("Roboto Flex", 16))
+            email_label.setFont(QFont("Helvetica Neue", 16))
             email_label.setStyleSheet("color: black; background: transparent;")
             email_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
             email_layout.addWidget(email_label)
@@ -64,7 +64,7 @@ class PlayerContactDialog(QDialog):
             phone_layout.addWidget(phone_icon)
 
             phone_label = QLabel(self.phone)
-            phone_label.setFont(QFont("Roboto Flex", 16))
+            phone_label.setFont(QFont("Helvetica Neue", 16))
             phone_label.setStyleSheet("color: black; background: transparent;")
             phone_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
             phone_layout.addWidget(phone_label)
@@ -76,7 +76,7 @@ class PlayerContactDialog(QDialog):
         # Если нет контактов
         if not self.email and not self.phone:
             no_contact_label = QLabel("Контактная информация не указана")
-            no_contact_label.setFont(QFont("Roboto Flex", 14))
+            no_contact_label.setFont(QFont("Helvetica Neue", 14))
             no_contact_label.setStyleSheet("color: gray;")
             no_contact_label.setAlignment(Qt.AlignCenter)
             main_layout.addWidget(no_contact_label)
@@ -87,7 +87,7 @@ class PlayerContactDialog(QDialog):
         # Кнопка закрытия
         close_button = QPushButton("ЗАКРЫТЬ")
         close_button.setFixedSize(200, 50)
-        close_button.setFont(QFont("Roboto Flex", 16))
+        close_button.setFont(QFont("Helvetica Neue", 16))
         close_button.setCursor(Qt.PointingHandCursor)
         close_button.setStyleSheet("""
             QPushButton {

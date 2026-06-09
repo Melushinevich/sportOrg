@@ -6,7 +6,8 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPixmap
-from burger_menu import show_burger_menu
+from .assets import asset_path
+from .burger_menu import show_burger_menu
 
 
 class ResponsesWindow(QMainWindow):
@@ -79,18 +80,18 @@ class ResponsesWindow(QMainWindow):
         top_layout = QHBoxLayout()
 
         title_label = QLabel("SPORTORG")
-        title_label.setFont(QFont("UrbanSlavic", 80))
+        title_label.setFont(QFont("Arial", 80))
         title_label.setStyleSheet("color: black;")
         top_layout.addWidget(title_label)
 
         if not self.show_all:
             trainer_label = QLabel("ТРЕНЕР")
-            trainer_label.setFont(QFont("UrbanSlavic", 80))
+            trainer_label.setFont(QFont("Arial", 80))
             trainer_label.setStyleSheet("color: #6C769F;")
             top_layout.addWidget(trainer_label)
         else:
             user_label = QLabel("ЯРОСЛАВЛЬ")
-            user_label.setFont(QFont("UrbanSlavic", 80))
+            user_label.setFont(QFont("Arial", 80))
             user_label.setStyleSheet("color: black;")
             top_layout.addWidget(user_label)
 
@@ -106,7 +107,7 @@ class ResponsesWindow(QMainWindow):
 
         # Создаём QLabel с иконкой
         icon_label = QLabel()
-        pixmap = QPixmap("burger.png").scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        pixmap = QPixmap(asset_path("burger.png")).scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         icon_label.setPixmap(pixmap)
         button_layout.addWidget(icon_label)
         self.burger_button.setStyleSheet("""
@@ -128,7 +129,7 @@ class ResponsesWindow(QMainWindow):
             list_title = QLabel("Все отклики спортсменов")
         else:
             list_title = QLabel(f"Отклики — {self.team_name}")
-        list_title.setFont(QFont("Roboto Flex", 20, QFont.Bold))
+        list_title.setFont(QFont("Helvetica Neue", 20, QFont.Bold))
         list_title.setAlignment(Qt.AlignLeft)
         list_title.setStyleSheet("color: black; margin-bottom: 10px;")
         main_layout.addWidget(list_title)
@@ -185,34 +186,34 @@ class ResponsesWindow(QMainWindow):
             """
 
             name_item = QTableWidgetItem(participant["name"])
-            name_item.setFont(QFont("Roboto Flex", 14, QFont.Bold))
+            name_item.setFont(QFont("Helvetica Neue", 14, QFont.Bold))
             name_item.setTextAlignment(Qt.AlignCenter)
             name_item.setToolTip(tooltip_text)
             self.table.setItem(row, 1, name_item)
 
             sport_item = QTableWidgetItem(participant["sport"])
-            sport_item.setFont(QFont("Roboto Flex", 14))
+            sport_item.setFont(QFont("Helvetica Neue", 14))
             sport_item.setTextAlignment(Qt.AlignCenter)
             sport_item.setToolTip(tooltip_text)
             self.table.setItem(row, 2, sport_item)
 
             if self.show_all:
                 team_item = QTableWidgetItem(participant["team"])
-                team_item.setFont(QFont("Roboto Flex", 14))
+                team_item.setFont(QFont("Helvetica Neue", 14))
                 team_item.setTextAlignment(Qt.AlignCenter)
                 team_item.setToolTip(tooltip_text)
                 self.table.setItem(row, 3, team_item)
 
                 skills_display = ", ".join(participant.get("skills", []))
                 skills_item = QTableWidgetItem(skills_display)
-                skills_item.setFont(QFont("Roboto Flex", 13))
+                skills_item.setFont(QFont("Helvetica Neue", 13))
                 skills_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
                 skills_item.setToolTip(tooltip_text)
                 self.table.setItem(row, 4, skills_item)
             else:
                 skills_display = ", ".join(participant.get("skills", []))
                 skills_item = QTableWidgetItem(skills_display)
-                skills_item.setFont(QFont("Roboto Flex", 13))
+                skills_item.setFont(QFont("Helvetica Neue", 13))
                 skills_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
                 skills_item.setToolTip(tooltip_text)
                 self.table.setItem(row, 3, skills_item)
@@ -237,7 +238,7 @@ class ResponsesWindow(QMainWindow):
                 background-color: #F5F5F5;
                 border: 2px solid #6C769F;
                 gridline-color: #DDDDDD;
-                font-family: 'Roboto Flex';
+                font-family: 'Helvetica Neue';
                 color: black;
                 selection-background-color: #6C769F;
                 selection-color: white;
@@ -259,7 +260,7 @@ class ResponsesWindow(QMainWindow):
                 padding: 12px;
                 font-size: 16px;
                 font-weight: bold;
-                font-family: 'Roboto Flex';
+                font-family: 'Helvetica Neue';
             }
             QTableCornerButton::section {
                 background-color: #6C769F;
@@ -276,7 +277,7 @@ class ResponsesWindow(QMainWindow):
             QToolTip {
                 background-color: white; color: black;
                 border: 2px solid #6C769F; border-radius: 10px;
-                padding: 12px; font-family: 'Roboto Flex'; font-size: 13px;
+                padding: 12px; font-family: 'Helvetica Neue'; font-size: 13px;
                 max-width: 400px;
             }
         """)
@@ -289,7 +290,7 @@ class ResponsesWindow(QMainWindow):
 
         self.confirm_button = QPushButton("ПОДТВЕРДИТЬ ВЫБОР")
         self.confirm_button.setFixedSize(300, 55)
-        self.confirm_button.setFont(QFont("Roboto Flex", 18, QFont.Bold))
+        self.confirm_button.setFont(QFont("Helvetica Neue", 18, QFont.Bold))
         self.confirm_button.setCursor(Qt.PointingHandCursor)
         self.confirm_button.setStyleSheet("""
             QPushButton {
@@ -309,7 +310,7 @@ class ResponsesWindow(QMainWindow):
         bottom_layout.setContentsMargins(0, 20, 0, 0)
 
         info_label = QLabel("© 2026 SPORTORG | Все права защищены")
-        info_label.setFont(QFont("Roboto Flex", 10))
+        info_label.setFont(QFont("Helvetica Neue", 10))
         info_label.setAlignment(Qt.AlignLeft)
         info_label.setStyleSheet("color: gray;")
 
@@ -330,7 +331,7 @@ class ResponsesWindow(QMainWindow):
     def on_go_home(self):
         parent = self.parent()
         while parent:
-            from trainer_sport_window import TrainerSportsWindow
+            from .trainer_sport_window import TrainerSportsWindow
             if isinstance(parent, TrainerSportsWindow):
                 parent.show()
                 self.close()
@@ -347,13 +348,13 @@ class ResponsesWindow(QMainWindow):
         self.close()
 
     def on_go_profile(self):
-        from data_page_trainer import ProfileWindow
+        from .data_page_trainer import ProfileWindow
         self.profile_window = ProfileWindow()
         self.profile_window.show()
         self.close()
 
     def on_go_help(self):
-        from help_window import HelpWindow
+        from .help_window import HelpWindow
         self.help_window = HelpWindow(user_type='trainer', parent=self)
         self.help_window.show()
 
@@ -422,7 +423,7 @@ def main():
         QMessageBox QPushButton {
             background-color: #6C769F; color: white; border: none;
             border-radius: 15px; padding: 8px 20px; min-width: 80px;
-            font-family: 'Roboto Flex'; font-size: 14px;
+            font-family: 'Helvetica Neue'; font-size: 14px;
         }
         QMessageBox QPushButton:hover { background-color: #5A6385; }
     """)

@@ -97,7 +97,7 @@ class HelpWindow(QDialog):
 
         # Заголовок
         title = QLabel(help_data['title'])
-        title.setFont(QFont("UrbanSlavic", 48))
+        title.setFont(QFont("Arial", 48))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color: black;")
         main_layout.addWidget(title)
@@ -123,8 +123,9 @@ class HelpWindow(QDialog):
         content_layout = QVBoxLayout(content_widget)
         content_layout.setContentsMargins(30, 30, 30, 30)
 
-        content_label = QLabel(help_data['content'])
-        content_label.setFont(QFont("Roboto Flex", 16))
+        content_label = QLabel(help_data["content"])
+        content_label.setFont(QFont("Helvetica Neue", 16))
+        content_label.setTextFormat(Qt.RichText)
         content_label.setStyleSheet("color: black; background: transparent;")
         content_label.setWordWrap(True)
         content_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
@@ -136,7 +137,7 @@ class HelpWindow(QDialog):
         # Кнопка закрытия
         close_button = QPushButton("ЗАКРЫТЬ")
         close_button.setFixedSize(300, 60)
-        close_button.setFont(QFont("Roboto Flex", 20))
+        close_button.setFont(QFont("Helvetica Neue", 20))
         close_button.setCursor(Qt.PointingHandCursor)
         close_button.setStyleSheet("""
             QPushButton {

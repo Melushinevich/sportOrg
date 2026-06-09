@@ -1,5 +1,5 @@
 import sys
-import dpi_fix
+
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QLabel, QPushButton, QTableWidget,
@@ -7,11 +7,13 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPixmap
-from responses_window import ResponsesWindow
-from final_team_window import FinalTeamWindow
-from burger_menu import show_burger_menu
-from skill_rating_dialog import SkillsRatingDialog
-from player_contact_dialog import PlayerContactDialog
+from . import dpi_fix
+from .assets import asset_path
+from .burger_menu import show_burger_menu
+from .final_team_window import FinalTeamWindow
+from .player_contact_dialog import PlayerContactDialog
+from .responses_window import ResponsesWindow
+from .skill_rating_dialog import SkillsRatingDialog
 
 
 class TeamViewWindow(QMainWindow):
@@ -34,14 +36,14 @@ class TeamViewWindow(QMainWindow):
         top_layout = QHBoxLayout()
 
         title_label = QLabel("SPORTORG")
-        title_label.setFont(QFont("UrbanSlavic", 80))
+        title_label.setFont(QFont("Arial", 80))
         title_label.setStyleSheet("color: black;")
         top_layout.addWidget(title_label)
 
         top_layout.addStretch()
 
         sport_label = QLabel(self.team_name)
-        sport_label.setFont(QFont("UrbanSlavic", 80))
+        sport_label.setFont(QFont("Arial", 80))
         sport_label.setStyleSheet("color: black;")
         sport_label.setAlignment(Qt.AlignCenter)
         top_layout.addWidget(sport_label)
@@ -49,7 +51,7 @@ class TeamViewWindow(QMainWindow):
         top_layout.addStretch()
 
         trainer_label = QLabel("ТРЕНЕР")
-        trainer_label.setFont(QFont("UrbanSlavic", 80))
+        trainer_label.setFont(QFont("Arial", 80))
         trainer_label.setStyleSheet("color: #6C769F;")
         top_layout.addWidget(trainer_label)
 
@@ -63,7 +65,7 @@ class TeamViewWindow(QMainWindow):
 
         # Создаём QLabel с иконкой
         icon_label = QLabel()
-        pixmap = QPixmap("burger.png").scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        pixmap = QPixmap(asset_path("burger.png")).scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         icon_label.setPixmap(pixmap)
         button_layout.addWidget(icon_label)
         self.burger_button.setStyleSheet("""
@@ -101,7 +103,7 @@ class TeamViewWindow(QMainWindow):
                 border: 2px solid #6C769F;
                 border-radius: 0px;
                 gridline-color: #B0B0B0;
-                font-family: 'Roboto Flex';
+                font-family: 'Helvetica Neue';
                 color: black;
                 selection-background-color: #6C769F;
                 selection-color: white;
@@ -112,7 +114,7 @@ class TeamViewWindow(QMainWindow):
                 background-color: #C8C8C8; color: black;
                 border: 1px solid #B0B0B0; border-radius: 0px;
                 padding: 12px; font-size: 16px; font-weight: bold;
-                font-family: 'Roboto Flex';
+                font-family: 'Helvetica Neue';
             }
             QTableCornerButton::section {
                 background-color: #C8C8C8;
@@ -132,7 +134,7 @@ class TeamViewWindow(QMainWindow):
 
         self.add_player_button = QPushButton("ДОБАВИТЬ УЧАСТНИКА")
         self.add_player_button.setFixedSize(260, 55)
-        self.add_player_button.setFont(QFont("Roboto Flex", 16))
+        self.add_player_button.setFont(QFont("Helvetica Neue", 16))
         self.add_player_button.setCursor(Qt.PointingHandCursor)
         self.add_player_button.setStyleSheet("""
             QPushButton {
@@ -146,7 +148,7 @@ class TeamViewWindow(QMainWindow):
 
         self.remove_player_button = QPushButton("УДАЛИТЬ УЧАСТНИКА")
         self.remove_player_button.setFixedSize(260, 55)
-        self.remove_player_button.setFont(QFont("Roboto Flex", 16))
+        self.remove_player_button.setFont(QFont("Helvetica Neue", 16))
         self.remove_player_button.setCursor(Qt.PointingHandCursor)
         self.remove_player_button.setStyleSheet("""
             QPushButton {
@@ -166,7 +168,7 @@ class TeamViewWindow(QMainWindow):
 
         self.form_button = QPushButton("СФОРМИРОВАТЬ СОСТАВ")
         self.form_button.setFixedSize(400, 65)
-        self.form_button.setFont(QFont("Roboto Flex", 20))
+        self.form_button.setFont(QFont("Helvetica Neue", 20))
         self.form_button.setCursor(Qt.PointingHandCursor)
         self.form_button.setStyleSheet("""
             QPushButton {
@@ -186,7 +188,7 @@ class TeamViewWindow(QMainWindow):
         bottom_layout.setContentsMargins(0, 20, 0, 0)
 
         info_label = QLabel("© 2026 SPORTORG | Все права защищены")
-        info_label.setFont(QFont("Roboto Flex", 10))
+        info_label.setFont(QFont("Helvetica Neue", 10))
         info_label.setAlignment(Qt.AlignLeft)
         info_label.setStyleSheet("color: gray;")
 
@@ -208,7 +210,7 @@ class TeamViewWindow(QMainWindow):
             self.menu.close()
         parent = self.parent()
         while parent:
-            from trainer_sport_window import TrainerSportsWindow
+            from .trainer_sport_window import TrainerSportsWindow
             if isinstance(parent, TrainerSportsWindow):
                 parent.show()
                 self.close()
@@ -227,7 +229,7 @@ class TeamViewWindow(QMainWindow):
     def on_go_profile(self):
         if hasattr(self, 'menu') and self.menu:
             self.menu.close()
-        from data_page_trainer import ProfileWindow
+        from .data_page_trainer import ProfileWindow
         self.profile_window = ProfileWindow()
         self.profile_window.show()
         self.hide()
@@ -247,13 +249,13 @@ class TeamViewWindow(QMainWindow):
             self.table.insertRow(row)
 
             name_item = QTableWidgetItem(player_name)
-            name_item.setFont(QFont("Roboto Flex", 14, QFont.Bold))
+            name_item.setFont(QFont("Helvetica Neue", 14, QFont.Bold))
             name_item.setTextAlignment(Qt.AlignCenter)
             name_item.setFlags(name_item.flags() & ~Qt.ItemIsEditable)
             self.table.setItem(row, 0, name_item)
 
             percent_item = QTableWidgetItem("")
-            percent_item.setFont(QFont("Roboto Flex", 14, QFont.Bold))
+            percent_item.setFont(QFont("Helvetica Neue", 14, QFont.Bold))
             percent_item.setTextAlignment(Qt.AlignCenter)
             percent_item.setFlags(percent_item.flags() & ~Qt.ItemIsEditable)
             self.table.setItem(row, 1, percent_item)
@@ -270,13 +272,13 @@ class TeamViewWindow(QMainWindow):
             }
 
             qualities_item = QTableWidgetItem(self.format_skills_display(skills, {}))
-            qualities_item.setFont(QFont("Roboto Flex", 14))
+            qualities_item.setFont(QFont("Helvetica Neue", 14))
             qualities_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
             qualities_item.setFlags(qualities_item.flags() & ~Qt.ItemIsEditable)
             self.table.setItem(row, 2, qualities_item)
 
             notes_item = QTableWidgetItem("")
-            notes_item.setFont(QFont("Roboto Flex", 14))
+            notes_item.setFont(QFont("Helvetica Neue", 14))
             notes_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
             self.table.setItem(row, 3, notes_item)
 
@@ -433,7 +435,7 @@ def main():
         QMessageBox QPushButton {
             background-color: #6C769F; color: white; border: none;
             border-radius: 15px; padding: 8px 20px; min-width: 80px;
-            font-family: 'Roboto Flex'; font-size: 14px;
+            font-family: 'Helvetica Neue'; font-size: 14px;
         }
         QMessageBox QPushButton:hover { background-color: #5A6385; }
     """)
