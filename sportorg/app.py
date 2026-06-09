@@ -5,15 +5,20 @@ HTTP API (JSON): регистрация, логин, скиллы спортсм
   flask run
 
 Переменные: FLASK_SECRET_KEY, LOG_LEVEL, DISABLE_RATE_LIMIT, JWT_SECRET_KEY, PUBLIC_APP_URL.
-PostgreSQL: SPORTORG_DB_HOST (по умолчанию 192.168.1.73), SPORTORG_DB_PORT (5500), SPORTORG_DB_NAME,
-SPORTORG_DB_USER, SPORTORG_DB_PASSWORD — или DATABASE_URL.
+PostgreSQL: SPORTORG_DB_* в .env (Tailscale) или DATABASE_URL. Без .env — 192.168.1.80:5500.
 """
 
 import logging
 import os
 import sys
+from pathlib import Path
 
+from dotenv import load_dotenv
 from flask import Flask, jsonify, request
+
+_env_path = Path(__file__).resolve().parents[1] / ".env"
+if _env_path.is_file():
+    load_dotenv(_env_path, override=True)
 
 from flask_limiter.constants import ConfigVars
 
@@ -35,10 +40,10 @@ def configure_logging() -> None:
 
 
 def _ensure_postgres_env() -> None:
-    """Параметры PostgreSQL по умолчанию (192.168.1.73:5500), если не заданы в окружении."""
+    """Параметры PostgreSQL по умолчанию (192.168.1.80:5500), если не заданы в окружении."""
     if os.environ.get("DATABASE_URL"):
         return
-    os.environ.setdefault("SPORTORG_DB_HOST", "192.168.1.73")
+    os.environ.setdefault("SPORTORG_DB_HOST", "192.168.1.80")
     os.environ.setdefault("SPORTORG_DB_PORT", "5500")
     os.environ.setdefault("SPORTORG_DB_NAME", "postgres")
     os.environ.setdefault("SPORTORG_DB_USER", "postgres")
@@ -82,7 +87,6 @@ def create_app(testing: bool = False) -> Flask:
                     "coach_teams": "GET|POST /api/v1/coach/teams (Bearer, coach)",
                     "coach_team_detail": "GET /api/v1/coach/teams/<id> (Bearer, coach)",
                     "coach_team_members": "POST|PUT|DELETE /api/v1/coach/teams/<id>/members (Bearer, coach)",
-                    "coach_finalize_roster": "POST /api/v1/coach/teams/<id>/finalize (Bearer, coach)",
                     "coach_search_sportsmen": "GET /api/v1/coach/sportsmen?search=... (Bearer, coach)",
                 },
             }

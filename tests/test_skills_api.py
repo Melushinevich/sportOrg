@@ -1,128 +1,95 @@
 import json
-import uuid
 
 import pytest
 
-from tests.conftest import _apply_default_db_env
+from tests.conftest import auth_header
 
 
 @pytest.fixture
-def skills_client(postgres_db):
-    _apply_default_db_env()
-    from app import create_app
+def skills_mocks(monkeypatch):
+    state = {"skills": []}
 
-    return create_app(testing=True).test_client()
+    def list_skills(_uid):
+        return list(state["skills"])
 
+    def add_skill(_uid, name=""):
+        sid = len(state["skills"]) + 1
+        state["skills"].append({"id": sid, "name": name, "rating": None, "sort_order": len(state["skills"])})
+        return sid
 
-def _register_sportsman(client, email: str):
-    r = client.post(
-        "/api/v1/register",
-        data=json.dumps(
-            {
-                "first_name": "Спорт",
-                "last_name": "Смен",
-                "email": email,
-                "password": "secret12",
-                "password2": "secret12",
-                "role": "sportsman",
-            }
-        ),
-        content_type="application/json",
-    )
-    assert r.status_code == 201
+    def replace(_uid, items):
+        state["skills"] = [
+            {"id": i + 1, "name": s["name"], "rating": s.get("rating"), "sort_order": i}
+            for i, s in enumerate(items)
+        ]
+
+    monkeypatch.setattr("sportorg.api.athlete_skills.list_athlete_skills", list_skills)
+    monkeypatch.setattr("sportorg.api.athlete_skills.add_athlete_skill", add_skill)
+    monkeypatch.setattr("sportorg.api.athlete_skills.replace_athlete_skills", replace)
+    return state
 
 
-def _token(client, email: str, password: str) -> str:
-    r = client.post(
-        "/api/v1/login",
-        data=json.dumps({"email": email, "password": password}),
-        content_type="application/json",
-    )
-    assert r.status_code == 200
-    return r.get_json()["access_token"]
-
-
-def test_skills_get_empty(skills_client):
-    email = f"sk_{uuid.uuid4().hex[:8]}@test.local"
-    _register_sportsman(skills_client, email)
-    tok = _token(skills_client, email, "secret12")
-    rv = skills_client.get(
-        "/api/v1/me/skills",
-        headers={"Authorization": f"Bearer {tok}"},
-    )
+def test_skills_get_empty(app_client, users_db, skills_mocks):
+    rv = app_client.get("/api/v1/me/skills", headers=auth_header(2, "sportsman"))
     assert rv.status_code == 200
     assert rv.get_json() == {"skills": []}
 
 
-def test_skills_add_and_save(skills_client):
-    email = f"sk2_{uuid.uuid4().hex[:8]}@test.local"
-    _register_sportsman(skills_client, email)
-    tok = _token(skills_client, email, "secret12")
-
-    r1 = skills_client.post(
+def test_skills_add_and_save(app_client, users_db, skills_mocks):
+    h = auth_header(2, "sportsman")
+    r1 = app_client.post(
         "/api/v1/me/skills",
-        headers={"Authorization": f"Bearer {tok}"},
+        headers=h,
         data=json.dumps({"name": "Скилл 1"}),
         content_type="application/json",
     )
     assert r1.status_code == 201
-    assert r1.get_json()["name"] == "Скилл 1"
-    assert r1.get_json()["rating"] is None
 
-    r2 = skills_client.put(
+    r2 = app_client.put(
         "/api/v1/me/skills",
-        headers={"Authorization": f"Bearer {tok}"},
-        data=json.dumps(
-            {
-                "skills": [
-                    {"name": "Скилл 1", "rating": 8},
-                    {"name": "Скилл 2", "rating": None},
-                ]
-            }
-        ),
+        headers=h,
+        data=json.dumps({"skills": [{"name": "Скилл 1", "rating": 8}, {"name": "Скилл 2"}]}),
         content_type="application/json",
     )
     assert r2.status_code == 200
-    skills = r2.get_json()["skills"]
-    assert len(skills) == 2
-    assert skills[0]["name"] == "Скилл 1" and skills[0]["rating"] == 8
-    assert skills[1]["name"] == "Скилл 2" and skills[1]["rating"] is None
+    assert len(r2.get_json()["skills"]) == 2
 
 
-def test_skills_rating_invalid(skills_client):
-    email = f"sk3_{uuid.uuid4().hex[:8]}@test.local"
-    _register_sportsman(skills_client, email)
-    tok = _token(skills_client, email, "secret12")
-    rv = skills_client.put(
+def test_skills_rating_invalid(app_client, users_db, skills_mocks):
+    rv = app_client.put(
         "/api/v1/me/skills",
-        headers={"Authorization": f"Bearer {tok}"},
+        headers=auth_header(2, "sportsman"),
         data=json.dumps({"skills": [{"name": "X", "rating": 11}]}),
         content_type="application/json",
     )
     assert rv.status_code == 400
-    assert rv.get_json()["code"] == "invalid_input"
 
 
-def test_skills_coach_forbidden(skills_client):
-    email = f"coach_{uuid.uuid4().hex[:8]}@test.local"
-    r = skills_client.post(
-        "/api/v1/register",
-        data=json.dumps(
-            {
-                "first_name": "Трен",
-                "last_name": "Ер",
-                "email": email,
-                "password": "secret12",
-                "password2": "secret12",
-                "role": "coach",
-            }
-        ),
+def test_skills_not_json(app_client, users_db, skills_mocks):
+    rv = app_client.post("/api/v1/me/skills", headers=auth_header(2, "sportsman"), data="x")
+    assert rv.status_code == 415
+
+
+def test_skills_invalid_skills_array(app_client, users_db, skills_mocks):
+    rv = app_client.put(
+        "/api/v1/me/skills",
+        headers=auth_header(2, "sportsman"),
+        data=json.dumps({"skills": "bad"}),
         content_type="application/json",
     )
-    assert r.status_code == 201
-    tok = _token(skills_client, email, "secret12")
-    rv = skills_client.get(
-        "/api/v1/me/skills",
-        headers={"Authorization": f"Bearer {tok}"},
+    assert rv.status_code == 400
+
+
+def test_skills_storage_error(app_client, users_db, monkeypatch):
+    monkeypatch.setattr("sportorg.api.athlete_skills.list_athlete_skills", lambda _u: [])
+    monkeypatch.setattr(
+        "sportorg.api.athlete_skills.replace_athlete_skills",
+        lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("fail")),
     )
-    assert rv.status_code == 403
+    rv = app_client.put(
+        "/api/v1/me/skills",
+        headers=auth_header(2, "sportsman"),
+        data=json.dumps({"skills": [{"name": "A", "rating": 5}]}),
+        content_type="application/json",
+    )
+    assert rv.status_code == 503

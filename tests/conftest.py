@@ -1,32 +1,71 @@
-import os
+"""Общие фикстуры: Flask-клиент и моки БД (без реального Postgres)."""
+
+import importlib
 
 import pytest
 
-from user_registration.storage import get_db_connection, init_db
+from sportorg.auth.jwt import issue_access_token
+
+INIT_DB_MODULES = (
+    "sportorg.api.public",
+    "sportorg.api.teams",
+    "sportorg.api.athlete_skills",
+)
 
 
-def _apply_default_db_env() -> None:
-    if os.environ.get("DATABASE_URL"):
-        return
-    os.environ.setdefault("SPORTORG_DB_HOST", "192.168.1.73")
-    os.environ.setdefault("SPORTORG_DB_PORT", "5500")
-    os.environ.setdefault("SPORTORG_DB_NAME", "postgres")
-    os.environ.setdefault("SPORTORG_DB_USER", "postgres")
-    os.environ.setdefault("SPORTORG_DB_PASSWORD", "12345678")
+@pytest.fixture
+def noop_init_db(monkeypatch):
+    """Тесты API работают с моками storage, без реального Postgres."""
+    for name in INIT_DB_MODULES:
+        mod = importlib.import_module(name)
+        monkeypatch.setattr(mod, "init_db", lambda: None)
 
 
-@pytest.fixture(scope="session")
-def postgres_db():
-    """Проверка доступности PostgreSQL; пропуск тестов, если БД недоступна."""
-    _apply_default_db_env()
-    try:
-        init_db()
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cur:
-                cur.execute("SELECT 1")
-        finally:
-            conn.close()
-    except Exception as exc:
-        pytest.skip(f"PostgreSQL недоступен: {exc}")
-    yield
+@pytest.fixture
+def app_client(noop_init_db):
+    from app import create_app
+
+    return create_app(testing=True).test_client()
+
+
+@pytest.fixture
+def users_db(monkeypatch):
+    """Пользователи для JWT-декораторов."""
+    users = {
+        1: {"id": 1, "role": "coach", "email": "coach@test.local"},
+        2: {"id": 2, "role": "sportsman", "email": "athlete@test.local"},
+    }
+    monkeypatch.setattr(
+        "user_registration.storage.get_user_by_id",
+        lambda uid: users.get(int(uid)),
+    )
+    return users
+
+
+def auth_header(user_id: int, role: str) -> dict[str, str]:
+    token = issue_access_token(user_id, role)
+    return {"Authorization": f"Bearer {token}"}
+
+
+class _FakeCursor:
+    def execute(self, *_args, **_kwargs):
+        return None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+
+class _FakeConn:
+    def cursor(self):
+        return _FakeCursor()
+
+    def close(self):
+        return None
+
+
+@pytest.fixture
+def mock_db_connected(monkeypatch):
+    monkeypatch.setattr("sportorg.api.public.get_db_connection", lambda: _FakeConn())

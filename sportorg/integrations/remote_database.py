@@ -8,7 +8,7 @@ from user_registration.storage import get_all_users, init_db
 class RemoteDatabase:
     def __init__(self):
         self.connection_params = {
-            "host": os.getenv("SPORTORG_DB_HOST", "192.168.1.73"),
+            "host": os.getenv("SPORTORG_DB_HOST", "192.168.1.80"),
             "port": int(os.getenv("SPORTORG_DB_PORT", "5500")),
             "database": os.getenv("SPORTORG_DB_NAME", "postgres"),
             "user": os.getenv("SPORTORG_DB_USER", "postgres"),

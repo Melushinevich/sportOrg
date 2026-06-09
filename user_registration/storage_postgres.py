@@ -31,144 +31,11 @@ def get_db_connection() -> psycopg.Connection[dict[str, Any]]:
 
 
 def init_db() -> None:
+    """Проверка доступности БД. Схему не создаём — она настраивается отдельно."""
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
-                    email VARCHAR(255) UNIQUE NOT NULL,
-                    password_hash VARCHAR(255) NOT NULL,
-                    role VARCHAR(50) NOT NULL,
-                    created_at TIMESTAMPTZ DEFAULT NOW()
-                );
-                """
-            )
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS profiles (
-                    id SERIAL PRIMARY KEY,
-                    user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
-                    last_name VARCHAR(100) NOT NULL,
-                    first_name VARCHAR(100) NOT NULL,
-                    patronymic VARCHAR(100),
-                    birth_date DATE,
-                    phone VARCHAR(20),
-                    city VARCHAR(100),
-                    created_at TIMESTAMPTZ DEFAULT NOW(),
-                    updated_at TIMESTAMPTZ DEFAULT NOW()
-                );
-                """
-            )
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)")
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)")
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles(user_id)")
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_profiles_last_name ON profiles(last_name)")
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS athlete_skills (
-                    id SERIAL PRIMARY KEY,
-                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                    name VARCHAR(200) NOT NULL DEFAULT '',
-                    rating INTEGER,
-                    sort_order INTEGER NOT NULL DEFAULT 0
-                );
-                """
-            )
-            cur.execute(
-                "CREATE INDEX IF NOT EXISTS idx_athlete_skills_user ON athlete_skills(user_id)"
-            )
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS sports (
-                    id SERIAL PRIMARY KEY,
-                    name VARCHAR(200) UNIQUE NOT NULL
-                );
-                """
-            )
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_sports_name ON sports(name)")
-
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS teams (
-                    id SERIAL PRIMARY KEY,
-                    sport_id INTEGER NOT NULL REFERENCES sports(id) ON DELETE RESTRICT,
-                    name VARCHAR(200) NOT NULL,
-                    coach_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                    is_open BOOLEAN NOT NULL DEFAULT TRUE,
-                    created_at TIMESTAMPTZ DEFAULT NOW()
-                );
-                """
-            )
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_teams_sport ON teams(sport_id)")
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_teams_open ON teams(is_open)")
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_teams_coach ON teams(coach_user_id)")
-
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS team_applications (
-                    id SERIAL PRIMARY KEY,
-                    team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
-                    athlete_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                    status VARCHAR(50) NOT NULL DEFAULT 'pending',
-                    created_at TIMESTAMPTZ DEFAULT NOW(),
-                    UNIQUE(team_id, athlete_user_id)
-                );
-                """
-            )
-            cur.execute(
-                "CREATE INDEX IF NOT EXISTS idx_team_apps_athlete ON team_applications(athlete_user_id)"
-            )
-            cur.execute(
-                "CREATE INDEX IF NOT EXISTS idx_team_apps_team ON team_applications(team_id)"
-            )
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS team_members (
-                    id SERIAL PRIMARY KEY,
-                    team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
-                    athlete_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                    notes TEXT NOT NULL DEFAULT '',
-                    created_at TIMESTAMPTZ DEFAULT NOW(),
-                    UNIQUE(team_id, athlete_user_id)
-                );
-                """
-            )
-            cur.execute(
-                "CREATE INDEX IF NOT EXISTS idx_team_members_team ON team_members(team_id)"
-            )
-            cur.execute(
-                "CREATE INDEX IF NOT EXISTS idx_team_members_athlete ON team_members(athlete_user_id)"
-            )
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS team_member_qualities (
-                    id SERIAL PRIMARY KEY,
-                    team_member_id INTEGER NOT NULL REFERENCES team_members(id) ON DELETE CASCADE,
-                    name VARCHAR(200) NOT NULL DEFAULT '',
-                    rating INTEGER,
-                    sort_order INTEGER NOT NULL DEFAULT 0
-                );
-                """
-            )
-            cur.execute(
-                "CREATE INDEX IF NOT EXISTS idx_tmq_member ON team_member_qualities(team_member_id)"
-            )
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS team_criteria (
-                    id SERIAL PRIMARY KEY,
-                    team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
-                    text VARCHAR(300) NOT NULL DEFAULT '',
-                    sort_order INTEGER NOT NULL DEFAULT 0
-                );
-                """
-            )
-            cur.execute(
-                "CREATE INDEX IF NOT EXISTS idx_team_criteria_team ON team_criteria(team_id)"
-            )
-        conn.commit()
+            cur.execute("SELECT 1")
     finally:
         conn.close()
 
@@ -280,21 +147,56 @@ def get_user_by_id(user_id: int):
         conn.close()
 
 
+def _get_or_create_skill_id(cur, name: str) -> int:
+    n = (name or "").strip()
+    if not n:
+        raise ValueError("Название скилла обязательно")
+    cur.execute(
+        """
+        INSERT INTO skills (name, category)
+        VALUES (%s, 'custom')
+        ON CONFLICT (name) DO NOTHING
+        RETURNING id
+        """,
+        (n,),
+    )
+    row = cur.fetchone()
+    if row and row.get("id") is not None:
+        return int(row["id"])
+    cur.execute("SELECT id FROM skills WHERE name = %s LIMIT 1", (n,))
+    row2 = cur.fetchone()
+    if not row2:
+        raise RuntimeError("Не удалось создать скилл в справочнике")
+    return int(row2["id"])
+
+
+def _sportsman_skill_row(row: dict[str, Any], sort_order: int) -> dict[str, Any]:
+    return {
+        "id": int(row["id"]),
+        "user_id": int(row["user_id"]),
+        "name": row.get("name") or "",
+        "rating": row.get("self_rating"),
+        "sort_order": sort_order,
+        "skill_id": int(row["skill_id"]),
+    }
+
+
 def list_athlete_skills(user_id: int) -> list[dict[str, Any]]:
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, user_id, name, rating, sort_order
-                FROM athlete_skills
-                WHERE user_id = %s
-                ORDER BY sort_order ASC, id ASC
+                SELECT ss.id, ss.user_id, ss.skill_id, ss.self_rating, s.name
+                FROM sportsman_skills ss
+                JOIN skills s ON s.id = ss.skill_id
+                WHERE ss.user_id = %s
+                ORDER BY ss.id ASC
                 """,
                 (user_id,),
             )
             rows = cur.fetchall()
-            return [dict(r) for r in rows]
+            return [_sportsman_skill_row(dict(r), i) for i, r in enumerate(rows)]
     finally:
         conn.close()
 
@@ -303,22 +205,21 @@ def add_athlete_skill(user_id: int, name: str = "") -> int:
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                "SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_sort FROM athlete_skills WHERE user_id = %s",
-                (user_id,),
-            )
-            sort_order = int(cur.fetchone()["next_sort"])
+            skill_id = _get_or_create_skill_id(cur, name)
             cur.execute(
                 """
-                INSERT INTO athlete_skills (user_id, name, rating, sort_order)
-                VALUES (%s, %s, NULL, %s)
+                INSERT INTO sportsman_skills (user_id, skill_id, self_rating)
+                VALUES (%s, %s, NULL)
                 RETURNING id
                 """,
-                (user_id, name.strip(), sort_order),
+                (user_id, skill_id),
             )
             new_id = cur.fetchone()["id"]
         conn.commit()
         return int(new_id)
+    except psycopg.errors.UniqueViolation as exc:  # type: ignore[attr-defined]
+        conn.rollback()
+        raise ValueError("Такой скилл уже добавлен") from exc
     except Exception:
         conn.rollback()
         raise
@@ -330,18 +231,19 @@ def replace_athlete_skills(user_id: int, skills: list[dict[str, Any]]) -> None:
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("DELETE FROM athlete_skills WHERE user_id = %s", (user_id,))
-            for i, s in enumerate(skills):
+            cur.execute("DELETE FROM sportsman_skills WHERE user_id = %s", (user_id,))
+            for s in skills:
                 name = (s.get("name") or "").strip()
                 rating = s.get("rating", None)
                 if rating is not None:
                     rating = int(rating)
+                skill_id = _get_or_create_skill_id(cur, name)
                 cur.execute(
                     """
-                    INSERT INTO athlete_skills (user_id, name, rating, sort_order)
-                    VALUES (%s, %s, %s, %s)
+                    INSERT INTO sportsman_skills (user_id, skill_id, self_rating)
+                    VALUES (%s, %s, %s)
                     """,
-                    (user_id, name, rating, i),
+                    (user_id, skill_id, rating),
                 )
         conn.commit()
     except Exception:
@@ -454,8 +356,8 @@ def create_team(
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO teams (sport_id, name, coach_user_id, is_open)
-                VALUES (%s, %s, %s, TRUE)
+                INSERT INTO teams (sport_id, name, coach_user_id, members_count)
+                VALUES (%s, %s, %s, 0)
                 RETURNING id
                 """,
                 (sport_id, tn, coach_user_id),
@@ -489,7 +391,7 @@ def get_available_team_detail(team_id: int) -> dict[str, Any] | None:
                 JOIN sports s ON s.id = t.sport_id
                 JOIN users u ON u.id = t.coach_user_id
                 LEFT JOIN profiles p ON p.user_id = u.id
-                WHERE t.id = %s AND t.is_open = TRUE
+                WHERE t.id = %s
                 LIMIT 1
                 """,
                 (team_id,),
@@ -532,7 +434,7 @@ def list_available_teams(sport_name: str | None = None) -> list[dict[str, Any]]:
                     JOIN sports s ON s.id = t.sport_id
                     JOIN users u ON u.id = t.coach_user_id
                     LEFT JOIN profiles p ON p.user_id = u.id
-                    WHERE t.is_open = TRUE AND s.name = %s
+                    WHERE s.name = %s
                     ORDER BY s.name, t.id
                     """,
                     ((sport_name or "").strip(),),
@@ -551,7 +453,6 @@ def list_available_teams(sport_name: str | None = None) -> list[dict[str, Any]]:
                     JOIN sports s ON s.id = t.sport_id
                     JOIN users u ON u.id = t.coach_user_id
                     LEFT JOIN profiles p ON p.user_id = u.id
-                    WHERE t.is_open = TRUE
                     ORDER BY s.name, t.id
                     """
                 )
@@ -585,11 +486,11 @@ def apply_to_team(team_id: int, athlete_user_id: int) -> int:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT 1 FROM teams WHERE id = %s AND is_open = TRUE LIMIT 1",
+                "SELECT 1 FROM teams WHERE id = %s LIMIT 1",
                 (team_id,),
             )
             if cur.fetchone() is None:
-                raise ValueError("Команда не найдена или набор закрыт")
+                raise ValueError("Команда не найдена")
             cur.execute(
                 """
                 INSERT INTO team_applications (team_id, athlete_user_id, status)
@@ -680,24 +581,31 @@ def _compute_member_score(qualities: list[dict[str, Any]]) -> float | None:
     return round(sum(rated) / len(rated), 1)
 
 
-def _fetch_member_qualities(cur, member_id: int) -> list[dict[str, Any]]:
+def _fetch_member_qualities(
+    cur,
+    coach_user_id: int,
+    athlete_user_id: int,
+) -> list[dict[str, Any]]:
+    """Качества участника — оценки тренера из coach_assessments + справочник skills."""
     cur.execute(
         """
-        SELECT id AS quality_id, name, rating, sort_order
-        FROM team_member_qualities
-        WHERE team_member_id = %s
-        ORDER BY sort_order ASC, id ASC
+        SELECT ca.id AS quality_id, ca.skill_id, s.name, ca.rating
+        FROM coach_assessments ca
+        JOIN skills s ON s.id = ca.skill_id
+        WHERE ca.coach_id = %s AND ca.sportsman_id = %s
+        ORDER BY ca.id ASC
         """,
-        (member_id,),
+        (coach_user_id, athlete_user_id),
     )
     return [
         {
             "quality_id": int(r["quality_id"]),
+            "skill_id": int(r["skill_id"]),
             "name": r.get("name") or "",
             "rating": r.get("rating"),
-            "sort_order": int(r["sort_order"]),
+            "sort_order": i,
         }
-        for r in cur.fetchall()
+        for i, r in enumerate(cur.fetchall())
     ]
 
 
@@ -716,20 +624,30 @@ def _member_row_to_dict(row: dict[str, Any], qualities: list[dict[str, Any]]) ->
     }
 
 
-def _seed_member_qualities_from_athlete(cur, member_id: int, athlete_user_id: int) -> None:
+def _seed_coach_assessments_from_athlete(
+    cur,
+    coach_user_id: int,
+    athlete_user_id: int,
+) -> None:
+    """При добавлении в состав копируем самооценки спортсмена в coach_assessments."""
     cur.execute(
         """
-        INSERT INTO team_member_qualities (team_member_id, name, rating, sort_order)
-        SELECT %s, name, rating, sort_order
-        FROM athlete_skills
-        WHERE user_id = %s
-        ORDER BY sort_order ASC, id ASC
+        INSERT INTO coach_assessments (coach_id, sportsman_id, skill_id, rating)
+        SELECT %s, %s, ss.skill_id, ss.self_rating
+        FROM sportsman_skills ss
+        WHERE ss.user_id = %s
+          AND NOT EXISTS (
+              SELECT 1 FROM coach_assessments ca
+              WHERE ca.coach_id = %s
+                AND ca.sportsman_id = %s
+                AND ca.skill_id = ss.skill_id
+          )
         """,
-        (member_id, athlete_user_id),
+        (coach_user_id, athlete_user_id, athlete_user_id, coach_user_id, athlete_user_id),
     )
 
 
-def _fetch_team_members(cur, team_id: int) -> list[dict[str, Any]]:
+def _fetch_team_members(cur, team_id: int, coach_user_id: int) -> list[dict[str, Any]]:
     cur.execute(
         """
         SELECT
@@ -750,8 +668,8 @@ def _fetch_team_members(cur, team_id: int) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for r in cur.fetchall():
         row = dict(r)
-        member_id = int(row["member_id"])
-        qualities = _fetch_member_qualities(cur, member_id)
+        athlete_user_id = int(row["athlete_user_id"])
+        qualities = _fetch_member_qualities(cur, coach_user_id, athlete_user_id)
         out.append(_member_row_to_dict(row, qualities))
     return out
 
@@ -759,7 +677,7 @@ def _fetch_team_members(cur, team_id: int) -> list[dict[str, Any]]:
 def _require_coach_team(cur, coach_user_id: int, team_id: int) -> dict[str, Any]:
     cur.execute(
         """
-        SELECT t.id AS team_id, t.name AS team, t.is_open, s.name AS sport
+        SELECT t.id AS team_id, t.name AS team, s.name AS sport
         FROM teams t
         JOIN sports s ON s.id = t.sport_id
         WHERE t.id = %s AND t.coach_user_id = %s
@@ -805,13 +723,12 @@ def get_coach_team_detail(coach_user_id: int, team_id: int) -> dict[str, Any]:
     try:
         with conn.cursor() as cur:
             team = _require_coach_team(cur, coach_user_id, team_id)
-            members = _fetch_team_members(cur, team_id)
+            members = _fetch_team_members(cur, team_id, coach_user_id)
             criteria = _fetch_team_criteria(cur, team_id)
         return {
             "team_id": int(team["team_id"]),
             "team": team["team"],
             "sport": team["sport"],
-            "is_open": bool(team["is_open"]),
             "criteria": criteria,
             "members": members,
         }
@@ -843,7 +760,7 @@ def add_team_member(coach_user_id: int, team_id: int, athlete_user_id: int) -> i
             )
             row = cur.fetchone()
             member_id = int(row["id"])
-            _seed_member_qualities_from_athlete(cur, member_id, athlete_user_id)
+            _seed_coach_assessments_from_athlete(cur, coach_user_id, athlete_user_id)
         conn.commit()
         return member_id
     except psycopg.errors.UniqueViolation as exc:  # type: ignore[attr-defined]
@@ -907,11 +824,18 @@ def save_team_members(
                     raise ValueError(f"members[{i}]: нужен member_id")
                 member_id = int(member_id)
                 cur.execute(
-                    "SELECT 1 FROM team_members WHERE id = %s AND team_id = %s LIMIT 1",
+                    """
+                    SELECT athlete_user_id
+                    FROM team_members
+                    WHERE id = %s AND team_id = %s
+                    LIMIT 1
+                    """,
                     (member_id, team_id),
                 )
-                if cur.fetchone() is None:
+                member_row = cur.fetchone()
+                if member_row is None:
                     raise ValueError(f"Участник member_id={member_id} не найден в команде")
+                athlete_user_id = int(member_row["athlete_user_id"])
 
                 notes = (item.get("notes") or "").strip()
                 cur.execute(
@@ -932,62 +856,24 @@ def save_team_members(
                     if quality_id is None:
                         raise ValueError(f"members[{i}].qualities[{j}]: нужен quality_id")
                     rating = _validate_quality_rating(q.get("rating", None))
-                    name = q.get("name")
-                    if name is not None:
-                        name = str(name).strip()
-                        if len(name) > 200:
-                            raise ValueError("Название качества: не больше 200 символов")
-                        cur.execute(
-                            """
-                            UPDATE team_member_qualities
-                            SET rating = %s, name = %s
-                            WHERE id = %s AND team_member_id = %s
-                            """,
-                            (rating, name, int(quality_id), member_id),
-                        )
-                    else:
-                        cur.execute(
-                            """
-                            UPDATE team_member_qualities
-                            SET rating = %s
-                            WHERE id = %s AND team_member_id = %s
-                            """,
-                            (rating, int(quality_id), member_id),
-                        )
+                    cur.execute(
+                        """
+                        UPDATE coach_assessments
+                        SET rating = %s, updated_at = NOW()
+                        WHERE id = %s
+                          AND coach_id = %s
+                          AND sportsman_id = %s
+                        """,
+                        (rating, int(quality_id), coach_user_id, athlete_user_id),
+                    )
                     if cur.rowcount == 0:
                         raise ValueError(
-                            f"Качество quality_id={quality_id} не найдено у участника {member_id}"
+                            f"Оценка quality_id={quality_id} не найдена у участника {member_id}"
                         )
 
-            saved = _fetch_team_members(cur, team_id)
+            saved = _fetch_team_members(cur, team_id, coach_user_id)
         conn.commit()
         return saved
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
-
-
-def finalize_team_roster(coach_user_id: int, team_id: int) -> dict[str, Any]:
-    conn = get_db_connection()
-    try:
-        with conn.cursor() as cur:
-            _require_coach_team(cur, coach_user_id, team_id)
-            cur.execute(
-                "UPDATE teams SET is_open = FALSE WHERE id = %s",
-                (team_id,),
-            )
-            team = _require_coach_team(cur, coach_user_id, team_id)
-            members = _fetch_team_members(cur, team_id)
-        conn.commit()
-        return {
-            "team_id": int(team["team_id"]),
-            "team": team["team"],
-            "sport": team["sport"],
-            "is_open": bool(team["is_open"]),
-            "members": members,
-        }
     except Exception:
         conn.rollback()
         raise

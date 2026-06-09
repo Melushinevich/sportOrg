@@ -8,7 +8,6 @@ from user_registration.storage import (
     add_team_member,
     apply_to_team,
     create_team,
-    finalize_team_roster,
     get_available_team_detail,
     get_coach_team_detail,
     init_db,
@@ -228,23 +227,6 @@ def coach_save_members(team_id: int, user_id: int):
     return jsonify({"members": saved}), 200
 
 
-@bp.post("/coach/teams/<int:team_id>/finalize")
-@require_coach_json
-@limiter.limit("30 per minute")
-def coach_finalize_roster(team_id: int, user_id: int):
-    """Сформировать состав: закрыть набор (is_open=false)."""
-    init_db()
-    try:
-        detail = finalize_team_roster(user_id, team_id)
-    except ValueError as exc:
-        return _value_error_response(exc)
-    except Exception as exc:  # noqa: BLE001
-        log.exception("coach_finalize_fail coach_id=%s team_id=%s", user_id, team_id)
-        return _json_error(str(exc), "storage_error", 503)
-    log.info("coach_finalize_ok coach_id=%s team_id=%s", user_id, team_id)
-    return jsonify(detail), 200
-
-
 @bp.get("/available-teams")
 @require_sportsman_json
 @limiter.limit("120 per minute")
@@ -266,7 +248,7 @@ def available_team_detail(team_id: int, user_id: int):
     init_db()
     detail = get_available_team_detail(team_id)
     if detail is None:
-        return _json_error("Команда не найдена или набор закрыт", "not_found", 404)
+        return _json_error("Команда не найдена", "not_found", 404)
     return jsonify(detail), 200
 
 

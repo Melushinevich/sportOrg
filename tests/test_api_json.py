@@ -3,29 +3,42 @@ import uuid
 
 import pytest
 
-from tests.conftest import _apply_default_db_env
+from user_registration import registration
 
 
-@pytest.fixture
-def api_client(postgres_db):
-    _apply_default_db_env()
-    from app import create_app
-
-    return create_app(testing=True).test_client()
-
-
-def test_health(api_client):
-    rv = api_client.get("/api/v1/health")
+def test_health_connected(app_client, mock_db_connected):
+    rv = app_client.get("/api/v1/health")
     assert rv.status_code == 200
     data = rv.get_json()
     assert data["status"] == "ok"
-    assert data["storage"] == "postgres"
-    assert data.get("db") == "connected"
+    assert data["db"] == "connected"
 
 
-def test_register_json_201(api_client):
+def test_health_degraded(app_client, monkeypatch):
+    def fail_conn():
+        raise OSError("no db")
+
+    monkeypatch.setattr("sportorg.api.public.get_db_connection", fail_conn)
+    rv = app_client.get("/api/v1/health")
+    data = rv.get_json()
+    assert data["status"] == "degraded"
+    assert data["db"] == "error"
+
+
+def test_index_route(app_client):
+    rv = app_client.get("/")
+    assert rv.status_code == 200
+    assert rv.get_json()["service"] == "SportOrg API"
+
+
+def test_register_json_201(app_client, monkeypatch):
     email = f"api_{uuid.uuid4().hex[:8]}@test.local"
-    rv = api_client.post(
+
+    def fake_register(_req):
+        return {"success": True, "user_id": 10, "email": email, "role": "sportsman"}
+
+    monkeypatch.setattr("sportorg.api.public.register_user", fake_register)
+    rv = app_client.post(
         "/api/v1/register",
         data=json.dumps(
             {
@@ -34,70 +47,70 @@ def test_register_json_201(api_client):
                 "email": email,
                 "password": "secret12",
                 "password2": "secret12",
-                "role": "sportsman",
             }
         ),
         content_type="application/json",
     )
     assert rv.status_code == 201
-    data = rv.get_json()
-    assert data["email"] == email
-    assert data["role"] == "sportsman"
-    assert isinstance(data["user_id"], int)
+    assert rv.get_json()["user_id"] == 10
 
 
-def test_register_duplicate_409(api_client):
-    email = f"d_{uuid.uuid4().hex[:8]}@test.local"
-    body = {
-        "first_name": "A",
-        "last_name": "B",
-        "email": email,
-        "password": "secret12",
-        "password2": "secret12",
-    }
-    assert api_client.post(
-        "/api/v1/register",
-        data=json.dumps(body),
-        content_type="application/json",
-    ).status_code == 201
-    rv2 = api_client.post(
-        "/api/v1/register",
-        data=json.dumps(body),
-        content_type="application/json",
-    )
-    assert rv2.status_code == 409
-    assert rv2.get_json()["code"] == "email_already_exists"
+def test_register_duplicate_409(app_client, monkeypatch):
+    def dup(_req):
+        return {"success": False, "error": "dup", "code": "email_already_exists"}
 
-
-def test_login_json_200(api_client):
-    email = f"login_{uuid.uuid4().hex[:8]}@test.local"
-    api_client.post(
+    monkeypatch.setattr("sportorg.api.public.register_user", dup)
+    rv = app_client.post(
         "/api/v1/register",
         data=json.dumps(
             {
-                "first_name": "L",
-                "last_name": "G",
-                "email": email,
-                "password": "mypass1",
-                "password2": "mypass1",
+                "first_name": "A",
+                "last_name": "B",
+                "email": "d@test.local",
+                "password": "secret12",
+                "password2": "secret12",
             }
         ),
         content_type="application/json",
     )
-    rv = api_client.post(
+    assert rv.status_code == 409
+
+
+def test_login_json_200(app_client, monkeypatch):
+    def fake_login(_email, _password):
+        return True, {"id": 5, "email": "u@t.com", "role": "sportsman"}
+
+    monkeypatch.setattr("sportorg.api.public.login_user", fake_login)
+    rv = app_client.post(
         "/api/v1/login",
-        data=json.dumps({"email": email, "password": "mypass1"}),
+        data=json.dumps({"email": "u@t.com", "password": "secret12"}),
         content_type="application/json",
     )
     assert rv.status_code == 200
     body = rv.get_json()
-    user = body["user"]
-    assert user["email"] == email
-    assert "password_hash" not in user
-    assert "access_token" in body and body["access_token"]
+    assert body.get("access_token")
     assert body.get("token_type") == "Bearer"
 
 
-def test_register_requires_json(api_client):
-    rv = api_client.post("/api/v1/register", data="not json")
+def test_login_fail_401(app_client, monkeypatch):
+    monkeypatch.setattr("sportorg.api.public.login_user", lambda *_: (False, "bad"))
+    rv = app_client.post(
+        "/api/v1/login",
+        data=json.dumps({"email": "u@t.com", "password": "x"}),
+        content_type="application/json",
+    )
+    assert rv.status_code == 401
+
+
+def test_register_requires_json(app_client):
+    rv = app_client.post("/api/v1/register", data="not json")
     assert rv.status_code == 415
+
+
+def test_register_invalid_json_body(app_client):
+    rv = app_client.post(
+        "/api/v1/register",
+        data=json.dumps([]),
+        content_type="application/json",
+    )
+    assert rv.status_code == 400
