@@ -77,7 +77,7 @@ class AthleteSkillsWindow(QMainWindow):
         main_layout.addLayout(top_layout)
         main_layout.addSpacing(30)
 
-        list_title = QLabel("Скиллы")
+        list_title = QLabel("Навыки")
         list_title.setFont(QFont("Roboto Flex", 20, QFont.Bold))
         list_title.setAlignment(Qt.AlignLeft)
         list_title.setStyleSheet("color: black; margin-bottom: 10px;")
@@ -96,7 +96,7 @@ class AthleteSkillsWindow(QMainWindow):
 
         self.table = QTableWidget()
         self.table.setColumnCount(2)
-        self.table.setHorizontalHeaderLabels(["Скилл", "Оценка по 10 б шкале"])
+        self.table.setHorizontalHeaderLabels(["Навык", "Оценка по 10 б шкале"])
         self.table.setRowCount(0)
 
         header = self.table.horizontalHeader()
@@ -159,7 +159,7 @@ class AthleteSkillsWindow(QMainWindow):
 
         skills_container_layout.addWidget(self.table)
 
-        self.add_skill_button = QPushButton("ДОБАВИТЬ СКИЛЛ")
+        self.add_skill_button = QPushButton("ДОБАВИТЬ НАВЫК")
         self.add_skill_button.setFixedSize(690, 65)
         self.add_skill_button.setFont(QFont("Roboto Flex", 20))
         self.add_skill_button.setCursor(Qt.PointingHandCursor)
