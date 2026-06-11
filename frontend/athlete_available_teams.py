@@ -2,13 +2,14 @@ import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QLabel, QPushButton, QTableWidget,
-    QTableWidgetItem, QHeaderView, QMessageBox
+    QTableWidgetItem, QHeaderView,
 )
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPixmap
 from .assets import asset_path
 from .burger_menu import show_burger_menu
 from .help_window import HelpWindow
+from .ui_messages import apply_dialog_styles, ask_yes_no, show_info, show_warning
 
 
 class AthleteAvailableTeamsWindow(QMainWindow):
@@ -257,13 +258,12 @@ class AthleteAvailableTeamsWindow(QMainWindow):
         selected_items = self.table.selectedItems()
 
         if not selected_items:
-            msg_box = QMessageBox(self)
-            msg_box.setIcon(QMessageBox.Warning)
-            msg_box.setWindowTitle("Внимание")
-            msg_box.setText("Выберите команду для подачи заявки!")
-            msg_box.setInformativeText("Кликните по строке в таблице, чтобы выбрать команду.")
-            msg_box.setStandardButtons(QMessageBox.Ok)
-            msg_box.exec_()
+            show_warning(
+                self,
+                "Внимание",
+                "Выберите команду для подачи заявки!",
+                informative="Кликните по строке в таблице, чтобы выбрать команду.",
+            )
             return
 
         row = selected_items[0].row()
@@ -271,38 +271,27 @@ class AthleteAvailableTeamsWindow(QMainWindow):
         team = self.table.item(row, 1).text()
         trainer = self.table.item(row, 2).text()
 
-        msg_box = QMessageBox(self)
-        msg_box.setIcon(QMessageBox.Question)
-        msg_box.setWindowTitle("Подтверждение заявки")
-        msg_box.setText(f"Подать заявку в команду '{team}' ({sport})?")
-        msg_box.setInformativeText(f"Тренер: {trainer}\nПосле отправки заявки тренер рассмотрит вашу кандидатуру.")
-        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        msg_box.setDefaultButton(QMessageBox.Yes)
-
-        reply = msg_box.exec_()
-
-        if reply == QMessageBox.Yes:
-            success_msg = QMessageBox(self)
-            success_msg.setIcon(QMessageBox.Information)
-            success_msg.setWindowTitle("Заявка отправлена")
-            success_msg.setText(f"Заявка в '{team}' успешно отправлена!")
-            success_msg.setInformativeText("Тренер получит уведомление и свяжется с вами.")
-            success_msg.setStandardButtons(QMessageBox.Ok)
-            success_msg.exec_()
+        if ask_yes_no(
+            self,
+            "Подтверждение заявки",
+            f"Подать заявку в команду '{team}' ({sport})?",
+            informative=(
+                f"Тренер: {trainer}\n"
+                "После отправки заявки тренер рассмотрит вашу кандидатуру."
+            ),
+            default_no=False,
+        ):
+            show_info(
+                self,
+                "Заявка отправлена",
+                f"Заявка в '{team}' успешно отправлена!",
+                informative="Тренер получит уведомление и свяжется с вами.",
+            )
 
 
 def main():
     app = QApplication(sys.argv)
-    app.setStyleSheet("""
-        QMessageBox { background-color: white; }
-        QMessageBox QLabel { color: black; background-color: transparent; }
-        QMessageBox QPushButton {
-            background-color: #EF8354; color: white; border: none;
-            border-radius: 15px; padding: 8px 20px; min-width: 80px;
-            font-family: 'Helvetica Neue'; font-size: 14px;
-        }
-        QMessageBox QPushButton:hover { background-color: #D6754B; }
-    """)
+    apply_dialog_styles(app)
 
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))

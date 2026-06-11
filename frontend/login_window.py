@@ -2,7 +2,7 @@ import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QLabel, QLineEdit, QPushButton,
-    QMessageBox
+
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont, QPalette, QColor
@@ -11,6 +11,7 @@ from . import dpi_fix
 from .api_client import ApiError, ROLE_API_TO_UI, SportOrgApi
 from .registr_window import CustomLineEdit, SupportButton
 from .session import session
+from .ui_messages import show_error, show_info
 
 
 class LoginWindow(QMainWindow):
@@ -190,23 +191,11 @@ class LoginWindow(QMainWindow):
 
     def show_error_message(self, message):
         """Показать сообщение об ошибке"""
-        msg_box = QMessageBox()
-        msg_box.setIcon(QMessageBox.Critical)
-        msg_box.setWindowTitle("Ошибка входа")
-        msg_box.setText(message)
-        msg_box.setStyleSheet("QLabel { color: black; }")
-        msg_box.setStandardButtons(QMessageBox.Ok)
-        msg_box.exec_()
+        show_error(self, "Ошибка входа", message)
 
     def show_success_message(self, message, role):
         """Показать сообщение об успешном входе"""
-        msg_box = QMessageBox()
-        msg_box.setIcon(QMessageBox.Information)
-        msg_box.setWindowTitle("Успешный вход")
-        msg_box.setText(f"{message}\nРоль: {role}")
-        msg_box.setStyleSheet("QLabel { color: black; }")
-        msg_box.setStandardButtons(QMessageBox.Ok)
-        msg_box.exec_()
+        show_info(self, "Успешный вход", f"{message}\nРоль: {role}")
 
     def on_register_clicked(self):
         """Переход на окно регистрации"""

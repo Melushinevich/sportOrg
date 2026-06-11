@@ -2,13 +2,14 @@ import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QLabel, QPushButton, QListWidget,
-    QListWidgetItem, QMessageBox
+    QListWidgetItem,
 )
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPixmap
 from .assets import asset_path
 from .burger_menu import show_burger_menu
 from .help_window import HelpWindow
+from .ui_messages import apply_dialog_styles
 
 
 class AthleteMainWindow(QMainWindow):
@@ -215,16 +216,7 @@ class AthleteMainWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-    app.setStyleSheet("""
-        QMessageBox { background-color: white; }
-        QMessageBox QLabel { color: black; background-color: transparent; }
-        QMessageBox QPushButton {
-            background-color: #EF8354; color: white; border: none;
-            border-radius: 15px; padding: 8px 20px; min-width: 80px;
-            font-family: 'Helvetica Neue'; font-size: 14px;
-        }
-        QMessageBox QPushButton:hover { background-color: #D6754B; }
-    """)
+    apply_dialog_styles(app)
 
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))

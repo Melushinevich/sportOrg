@@ -2,7 +2,7 @@ import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QLabel, QPushButton, QListWidget,
-    QListWidgetItem, QMessageBox
+    QListWidgetItem,
 )
 from PyQt5.QtCore import Qt, QSize, pyqtSignal
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPixmap
@@ -11,6 +11,7 @@ from .assets import asset_path
 from .burger_menu import show_burger_menu
 from .data_page_trainer import ProfileWindow as TrainerProfileWindow
 from .responses_window import ResponsesWindow
+from .ui_messages import apply_dialog_styles, show_info
 from .team_view_window import TeamViewWindow
 
 
@@ -213,12 +214,11 @@ class TrainerSportsWindow(QMainWindow):
         })
         self.add_sport_to_list(team_name, sport_type, criteria)
 
-        msg_box = QMessageBox()
-        msg_box.setIcon(QMessageBox.Information)
-        msg_box.setWindowTitle("Успех")
-        msg_box.setText(f"Команда '{team_name}' ({sport_type}) добавлена с {len(criteria)} критериями!")
-        msg_box.setStandardButtons(QMessageBox.Ok)
-        msg_box.exec_()
+        show_info(
+            self,
+            "Успех",
+            f"Команда '{team_name}' ({sport_type}) добавлена с {len(criteria)} критериями!",
+        )
 
         self.show()
 
@@ -232,16 +232,7 @@ class TrainerSportsWindow(QMainWindow):
 def main():
     app = QApplication(sys.argv)
 
-    app.setStyleSheet("""
-        QMessageBox { background-color: white; }
-        QMessageBox QLabel { color: black; background-color: transparent; }
-        QMessageBox QPushButton {
-            background-color: #6C769F; color: white; border: none;
-            border-radius: 15px; padding: 8px 20px; min-width: 80px;
-            font-family: 'Helvetica Neue'; font-size: 14px;
-        }
-        QMessageBox QPushButton:hover { background-color: #5A6385; }
-    """)
+    apply_dialog_styles(app)
 
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))

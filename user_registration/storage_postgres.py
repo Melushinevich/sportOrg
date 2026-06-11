@@ -151,6 +151,74 @@ def get_user_by_id(user_id: int):
         conn.close()
 
 
+def _profile_row_to_dict(row: dict) -> dict:
+    birth = row.get("birth_date")
+    if birth is not None and hasattr(birth, "isoformat"):
+        birth = birth.isoformat()
+    return {
+        "user_id": row["id"],
+        "email": row.get("email"),
+        "role": row.get("role"),
+        "last_name": row.get("last_name"),
+        "first_name": row.get("first_name"),
+        "patronymic": row.get("patronymic"),
+        "birth_date": birth,
+        "phone": row.get("phone"),
+        "city": row.get("city"),
+    }
+
+
+def get_user_profile(user_id: int) -> dict | None:
+    row = get_user_by_id(user_id)
+    if row is None:
+        return None
+    return _profile_row_to_dict(row)
+
+
+def update_user_profile(user_id: int, data: dict) -> dict:
+    last_name = (data.get("last_name") or "").strip()
+    first_name = (data.get("first_name") or "").strip()
+    if not last_name or not first_name:
+        raise ValueError("Фамилия и имя обязательны")
+
+    patronymic = (data.get("patronymic") or "").strip() or None
+    birth_date = data.get("birth_date") or None
+    phone = (data.get("phone") or "").strip() or None
+    city = (data.get("city") or "").strip() or None
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE profiles
+                SET last_name = %s,
+                    first_name = %s,
+                    patronymic = %s,
+                    birth_date = %s,
+                    phone = %s,
+                    city = %s,
+                    updated_at = NOW()
+                WHERE user_id = %s
+                RETURNING user_id
+                """,
+                (last_name, first_name, patronymic, birth_date, phone, city, user_id),
+            )
+            if cur.fetchone() is None:
+                raise ValueError("Профиль не найден")
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+    profile = get_user_profile(user_id)
+    if profile is None:
+        raise ValueError("Профиль не найден")
+    return profile
+
+
 def _get_or_create_skill_id(cur, name: str) -> int:
     n = (name or "").strip()
     if not n:

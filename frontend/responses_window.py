@@ -2,12 +2,13 @@ import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QLabel, QPushButton, QTableWidget,
-    QTableWidgetItem, QHeaderView, QCheckBox, QMessageBox
+    QTableWidgetItem, QHeaderView, QCheckBox,
 )
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPixmap
 from .assets import asset_path
 from .burger_menu import show_burger_menu
+from .ui_messages import apply_dialog_styles
 
 
 class ResponsesWindow(QMainWindow):
@@ -417,16 +418,7 @@ class ResponsesWindow(QMainWindow):
 def main():
     app = QApplication(sys.argv)
 
-    app.setStyleSheet("""
-        QMessageBox { background-color: white; }
-        QMessageBox QLabel { color: black; background-color: transparent; }
-        QMessageBox QPushButton {
-            background-color: #6C769F; color: white; border: none;
-            border-radius: 15px; padding: 8px 20px; min-width: 80px;
-            font-family: 'Helvetica Neue'; font-size: 14px;
-        }
-        QMessageBox QPushButton:hover { background-color: #5A6385; }
-    """)
+    apply_dialog_styles(app)
 
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))

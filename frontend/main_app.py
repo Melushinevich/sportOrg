@@ -9,6 +9,7 @@ from .data_page_trainer import ProfileWindow as TrainerProfileWindow
 from .login_window import LoginWindow
 from .registr_window import RegistrationWindow
 from .start_window import StartWindow
+from .ui_messages import apply_dialog_styles
 
 
 class MainApplication(QStackedWidget):
@@ -66,18 +67,22 @@ class MainApplication(QStackedWidget):
     def on_register_success(self, role, email, password):
         """Переход из регистрации в анкету (спортсмен/тренер)"""
         if role == "СПОРТСМЕН":
+            self.sportsman_window.load_profile()
             self.setCurrentWidget(self.sportsman_window)
             print(f"Переход на анкету спортсмена (email: {email})")
         elif role == "ТРЕНЕР":
+            self.trainer_window.load_profile()
             self.setCurrentWidget(self.trainer_window)
             print(f"Переход на анкету тренера (email: {email})")
 
     def on_login_success(self, email, role):
         """Переход после успешного входа"""
         if role == "СПОРТСМЕН":
+            self.sportsman_window.load_profile()
             self.setCurrentWidget(self.sportsman_window)
             print(f"Успешный вход спортсмена: {email}")
         elif role == "ТРЕНЕР":
+            self.trainer_window.load_profile()
             self.setCurrentWidget(self.trainer_window)
             print(f"Успешный вход тренера: {email}")
 
@@ -87,6 +92,7 @@ def main():
     app.setFont(QFont("Helvetica Neue", 14))
 
     dpi_fix.apply_dpi_fix(app)
+    apply_dialog_styles(app)
     # Устанавливаем белый фон
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))

@@ -10,6 +10,7 @@ INIT_DB_MODULES = (
     "sportorg.api.public",
     "sportorg.api.teams",
     "sportorg.api.athlete_skills",
+    "sportorg.api.profile",
 )
 
 

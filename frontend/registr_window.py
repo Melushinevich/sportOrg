@@ -2,7 +2,7 @@ import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QLabel, QLineEdit, QPushButton,
-    QFrame, QRadioButton, QButtonGroup, QMessageBox
+    QFrame, QRadioButton, QButtonGroup,
 )
 from PyQt5.QtCore import Qt, QSize, pyqtSignal
 from PyQt5.QtGui import QFont, QPalette, QColor, QMouseEvent, QIcon
@@ -11,7 +11,9 @@ from PyQt5.QtCore import pyqtSignal  # если еще не импортиров
 from scipy.ndimage import black_tophat
 
 from . import dpi_fix
-from .api_client import ApiError, SportOrgApi
+from .api_client import ROLE_API_TO_UI, ApiError, SportOrgApi
+from .session import session
+from .ui_messages import show_error, show_info
 from .assets import asset_path
 
 
@@ -133,14 +135,14 @@ class SupportButton(QPushButton):
         self.clicked.connect(self.on_click)
 
     def on_click(self):
-        msg_box = QMessageBox()
-        msg_box.setIcon(QMessageBox.Information)
-        msg_box.setWindowTitle("Техподдержка")
-        msg_box.setStyleSheet("""color: black;""")
-        msg_box.setText(
-            "Свяжитесь с нами:\n\n📧 Email: support@sportorg.ru\n📞 Телефон: +7 (999) 123-45-67\n💬 Telegram: @sportorg_support")
-        msg_box.setStandardButtons(QMessageBox.Ok)
-        msg_box.exec_()
+        show_info(
+            None,
+            "Техподдержка",
+            "Свяжитесь с нами:\n\n"
+            "📧 Email: support@sportorg.ru\n"
+            "📞 Телефон: +7 (999) 123-45-67\n"
+            "💬 Telegram: @sportorg_support",
+        )
 
 
 class RegistrationWindow(QMainWindow):
@@ -355,32 +357,41 @@ class RegistrationWindow(QMainWindow):
         finally:
             self.register_button.setEnabled(True)
 
-        api_role = result.get("role", "")
-        role_label = "СПОРТСМЕН" if api_role == "sportsman" else "ТРЕНЕР"
+        try:
+            login_result = self.api.login(email=email, password=password)
+        except ApiError as exc:
+            self.show_error_message(
+                f"Регистрация прошла, но автоматический вход не удался: {exc}"
+            )
+            return
+        except Exception as exc:  # noqa: BLE001
+            self.show_error_message(f"Регистрация прошла, но вход не удался: {exc}")
+            return
+
+        user = login_result.get("user") or {}
+        role_api = (user.get("role") or result.get("role") or "").lower()
+        role_ui = ROLE_API_TO_UI.get(role_api) or role
+        session.user_id = int(user.get("id") or result.get("user_id") or 0) or None
+        session.email = user.get("email") or email
+        session.role_api = role_api
+        session.role_ui = role_ui
+        session.access_token = login_result.get("access_token")
+
+        role_label = "ТРЕНЕР" if role_api == "coach" else "СПОРТСМЕН"
         self.show_success_message(
             f"Регистрация успешна!\nРоль: {role_label}\nПочта: {email}"
         )
 
     def show_error_message(self, message):
-        msg_box = QMessageBox()
-        msg_box.setIcon(QMessageBox.Critical)
-        msg_box.setWindowTitle("Ошибка")
-        msg_box.setText("Пожалуйста, исправьте следующие ошибки:")
-        msg_box.setInformativeText(message)
-        msg_box.setStyleSheet("QLabel { color: black; }")
-        msg_box.setStandardButtons(QMessageBox.Ok)
-        msg_box.exec_()
+        show_error(
+            self,
+            "Ошибка",
+            "Пожалуйста, исправьте следующие ошибки:",
+            informative=message,
+        )
 
     def show_success_message(self, message):
-        msg_box = QMessageBox()
-        msg_box.setIcon(QMessageBox.Information)
-        msg_box.setWindowTitle("Успех")
-        msg_box.setText(message)
-        msg_box.setStyleSheet("QLabel { color: black; }")
-        msg_box.setStandardButtons(QMessageBox.Ok)
-
-        # Ждем, пока пользователь нажмет OK
-        msg_box.exec_()
+        show_info(self, "Успех", message)
 
         # Получаем данные перед очисткой
         email = self.email_input.get_real_text()

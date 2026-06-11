@@ -148,3 +148,46 @@ class SportOrgApi:
                 status=status,
             )
         return data
+
+    def get_profile(self, *, token: str) -> dict[str, Any]:
+        status, data = self._request("GET", "/api/v1/me/profile", token=token)
+        if status != 200:
+            raise ApiError(
+                data.get("error", "Не удалось загрузить профиль"),
+                code=data.get("code", "unknown"),
+                status=status,
+            )
+        return data
+
+    def update_profile(
+        self,
+        *,
+        token: str,
+        last_name: str,
+        first_name: str,
+        patronymic: str | None = None,
+        birth_date: str | None = None,
+        phone: str | None = None,
+        city: str | None = None,
+    ) -> dict[str, Any]:
+        body: dict[str, Any] = {
+            "last_name": last_name,
+            "first_name": first_name,
+            "patronymic": patronymic,
+            "birth_date": birth_date,
+            "phone": phone,
+            "city": city,
+        }
+        status, data = self._request(
+            "PUT",
+            "/api/v1/me/profile",
+            body=body,
+            token=token,
+        )
+        if status != 200:
+            raise ApiError(
+                data.get("error", "Не удалось сохранить профиль"),
+                code=data.get("code", "unknown"),
+                status=status,
+            )
+        return data

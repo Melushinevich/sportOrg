@@ -2,13 +2,14 @@ import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QLabel, QPushButton, QTableWidget,
-    QTableWidgetItem, QHeaderView, QMessageBox
+    QTableWidgetItem, QHeaderView,
 )
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 from .assets import asset_path
 from .burger_menu import show_burger_menu
 from .help_window import HelpWindow
+from .ui_messages import apply_dialog_styles, show_info, show_warning
 
 
 class FinalTeamWindow(QMainWindow):
@@ -224,12 +225,7 @@ class FinalTeamWindow(QMainWindow):
 
     def on_save(self):
         if self.table.rowCount() == 0:
-            msg_box = QMessageBox(self)
-            msg_box.setIcon(QMessageBox.Warning)
-            msg_box.setWindowTitle("Внимание")
-            msg_box.setText("Таблица пуста!")
-            msg_box.setStandardButtons(QMessageBox.Ok)
-            msg_box.exec_()
+            show_warning(self, "Внимание", "Таблица пуста!")
             return
 
         final_data = []
@@ -245,12 +241,11 @@ class FinalTeamWindow(QMainWindow):
                 "notes": notes
             })
 
-        msg_box = QMessageBox(self)
-        msg_box.setIcon(QMessageBox.Information)
-        msg_box.setWindowTitle("Сохранено")
-        msg_box.setText(f"Итоговый состав '{self.team_name}' сохранён! ({len(final_data)} чел.)")
-        msg_box.setStandardButtons(QMessageBox.Ok)
-        msg_box.exec_()
+        show_info(
+            self,
+            "Сохранено",
+            f"Итоговый состав '{self.team_name}' сохранён! ({len(final_data)} чел.)",
+        )
 
     def closeEvent(self, event):
         if self.parent():
@@ -261,16 +256,7 @@ class FinalTeamWindow(QMainWindow):
 def main():
     app = QApplication(sys.argv)
 
-    app.setStyleSheet("""
-        QMessageBox { background-color: white; }
-        QMessageBox QLabel { color: black; background-color: transparent; }
-        QMessageBox QPushButton {
-            background-color: #6C769F; color: white; border: none;
-            border-radius: 15px; padding: 8px 20px; min-width: 80px;
-            font-family: 'Helvetica Neue'; font-size: 14px;
-        }
-        QMessageBox QPushButton:hover { background-color: #5A6385; }
-    """)
+    apply_dialog_styles(app)
 
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))

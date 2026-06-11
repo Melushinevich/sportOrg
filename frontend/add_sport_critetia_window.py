@@ -2,7 +2,7 @@ import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QLabel, QPushButton, QListWidget,
-    QListWidgetItem, QMessageBox, QComboBox, QLineEdit,
+    QListWidgetItem, QComboBox, QLineEdit,
     QInputDialog
 )
 from PyQt5.QtCore import Qt, QSize, pyqtSignal
@@ -11,6 +11,7 @@ from . import dpi_fix
 from .assets import asset_path
 from .burger_menu import show_burger_menu
 from .registr_window import SupportButton
+from .ui_messages import apply_dialog_styles, ask_yes_no, show_error as display_error
 
 AVAILABLE_SPORTS = ["Футбол", "Баскетбол", "Волейбол", "Теннис", "Плавание",
                     "Легкая атлетика", "Хоккей", "Бокс", "Самбо", "Гимнастика"]
@@ -333,33 +334,26 @@ class AddSportCriteriaWindow(QMainWindow):
             return
 
         if sport in self.existing_sports:
-            reply = QMessageBox.question(
-                self, "Команда уже добавлена",
+            if not ask_yes_no(
+                self,
+                "Команда уже добавлена",
                 f"Команда '{team_name}' уже была добавлена ранее. Заменить?",
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
-            )
-            if reply != QMessageBox.Yes:
+            ):
                 return
 
         if not self.selected_criteria:
-            reply = QMessageBox.question(
-                self, "Нет критериев",
+            if not ask_yes_no(
+                self,
+                "Нет критериев",
                 "Вы не выбрали ни одного навыка. Продолжить?",
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
-            )
-            if reply != QMessageBox.Yes:
+            ):
                 return
 
         self.sport_saved.emit(team_name, sport, self.selected_criteria.copy())
         self.close()
 
     def show_error(self, message):
-        msg_box = QMessageBox(self)
-        msg_box.setIcon(QMessageBox.Critical)
-        msg_box.setWindowTitle("Ошибка")
-        msg_box.setText(message)
-        msg_box.setStandardButtons(QMessageBox.Ok)
-        msg_box.exec_()
+        display_error(self, "Ошибка", message)
 
     def closeEvent(self, event):
         if self.parent():
@@ -371,28 +365,7 @@ def main():
     app = QApplication(sys.argv)
     dpi_fix.apply_dpi_fix(app)
 
-    app.setStyleSheet("""
-        QMessageBox { background-color: white; }
-        QMessageBox QLabel { color: black; background-color: transparent; }
-        QMessageBox QPushButton {
-            background-color: #6C769F; color: white; border: none;
-            border-radius: 15px; padding: 8px 20px; min-width: 80px;
-            font-family: 'Helvetica Neue'; font-size: 14px;
-        }
-        QMessageBox QPushButton:hover { background-color: #5A6385; }
-        QInputDialog { background-color: white; }
-        QInputDialog QLabel { color: black; background-color: transparent; }
-        QInputDialog QComboBox {
-            background-color: #D9D9D9; color: black;
-            border: 1px solid #B0B0B0; border-radius: 10px; padding: 5px;
-        }
-        QInputDialog QPushButton {
-            background-color: #6C769F; color: white; border: none;
-            border-radius: 15px; padding: 8px 20px; min-width: 80px;
-            font-family: 'Helvetica Neue';
-        }
-        QInputDialog QPushButton:hover { background-color: #5A6385; }
-    """)
+    apply_dialog_styles(app)
 
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))

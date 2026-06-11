@@ -2,7 +2,7 @@ import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QLabel, QPushButton, QTableWidget,
-    QTableWidgetItem, QHeaderView, QMessageBox, QComboBox,
+    QTableWidgetItem, QHeaderView, QComboBox,
     QInputDialog
 )
 from PyQt5.QtCore import Qt, QSize
@@ -10,6 +10,7 @@ from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPixmap
 from .assets import asset_path
 from .burger_menu import show_burger_menu
 from .help_window import HelpWindow
+from .ui_messages import apply_dialog_styles, show_info, show_warning
 
 AVAILABLE_SKILLS = [
     "Скорость", "Выносливость", "Сила", "Гибкость", "Координация", "Реакция",
@@ -323,12 +324,7 @@ class AthleteSkillsWindow(QMainWindow):
             for row in range(self.table.rowCount()):
                 item = self.table.item(row, 0)
                 if item and item.text() == skill:
-                    msg_box = QMessageBox(self)
-                    msg_box.setIcon(QMessageBox.Warning)
-                    msg_box.setWindowTitle("Внимание")
-                    msg_box.setText(f"Навык '{skill}' уже добавлен!")
-                    msg_box.setStandardButtons(QMessageBox.Ok)
-                    msg_box.exec_()
+                    show_warning(self, "Внимание", f"Навык '{skill}' уже добавлен!")
                     return
 
             row = self.table.rowCount()
@@ -346,12 +342,7 @@ class AthleteSkillsWindow(QMainWindow):
 
     def on_save(self):
         if self.table.rowCount() == 0:
-            msg_box = QMessageBox(self)
-            msg_box.setIcon(QMessageBox.Warning)
-            msg_box.setWindowTitle("Внимание")
-            msg_box.setText("Добавьте хотя бы один навык!")
-            msg_box.setStandardButtons(QMessageBox.Ok)
-            msg_box.exec_()
+            show_warning(self, "Внимание", "Добавьте хотя бы один навык!")
             return
 
         skills_data = []
@@ -361,65 +352,17 @@ class AthleteSkillsWindow(QMainWindow):
             if skill:
                 skills_data.append({"skill": skill, "rating": rating})
 
-        msg_box = QMessageBox(self)
-        msg_box.setIcon(QMessageBox.Information)
-        msg_box.setWindowTitle("Сохранено")
-        msg_box.setText(f"Ваши навыки сохранены! ({len(skills_data)} навыков)")
-        msg_box.setStandardButtons(QMessageBox.Ok)
-        msg_box.exec_()
+        show_info(
+            self,
+            "Сохранено",
+            f"Ваши навыки сохранены! ({len(skills_data)} навыков)",
+        )
 
 
 def main():
     app = QApplication(sys.argv)
 
-    app.setStyleSheet("""
-        QMessageBox { 
-            background-color: white; 
-        }
-        QMessageBox QLabel { 
-            color: black; 
-            background-color: transparent; 
-        }
-        QMessageBox QPushButton {
-            background-color: #EF8354; 
-            color: white; 
-            border: none;
-            border-radius: 15px; 
-            padding: 8px 20px; 
-            min-width: 80px;
-            font-family: 'Helvetica Neue'; 
-            font-size: 14px;
-        }
-        QMessageBox QPushButton:hover { 
-            background-color: #D6754B; 
-        }
-        QInputDialog { 
-            background-color: white; 
-        }
-        QInputDialog QLabel { 
-            color: black; 
-            background-color: transparent; 
-        }
-        QInputDialog QComboBox {
-            background-color: #D9D9D9; 
-            color: black;
-            border: 1px solid #B0B0B0; 
-            border-radius: 10px; 
-            padding: 5px;
-        }
-        QInputDialog QPushButton {
-            background-color: #EF8354; 
-            color: white; 
-            border: none;
-            border-radius: 15px; 
-            padding: 8px 20px; 
-            min-width: 80px;
-            font-family: 'Helvetica Neue';
-        }
-        QInputDialog QPushButton:hover { 
-            background-color: #D6754B; 
-        }
-    """)
+    apply_dialog_styles(app)
 
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))

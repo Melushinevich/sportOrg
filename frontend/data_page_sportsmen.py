@@ -2,14 +2,22 @@ import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QLabel, QLineEdit, QPushButton,
-    QComboBox, QDateEdit, QMessageBox
+    QComboBox, QDateEdit,
 )
 from PyQt5.QtCore import Qt, QDate, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPixmap
 from .assets import asset_path
 from .burger_menu import show_burger_menu
 from .help_window import HelpWindow
+from .api_client import ApiError
 from .navigation import open_screen
+from .profile_service import (
+    apply_profile_to_sportsman_form,
+    iso_from_qdate,
+    load_profile,
+    save_profile,
+)
+from .ui_messages import show_error, show_info
 
 
 class CustomLineEdit(QLineEdit):
@@ -259,13 +267,35 @@ class ProfileWindow(QMainWindow):
         self.help_window = HelpWindow(user_type='athlete', parent=self)
         self.help_window.show()
 
+    def load_profile(self):
+        profile = load_profile()
+        if profile:
+            apply_profile_to_sportsman_form(self, profile)
+
     def on_save(self):
-        msg_box = QMessageBox(self)
-        msg_box.setIcon(QMessageBox.Information)
-        msg_box.setWindowTitle("Сохранено")
-        msg_box.setText("Ваши данные сохранены!")
-        msg_box.setStandardButtons(QMessageBox.Ok)
-        msg_box.exec_()
+        fio = self.fio_input.get_real_text()
+        city = self.city_input.get_real_text()
+        phone = self.phone_input.get_real_text()
+
+        try:
+            birth_date = iso_from_qdate(self.birth_date.date())
+            save_profile(
+                fio=fio,
+                birth_date=birth_date,
+                city=city,
+                phone=phone,
+            )
+        except ValueError as exc:
+            show_error(self, "Ошибка", str(exc))
+            return
+        except ApiError as exc:
+            show_error(self, "Ошибка", str(exc))
+            return
+        except Exception as exc:  # noqa: BLE001
+            show_error(self, "Ошибка", f"Ошибка сохранения: {exc}")
+            return
+
+        show_info(self, "Сохранено", "Ваши данные сохранены!")
 
 
 def main():

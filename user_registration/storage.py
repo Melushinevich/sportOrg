@@ -13,6 +13,7 @@ from user_registration.storage_postgres import (
     get_db_connection,
     get_user_by_email,
     get_user_by_id,
+    get_user_profile,
     init_db,
     list_available_teams,
     list_athlete_skills,
@@ -22,6 +23,7 @@ from user_registration.storage_postgres import (
     replace_athlete_skills,
     save_team_members,
     search_sportsmen,
+    update_user_profile,
 )
 
 __all__ = (
@@ -37,6 +39,7 @@ __all__ = (
     "get_db_connection",
     "get_user_by_email",
     "get_user_by_id",
+    "get_user_profile",
     "init_db",
     "list_available_teams",
     "list_athlete_skills",
@@ -46,4 +49,5 @@ __all__ = (
     "replace_athlete_skills",
     "save_team_members",
     "search_sportsmen",
+    "update_user_profile",
 )

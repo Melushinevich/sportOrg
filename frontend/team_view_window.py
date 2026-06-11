@@ -3,7 +3,7 @@ import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QLabel, QPushButton, QTableWidget,
-    QTableWidgetItem, QHeaderView, QMessageBox, QAbstractItemView
+    QTableWidgetItem, QHeaderView, QAbstractItemView
 )
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPixmap
@@ -14,6 +14,13 @@ from .final_team_window import FinalTeamWindow
 from .player_contact_dialog import PlayerContactDialog
 from .responses_window import ResponsesWindow
 from .skill_rating_dialog import SkillsRatingDialog
+from .ui_messages import (
+    apply_dialog_styles,
+    ask_yes_no,
+    show_error,
+    show_info,
+    show_warning,
+)
 
 
 class TeamViewWindow(QMainWindow):
@@ -329,12 +336,11 @@ class TeamViewWindow(QMainWindow):
             ratings = player_data["ratings"]
 
             if not skills:
-                msg_box = QMessageBox(self)
-                msg_box.setIcon(QMessageBox.Information)
-                msg_box.setWindowTitle("Нет навыков")
-                msg_box.setText(f"У игрока '{player_name}' нет указанных навыков.")
-                msg_box.setStandardButtons(QMessageBox.Ok)
-                msg_box.exec_()
+                show_info(
+                    self,
+                    "Нет навыков",
+                    f"У игрока '{player_name}' нет указанных навыков.",
+                )
                 return
 
             dialog = SkillsRatingDialog(player_name, skills, ratings, self)
@@ -359,45 +365,28 @@ class TeamViewWindow(QMainWindow):
         try:
             row = self.table.currentRow()
             if row < 0 or row >= self.table.rowCount():
-                msg_box = QMessageBox(self)
-                msg_box.setIcon(QMessageBox.Warning)
-                msg_box.setWindowTitle("Внимание")
-                msg_box.setText("Выберите участника для удаления!")
-                msg_box.setInformativeText("Двойной клик по строке для выделения, затем нажмите 'Удалить'.")
-                msg_box.setStandardButtons(QMessageBox.Ok)
-                msg_box.exec_()
+                show_warning(
+                    self,
+                    "Внимание",
+                    "Выберите участника для удаления!",
+                    informative="Двойной клик по строке для выделения, затем нажмите 'Удалить'.",
+                )
                 return
 
             name_item = self.table.item(row, 0)
             name = name_item.text() if name_item else f"строка {row + 1}"
 
-            reply = QMessageBox.question(
-                self, "Подтверждение удаления",
-                f"Удалить участника '{name}'?",
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
-            )
-
-            if reply == QMessageBox.Yes:
+            if ask_yes_no(self, "Подтверждение удаления", f"Удалить участника '{name}'?"):
                 if name in self.players_data:
                     del self.players_data[name]
                 self.table.removeRow(row)
 
         except Exception as e:
-            msg_box = QMessageBox(self)
-            msg_box.setIcon(QMessageBox.Critical)
-            msg_box.setWindowTitle("Ошибка")
-            msg_box.setText(f"Не удалось удалить участника:\n{str(e)}")
-            msg_box.setStandardButtons(QMessageBox.Ok)
-            msg_box.exec_()
+            show_error(self, "Ошибка", f"Не удалось удалить участника:\n{e}")
 
     def on_form_team(self):
         if self.table.rowCount() == 0:
-            msg_box = QMessageBox(self)
-            msg_box.setIcon(QMessageBox.Warning)
-            msg_box.setWindowTitle("Внимание")
-            msg_box.setText("Сначала добавьте хотя бы одного участника!")
-            msg_box.setStandardButtons(QMessageBox.Ok)
-            msg_box.exec_()
+            show_warning(self, "Внимание", "Сначала добавьте хотя бы одного участника!")
             return
 
         players = []
@@ -429,16 +418,7 @@ class TeamViewWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-    app.setStyleSheet("""
-        QMessageBox { background-color: white; }
-        QMessageBox QLabel { color: black; background-color: transparent; }
-        QMessageBox QPushButton {
-            background-color: #6C769F; color: white; border: none;
-            border-radius: 15px; padding: 8px 20px; min-width: 80px;
-            font-family: 'Helvetica Neue'; font-size: 14px;
-        }
-        QMessageBox QPushButton:hover { background-color: #5A6385; }
-    """)
+    apply_dialog_styles(app)
 
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))

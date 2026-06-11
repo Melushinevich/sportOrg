@@ -23,6 +23,7 @@ if _env_path.is_file():
 from flask_limiter.constants import ConfigVars
 
 from sportorg.api.athlete_skills import me_bp
+from sportorg.api.profile import me_profile_bp
 from sportorg.api.public import bp as api_bp
 from sportorg.api.teams import bp as teams_bp
 from sportorg.extensions import limiter
@@ -62,6 +63,7 @@ def create_app(testing: bool = False) -> Flask:
     limiter.init_app(app)
     app.register_blueprint(api_bp)
     app.register_blueprint(me_bp)
+    app.register_blueprint(me_profile_bp)
     app.register_blueprint(teams_bp)
 
     @app.get("/favicon.ico")

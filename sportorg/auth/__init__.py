@@ -4,6 +4,7 @@ from sportorg.auth.jwt import (
     issue_access_token,
     require_coach_json,
     require_sportsman_json,
+    require_user_json,
 )
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "bearer_token",
     "require_coach_json",
     "require_sportsman_json",
+    "require_user_json",
 ]
