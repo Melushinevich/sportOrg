@@ -9,7 +9,19 @@ from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPixmap
 from .assets import asset_path
 from .burger_menu import show_burger_menu
 from .help_window import HelpWindow
-from .ui_messages import apply_dialog_styles, ask_yes_no, show_info, show_warning
+from .navigation import (
+    ATHLETE_HOME,
+    ATHLETE_SKILLS,
+    leave_to,
+    open_profile,
+    open_screen,
+)
+from .fonts import apply_app_fonts
+from .ui_messages import apply_dialog_styles, ask_yes_no, show_error, show_info, show_warning
+from .session import session
+from .athlete_teams_service import apply_to_team, load_available_teams
+from .api_client import ApiError
+from .fonts import FONT_UI, title_font, ui_font
 
 
 class AthleteAvailableTeamsWindow(QMainWindow):
@@ -32,19 +44,19 @@ class AthleteAvailableTeamsWindow(QMainWindow):
         top_layout = QHBoxLayout()
 
         title_label = QLabel("SPORTORG")
-        title_label.setFont(QFont("Arial", 96))
+        title_label.setFont(title_font(96))
         title_label.setStyleSheet("color: black;")
         top_layout.addWidget(title_label)
 
         athlete_label = QLabel("СПОРТСМЕН")
-        athlete_label.setFont(QFont("Arial", 96))
+        athlete_label.setFont(title_font(96))
         athlete_label.setStyleSheet("color: #EF8354;")
         top_layout.addWidget(athlete_label)
 
         top_layout.addStretch()
 
         city_label = QLabel(self.athlete_name)
-        city_label.setFont(QFont("Arial", 96))
+        city_label.setFont(title_font(96))
         city_label.setStyleSheet("color: black;")
         top_layout.addWidget(city_label)
 
@@ -77,7 +89,7 @@ class AthleteAvailableTeamsWindow(QMainWindow):
         main_layout.addSpacing(30)
 
         list_title = QLabel("Доступные команды")
-        list_title.setFont(QFont("Helvetica Neue", 20, QFont.Bold))
+        list_title.setFont(ui_font(20, QFont.Bold))
         list_title.setAlignment(Qt.AlignLeft)
         list_title.setStyleSheet("color: black; margin-bottom: 10px;")
         main_layout.addWidget(list_title)
@@ -98,31 +110,6 @@ class AthleteAvailableTeamsWindow(QMainWindow):
         self.table.setHorizontalHeaderLabels(["Вид спорта", "Команда", "Тренер"])
         self.table.setRowCount(0)
 
-        demo_teams = [
-            {"sport": "Футбол", "team": "Команда 1", "trainer": "Иванов И.И."},
-            {"sport": "Баскетбол", "team": "Команда 2", "trainer": "Петров П.П."},
-            {"sport": "Волейбол", "team": "Команда 3", "trainer": "Сидоров С.С."},
-            {"sport": "Хоккей", "team": "Команда 4", "trainer": "Козлов К.К."},
-            {"sport": "Теннис", "team": "Команда 5", "trainer": "Новиков Н.Н."},
-        ]
-
-        self.table.setRowCount(len(demo_teams))
-        for row, team in enumerate(demo_teams):
-            sport_item = QTableWidgetItem(team["sport"])
-            sport_item.setFont(QFont("Helvetica Neue", 16))
-            sport_item.setTextAlignment(Qt.AlignCenter)
-            self.table.setItem(row, 0, sport_item)
-
-            team_item = QTableWidgetItem(team["team"])
-            team_item.setFont(QFont("Helvetica Neue", 16))
-            team_item.setTextAlignment(Qt.AlignCenter)
-            self.table.setItem(row, 1, team_item)
-
-            trainer_item = QTableWidgetItem(team["trainer"])
-            trainer_item.setFont(QFont("Helvetica Neue", 16))
-            trainer_item.setTextAlignment(Qt.AlignCenter)
-            self.table.setItem(row, 2, trainer_item)
-
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.Stretch)
         header.setSectionResizeMode(1, QHeaderView.Stretch)
@@ -135,7 +122,7 @@ class AthleteAvailableTeamsWindow(QMainWindow):
                 background-color: white;
                 border: 2px solid #6C769F;
                 border-radius: 0px;
-                font-family: 'Helvetica Neue';
+                font-family: "Roboto";
                 color: black;
                 selection-background-color: #EF8354;
                 selection-color: white;
@@ -154,7 +141,7 @@ class AthleteAvailableTeamsWindow(QMainWindow):
                 padding: 12px;
                 font-size: 16px;
                 font-weight: bold;
-                font-family: 'Helvetica Neue';
+                font-family: "Roboto";
             }
             QTableCornerButton::section {
                 background-color: #C8C8C8;
@@ -184,7 +171,7 @@ class AthleteAvailableTeamsWindow(QMainWindow):
 
         self.apply_button = QPushButton("ПОДАТЬ ЗАЯВКУ")
         self.apply_button.setFixedSize(400, 65)
-        self.apply_button.setFont(QFont("Helvetica Neue", 20))
+        self.apply_button.setFont(ui_font(20))
         self.apply_button.setCursor(Qt.PointingHandCursor)
         self.apply_button.setStyleSheet("""
             QPushButton {
@@ -213,7 +200,7 @@ class AthleteAvailableTeamsWindow(QMainWindow):
         bottom_layout.setContentsMargins(0, 20, 0, 0)
 
         info_label = QLabel("© 2026 SPORTORG | Все права защищены")
-        info_label.setFont(QFont("Helvetica Neue", 10))
+        info_label.setFont(ui_font(10))
         info_label.setAlignment(Qt.AlignLeft)
         info_label.setStyleSheet("color: gray;")
 
@@ -221,6 +208,40 @@ class AthleteAvailableTeamsWindow(QMainWindow):
         bottom_layout.addStretch()
 
         main_layout.addLayout(bottom_layout)
+
+    def load_available_teams(self) -> None:
+        if not session.is_logged_in:
+            return
+        try:
+            teams = load_available_teams()
+        except ApiError as exc:
+            show_error(self, "Ошибка", str(exc))
+            return
+
+        self.table.setRowCount(len(teams))
+        for row, team in enumerate(teams):
+            sport_item = QTableWidgetItem(team["sport"])
+            sport_item.setFont(ui_font(16))
+            sport_item.setTextAlignment(Qt.AlignCenter)
+            sport_item.setFlags(sport_item.flags() & ~Qt.ItemIsEditable)
+            self.table.setItem(row, 0, sport_item)
+
+            team_item = QTableWidgetItem(team["team"])
+            team_item.setFont(ui_font(16))
+            team_item.setTextAlignment(Qt.AlignCenter)
+            team_item.setData(Qt.UserRole, team["team_id"])
+            team_item.setFlags(team_item.flags() & ~Qt.ItemIsEditable)
+            self.table.setItem(row, 1, team_item)
+
+            trainer_item = QTableWidgetItem(team["coach"])
+            trainer_item.setFont(ui_font(16))
+            trainer_item.setTextAlignment(Qt.AlignCenter)
+            trainer_item.setFlags(trainer_item.flags() & ~Qt.ItemIsEditable)
+            self.table.setItem(row, 2, trainer_item)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.load_available_teams()
 
     def show_burger_menu(self):
         callbacks = {
@@ -233,22 +254,19 @@ class AthleteAvailableTeamsWindow(QMainWindow):
         show_burger_menu(self, self.burger_button, 'athlete', callbacks)
 
     def on_go_home(self):
-        from .athlete_main_window import AthleteMainWindow
-        self.home_window = AthleteMainWindow(athlete_name=self.athlete_name)
-        self.home_window.show()
-        self.close()
+        leave_to(ATHLETE_HOME)
 
     def on_go_my_skills(self):
         from .athlete_skills_window import AthleteSkillsWindow
-        self.skills_window = AthleteSkillsWindow(athlete_name=self.athlete_name)
-        self.skills_window.show()
-        self.hide()
+
+        open_screen(
+            self,
+            lambda: AthleteSkillsWindow(athlete_name=self.athlete_name),
+            screen_id=ATHLETE_SKILLS,
+        )
 
     def on_go_profile(self):
-        from .data_page_sportsmen import ProfileWindow
-        self.profile_window = ProfileWindow()
-        self.profile_window.show()
-        self.hide()
+        open_profile("athlete")
 
     def on_go_help(self):
         self.help_window = HelpWindow(user_type='athlete', parent=self)
@@ -266,10 +284,20 @@ class AthleteAvailableTeamsWindow(QMainWindow):
             )
             return
 
+        if self.table.rowCount() == 0:
+            show_warning(self, "Внимание", "Нет доступных команд.")
+            return
+
         row = selected_items[0].row()
-        sport = self.table.item(row, 0).text()
-        team = self.table.item(row, 1).text()
-        trainer = self.table.item(row, 2).text()
+        sport = self.table.item(row, 0).text() if self.table.item(row, 0) else ""
+        team = self.table.item(row, 1).text() if self.table.item(row, 1) else ""
+        trainer = self.table.item(row, 2).text() if self.table.item(row, 2) else ""
+        team_item = self.table.item(row, 1)
+        team_id = team_item.data(Qt.UserRole) if team_item else None
+
+        if team_id is None:
+            show_error(self, "Ошибка", "Не удалось определить команду.")
+            return
 
         if ask_yes_no(
             self,
@@ -281,6 +309,15 @@ class AthleteAvailableTeamsWindow(QMainWindow):
             ),
             default_no=False,
         ):
+            try:
+                apply_to_team(team_id=int(team_id))
+            except ApiError as exc:
+                show_error(self, "Ошибка", str(exc))
+                return
+            except Exception as exc:  # noqa: BLE001
+                show_error(self, "Ошибка", f"Не удалось отправить заявку: {exc}")
+                return
+
             show_info(
                 self,
                 "Заявка отправлена",
@@ -291,6 +328,7 @@ class AthleteAvailableTeamsWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
+    apply_app_fonts(app)
     apply_dialog_styles(app)
 
     palette = QPalette()

@@ -9,7 +9,17 @@ from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 from .assets import asset_path
 from .burger_menu import show_burger_menu
 from .help_window import HelpWindow
+from .fonts import apply_app_fonts
 from .ui_messages import apply_dialog_styles, show_info, show_warning
+from .fonts import FONT_UI, title_font, ui_font
+from .navigation import (
+    TRAINER_HOME,
+    TRAINER_RESPONSES,
+    leave_to,
+    open_profile,
+    open_screen,
+    team_view_id,
+)
 
 
 class FinalTeamWindow(QMainWindow):
@@ -32,14 +42,14 @@ class FinalTeamWindow(QMainWindow):
         top_layout = QHBoxLayout()
 
         title_label = QLabel("SPORTORG")
-        title_label.setFont(QFont("Arial", 80))
+        title_label.setFont(title_font(80))
         title_label.setStyleSheet("color: black;")
         top_layout.addWidget(title_label)
 
         top_layout.addStretch()
 
         final_label = QLabel(f"ИТОГ - {self.team_name}")
-        final_label.setFont(QFont("Arial", 80))
+        final_label.setFont(title_font(80))
         final_label.setStyleSheet("color: black;")
         final_label.setAlignment(Qt.AlignCenter)
         top_layout.addWidget(final_label)
@@ -47,7 +57,7 @@ class FinalTeamWindow(QMainWindow):
         top_layout.addStretch()
 
         trainer_label = QLabel("ТРЕНЕР")
-        trainer_label.setFont(QFont("Arial", 80))
+        trainer_label.setFont(title_font(80))
         trainer_label.setStyleSheet("color: #6C769F;")
         top_layout.addWidget(trainer_label)
 
@@ -74,7 +84,7 @@ class FinalTeamWindow(QMainWindow):
 
         self.table.setRowCount(max(len(self.players), 1))
 
-        font_italic = QFont("Helvetica Neue", 16)
+        font_italic = ui_font(16)
         font_italic.setItalic(True)
 
         for row, player in enumerate(self.players):
@@ -106,7 +116,7 @@ class FinalTeamWindow(QMainWindow):
                 border: 2px solid #6C769F;
                 border-radius: 15px;
                 gridline-color: #B0B0B0;
-                font-family: 'Helvetica Neue';
+                font-family: "Roboto";
                 color: black;
                 selection-background-color: #6C769F;
                 selection-color: white;
@@ -120,7 +130,7 @@ class FinalTeamWindow(QMainWindow):
                 background-color: #C8C8C8; color: black;
                 border: 1px solid #B0B0B0; border-radius: 0px;
                 padding: 10px; font-size: 16px; font-weight: bold;
-                font-family: 'Helvetica Neue';
+                font-family: "Roboto";
             }
             QTableCornerButton::section {
                 background-color: #C8C8C8;
@@ -137,7 +147,7 @@ class FinalTeamWindow(QMainWindow):
 
         self.back_button = QPushButton("ВЕРНУТЬСЯ")
         self.back_button.setFixedSize(380, 60)
-        self.back_button.setFont(QFont("Helvetica Neue", 20))
+        self.back_button.setFont(ui_font(20))
         self.back_button.setCursor(Qt.PointingHandCursor)
         self.back_button.setStyleSheet("""
             QPushButton {
@@ -150,7 +160,7 @@ class FinalTeamWindow(QMainWindow):
 
         self.save_button = QPushButton("СОХРАНИТЬ")
         self.save_button.setFixedSize(380, 60)
-        self.save_button.setFont(QFont("Helvetica Neue", 20))
+        self.save_button.setFont(ui_font(20))
         self.save_button.setCursor(Qt.PointingHandCursor)
         self.save_button.setStyleSheet("""
             QPushButton {
@@ -172,7 +182,7 @@ class FinalTeamWindow(QMainWindow):
         bottom_layout.setContentsMargins(0, 20, 0, 0)
 
         info_label = QLabel("© 2026 SPORTORG | Все права защищены")
-        info_label.setFont(QFont("Helvetica Neue", 10))
+        info_label.setFont(ui_font(10))
         info_label.setAlignment(Qt.AlignLeft)
         info_label.setStyleSheet("color: gray;")
 
@@ -180,6 +190,35 @@ class FinalTeamWindow(QMainWindow):
         bottom_layout.addStretch()
 
         main_layout.addLayout(bottom_layout)
+
+    def set_team_data(self, team_name: str, players: list) -> None:
+        self.team_name = team_name
+        self.players = players or []
+        self.setWindowTitle(f"SPORTORG - Итог {team_name}")
+        self.table.setRowCount(max(len(self.players), 1))
+
+        font_italic = ui_font(16)
+        font_italic.setItalic(True)
+
+        for row in range(self.table.rowCount()):
+            for col in range(self.table.columnCount()):
+                self.table.setItem(row, col, None)
+
+        for row, player in enumerate(self.players):
+            name_item = QTableWidgetItem(player.get("name", ""))
+            name_item.setFont(font_italic)
+            name_item.setTextAlignment(Qt.AlignCenter)
+            self.table.setItem(row, 0, name_item)
+
+            percent_item = QTableWidgetItem("")
+            percent_item.setFont(font_italic)
+            percent_item.setTextAlignment(Qt.AlignCenter)
+            self.table.setItem(row, 1, percent_item)
+
+            notes_item = QTableWidgetItem(player.get("notes", ""))
+            notes_item.setFont(font_italic)
+            notes_item.setTextAlignment(Qt.AlignCenter)
+            self.table.setItem(row, 2, notes_item)
 
     def show_burger_menu(self):
         callbacks = {
@@ -191,37 +230,33 @@ class FinalTeamWindow(QMainWindow):
         show_burger_menu(self, self.burger_button, 'trainer', callbacks)
 
     def on_go_home(self):
-        parent = self.parent()
-        while parent:
-            from .trainer_sport_window import TrainerSportsWindow
-            if isinstance(parent, TrainerSportsWindow):
-                parent.show()
-                self.close()
-                return
-            parent = parent.parent()
+        leave_to(TRAINER_HOME)
 
     def on_go_responses_all(self):
         from .responses_window import ResponsesWindow
-        self.all_responses_window = ResponsesWindow(
-            team_name=None, sport_name="", parent=None, show_all=True
+
+        open_screen(
+            self,
+            lambda: ResponsesWindow(
+                team_name=None, sport_name="", parent=None, show_all=True
+            ),
+            screen_id=TRAINER_RESPONSES,
         )
-        self.all_responses_window.show()
-        self.hide()
 
     def on_go_profile(self):
-        from .data_page_trainer import ProfileWindow
-        self.profile_window = ProfileWindow()
-        self.profile_window.show()
-        self.hide()
+        open_profile("trainer")
 
     def on_go_help(self):
         self.help_window = HelpWindow(user_type='trainer', parent=self)
         self.help_window.show()
 
     def on_back(self):
-        if self.parent():
-            self.parent().show()
-        self.close()
+        if hasattr(self, "_team_view") and self._team_view is not None:
+            leave_to(team_view_id(self.team_name))
+        elif not leave_to(TRAINER_HOME):
+            if self.parent():
+                self.parent().show()
+            self.close()
 
     def on_save(self):
         if self.table.rowCount() == 0:
@@ -248,13 +283,13 @@ class FinalTeamWindow(QMainWindow):
         )
 
     def closeEvent(self, event):
-        if self.parent():
-            self.parent().show()
+        self.on_back()
         event.accept()
 
 
 def main():
     app = QApplication(sys.argv)
+    apply_app_fonts(app)
 
     apply_dialog_styles(app)
 

@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QIcon
+from .fonts import FONT_UI, title_font, ui_font
 
 
 # Тексты справки для разных ролей
@@ -97,7 +98,7 @@ class HelpWindow(QDialog):
 
         # Заголовок
         title = QLabel(help_data['title'])
-        title.setFont(QFont("Arial", 48))
+        title.setFont(title_font(48))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color: black;")
         main_layout.addWidget(title)
@@ -124,7 +125,7 @@ class HelpWindow(QDialog):
         content_layout.setContentsMargins(30, 30, 30, 30)
 
         content_label = QLabel(help_data["content"])
-        content_label.setFont(QFont("Helvetica Neue", 16))
+        content_label.setFont(ui_font(16))
         content_label.setTextFormat(Qt.RichText)
         content_label.setStyleSheet("color: black; background: transparent;")
         content_label.setWordWrap(True)
@@ -137,7 +138,7 @@ class HelpWindow(QDialog):
         # Кнопка закрытия
         close_button = QPushButton("ЗАКРЫТЬ")
         close_button.setFixedSize(300, 60)
-        close_button.setFont(QFont("Helvetica Neue", 20))
+        close_button.setFont(ui_font(20))
         close_button.setCursor(Qt.PointingHandCursor)
         close_button.setStyleSheet("""
             QPushButton {

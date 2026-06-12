@@ -82,6 +82,22 @@ def teams_mocks(monkeypatch):
     def list_apps(athlete_user_id):
         return [a for a in state["applications"] if a["athlete_user_id"] == athlete_user_id]
 
+    def list_athlete(_athlete_user_id):
+        teams = []
+        for tid, detail in state["members"].items():
+            for m in detail["members"]:
+                teams.append(
+                    {
+                        "member_id": m["member_id"],
+                        "team_id": tid,
+                        "team": detail["team"],
+                        "sport": detail["sport"],
+                        "coach_id": 1,
+                        "coach": "Coach Test",
+                    }
+                )
+        return teams
+
     def search_sportsmen(_q):
         return [{"athlete_user_id": 2, "full_name": "Athlete Test", "email": "a@t.com"}]
 
@@ -117,11 +133,32 @@ def teams_mocks(monkeypatch):
     monkeypatch.setattr("sportorg.api.teams.get_available_team_detail", get_available_detail)
     monkeypatch.setattr("sportorg.api.teams.apply_to_team", apply_to_team)
     monkeypatch.setattr("sportorg.api.teams.list_my_team_applications", list_apps)
+    monkeypatch.setattr("sportorg.api.teams.list_athlete_teams", list_athlete)
     monkeypatch.setattr("sportorg.api.teams.search_sportsmen", search_sportsmen)
     monkeypatch.setattr("sportorg.api.teams.add_team_member", add_member)
     monkeypatch.setattr("sportorg.api.teams.save_team_members", save_members)
     monkeypatch.setattr("sportorg.api.teams.remove_team_member", remove_member)
     return state
+
+
+def test_coach_catalog_endpoints(app_client, users_db, monkeypatch):
+    ch = auth_header(1, "coach")
+    monkeypatch.setattr(
+        "sportorg.api.teams.list_sports",
+        lambda: [{"sport_id": 1, "name": "Футбол"}, {"sport_id": 2, "name": "Бокс"}],
+    )
+    monkeypatch.setattr(
+        "sportorg.api.teams.list_skills_catalog",
+        lambda: [{"skill_id": 1, "name": "Скорость", "category": "physical"}],
+    )
+
+    rv = app_client.get("/api/v1/coach/sports", headers=ch)
+    assert rv.status_code == 200
+    assert len(rv.get_json()["sports"]) == 2
+
+    rv2 = app_client.get("/api/v1/coach/skills-catalog", headers=ch)
+    assert rv2.status_code == 200
+    assert rv2.get_json()["skills"][0]["name"] == "Скорость"
 
 
 def test_coach_list_and_create(app_client, users_db, teams_mocks):
@@ -212,6 +249,10 @@ def test_sportsman_available_and_apply(app_client, users_db, teams_mocks):
 
     rv4 = app_client.get("/api/v1/me/applications", headers=sh)
     assert rv4.status_code == 200
+
+    rv6 = app_client.get("/api/v1/me/teams", headers=sh)
+    assert rv6.status_code == 200
+    assert rv6.get_json()["teams"] == []
 
     rv5 = app_client.post(f"/api/v1/teams/{tid}/apply", headers=sh)
     assert rv5.status_code == 409

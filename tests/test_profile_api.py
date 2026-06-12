@@ -12,23 +12,25 @@ def profile_mocks(monkeypatch):
             "user_id": 2,
             "email": "athlete@test.local",
             "role": "sportsman",
-            "last_name": "Новый",
-            "first_name": "Пользователь",
+            "last_name": None,
+            "first_name": None,
             "patronymic": None,
             "birth_date": None,
             "phone": None,
             "city": None,
+            "gender": None,
         },
         1: {
             "user_id": 1,
             "email": "coach@test.local",
             "role": "coach",
-            "last_name": "Новый",
-            "first_name": "Пользователь",
+            "last_name": None,
+            "first_name": None,
             "patronymic": None,
             "birth_date": None,
             "phone": None,
             "city": None,
+            "gender": None,
         },
     }
 
@@ -47,6 +49,7 @@ def profile_mocks(monkeypatch):
                 else None,
                 "phone": data.get("phone"),
                 "city": data.get("city"),
+                "gender": data.get("gender"),
             }
         )
         return dict(row)
@@ -76,6 +79,7 @@ def test_profile_put_sportsman(app_client, users_db, profile_mocks):
                 "birth_date": "2000-05-15",
                 "city": "Москва",
                 "phone": "+79990001122",
+                "gender": "Мужской",
             }
         ),
         content_type="application/json",
@@ -84,6 +88,7 @@ def test_profile_put_sportsman(app_client, users_db, profile_mocks):
     profile = rv.get_json()["profile"]
     assert profile["last_name"] == "Иванов"
     assert profile["city"] == "Москва"
+    assert profile["gender"] == "Мужской"
 
 
 def test_profile_put_coach(app_client, users_db, profile_mocks):
@@ -113,3 +118,20 @@ def test_profile_invalid_birth_date(app_client, users_db, profile_mocks):
     )
     assert rv.status_code == 400
     assert rv.get_json()["code"] == "invalid_birth_date"
+
+
+def test_profile_invalid_gender(app_client, users_db, profile_mocks):
+    rv = app_client.put(
+        "/api/v1/me/profile",
+        headers=auth_header(2, "sportsman"),
+        data=json.dumps(
+            {
+                "last_name": "Иванов",
+                "first_name": "Иван",
+                "gender": "Other",
+            }
+        ),
+        content_type="application/json",
+    )
+    assert rv.status_code == 400
+    assert rv.get_json()["code"] == "invalid_gender"

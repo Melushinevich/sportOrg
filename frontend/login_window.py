@@ -8,10 +8,12 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont, QPalette, QColor
 
 from . import dpi_fix
+from .fonts import apply_app_fonts
 from .api_client import ApiError, ROLE_API_TO_UI, SportOrgApi
 from .registr_window import CustomLineEdit, SupportButton
 from .session import session
 from .ui_messages import show_error, show_info
+from .fonts import FONT_UI, title_font, ui_font
 
 
 class LoginWindow(QMainWindow):
@@ -39,15 +41,15 @@ class LoginWindow(QMainWindow):
 
         # Заголовок SPORTORG
         title_label = QLabel("SPORTORG")
-        title_font = QFont("Arial", 72)
-        title_label.setFont(title_font)
+        title_label_font = title_font(72)
+        title_label.setFont(title_label_font)
         title_label.setAlignment(Qt.AlignCenter)
         title_label.setStyleSheet("color: black; margin-bottom: 10px;")
         main_layout.addWidget(title_label)
 
         # Подзаголовок "АВТОРИЗАЦИЯ"
         subtitle_label = QLabel("АВТОРИЗАЦИЯ")
-        subtitle_font = QFont("Helvetica Neue", 40)
+        subtitle_font = ui_font(40)
         subtitle_label.setFont(subtitle_font)
         subtitle_label.setAlignment(Qt.AlignCenter)
         subtitle_label.setStyleSheet("color: black;")
@@ -58,12 +60,12 @@ class LoginWindow(QMainWindow):
 
         # Поле ПОЧТА
         self.email_input = CustomLineEdit("ПОЧТА", is_password=False)
-        self.email_input.setFont(QFont("Helvetica Neue", 28, QFont.Normal))
+        self.email_input.setFont(ui_font(28))
         main_layout.addWidget(self.email_input)
 
         # Поле ПАРОЛЬ
         self.password_input = CustomLineEdit("ПАРОЛЬ", is_password=True)
-        self.password_input.setFont(QFont("Helvetica Neue", 28, QFont.Normal))
+        self.password_input.setFont(ui_font(28))
         main_layout.addWidget(self.password_input)
 
         # Добавляем растяжку
@@ -72,7 +74,7 @@ class LoginWindow(QMainWindow):
         # Кнопка ВОЙТИ
         self.login_button = QPushButton("ВОЙТИ")
         self.login_button.setMinimumHeight(91)
-        self.login_button.setFont(QFont("Helvetica Neue", 14))
+        self.login_button.setFont(ui_font(14))
         self.login_button.setCursor(Qt.PointingHandCursor)
         self.login_button.setStyleSheet("""
             QPushButton {
@@ -98,7 +100,7 @@ class LoginWindow(QMainWindow):
         register_hint_layout.setAlignment(Qt.AlignCenter)
 
         self.register_hint_button = QPushButton("Нет аккаунта? Зарегистрироваться")
-        self.register_hint_button.setFont(QFont("Helvetica Neue", 16))
+        self.register_hint_button.setFont(ui_font(16))
         self.register_hint_button.setCursor(Qt.PointingHandCursor)
         self.register_hint_button.setStyleSheet("""
             QPushButton {
@@ -122,7 +124,7 @@ class LoginWindow(QMainWindow):
 
         # Копирайт слева
         info_label = QLabel("© 2026 SPORTORG | Все права защищены")
-        info_label.setFont(QFont("Helvetica Neue", 10))
+        info_label.setFont(ui_font(10))
         info_label.setAlignment(Qt.AlignLeft)
         info_label.setStyleSheet("color: gray;")
 
@@ -209,6 +211,7 @@ class LoginWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
+    apply_app_fonts(app)
     dpi_fix.apply_dpi_fix(app)
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))

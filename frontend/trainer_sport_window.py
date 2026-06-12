@@ -9,10 +9,24 @@ from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPixmap
 from .add_sport_critetia_window import AddSportCriteriaWindow
 from .assets import asset_path
 from .burger_menu import show_burger_menu
-from .data_page_trainer import ProfileWindow as TrainerProfileWindow
 from .responses_window import ResponsesWindow
-from .ui_messages import apply_dialog_styles, show_info
+from .fonts import apply_app_fonts
+from .ui_messages import apply_dialog_styles, show_error, show_info
 from .team_view_window import TeamViewWindow
+from .fonts import FONT_UI, title_font, ui_font
+from .session import session
+from .teams_service import load_coach_teams
+from .api_client import ApiError
+from .navigation import (
+    ADD_SPORT,
+    TRAINER_HOME,
+    TRAINER_RESPONSES,
+    leave_to,
+    open_profile,
+    open_screen,
+    responses_id,
+    team_view_id,
+)
 
 
 class TrainerSportsWindow(QMainWindow):
@@ -39,14 +53,14 @@ class TrainerSportsWindow(QMainWindow):
         top_layout = QHBoxLayout()
 
         title_label = QLabel("SPORTORG")
-        title_label.setFont(QFont("Arial", 96))
+        title_label.setFont(title_font(96))
         title_label.setStyleSheet("color: black;")
         top_layout.addWidget(title_label)
 
         top_layout.addStretch()
 
         trainer_label = QLabel("ТРЕНЕР")
-        trainer_label.setFont(QFont("Arial", 96))
+        trainer_label.setFont(title_font(96))
         trainer_label.setStyleSheet("color: #6C769F;")
         top_layout.addWidget(trainer_label)
 
@@ -79,7 +93,7 @@ class TrainerSportsWindow(QMainWindow):
         main_layout.addSpacing(30)
 
         list_title = QLabel("Команды")
-        list_title.setFont(QFont("Helvetica Neue", 20, QFont.Bold))
+        list_title.setFont(ui_font(20, QFont.Bold))
         list_title.setAlignment(Qt.AlignLeft)
         list_title.setStyleSheet("color: black; margin-bottom: 10px;")
         main_layout.addWidget(list_title)
@@ -92,7 +106,7 @@ class TrainerSportsWindow(QMainWindow):
                 border: 2px solid #6C769F;
                 border-radius: 20px;
                 font-size: 18px;
-                font-family: 'Helvetica Neue';
+                font-family: "Roboto";
                 padding: 15px;
                 min-height: 300px;
                 color: black;
@@ -118,7 +132,7 @@ class TrainerSportsWindow(QMainWindow):
 
         self.add_sport_button = QPushButton("ДОБАВИТЬ КОМАНДУ")
         self.add_sport_button.setFixedSize(690, 65)
-        self.add_sport_button.setFont(QFont("Helvetica Neue", 20))
+        self.add_sport_button.setFont(ui_font(20))
         self.add_sport_button.setCursor(Qt.PointingHandCursor)
         self.add_sport_button.setStyleSheet("""
             QPushButton {
@@ -147,7 +161,7 @@ class TrainerSportsWindow(QMainWindow):
         bottom_layout.setContentsMargins(0, 20, 0, 0)
 
         info_label = QLabel("© 2026 SPORTORG | Все права защищены")
-        info_label.setFont(QFont("Helvetica Neue", 10))
+        info_label.setFont(ui_font(10))
         info_label.setAlignment(Qt.AlignLeft)
         info_label.setStyleSheet("color: gray;")
 
@@ -165,65 +179,93 @@ class TrainerSportsWindow(QMainWindow):
         show_burger_menu(self, self.burger_button, 'trainer', callbacks)
 
     def on_go_home(self):
-        pass
+        leave_to(TRAINER_HOME)
 
     def on_go_responses_all(self):
-        self.all_responses_window = ResponsesWindow(
-            team_name=None, sport_name="", parent=None, show_all=True
+        open_screen(
+            self,
+            lambda: ResponsesWindow(
+                team_name=None, sport_name="", parent=None, show_all=True
+            ),
+            screen_id=TRAINER_RESPONSES,
         )
-        self.all_responses_window.show()
-        self.hide()
 
     def on_go_profile(self):
-        self.profile_window = TrainerProfileWindow(parent=self)
-        self.profile_window.show()
-        self.hide()
+        open_profile("trainer")
 
-    def add_sport_to_list(self, team_name, sport_type, criteria):
+    def add_sport_to_list(self, team_name, sport_type, criteria, team_id=None):
         item_text = f"{team_name}\t{sport_type}"
         item = QListWidgetItem(item_text)
-        item.setFont(QFont("Helvetica Neue", 18, QFont.StyleItalic))
+        item.setFont(ui_font(18, italic=True))
         item.setData(Qt.UserRole, {
+            "team_id": team_id,
             "team_name": team_name,
             "sport_type": sport_type,
-            "criteria": criteria
+            "criteria": criteria,
         })
         item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.sports_list_widget.addItem(item)
+
+    def load_teams(self) -> None:
+        if not session.is_logged_in:
+            return
+        try:
+            teams = load_coach_teams()
+        except ApiError as exc:
+            show_error(self, "Ошибка", str(exc))
+            return
+
+        self.sports_list_widget.clear()
+        self.sports_with_criteria = []
+        for team in teams:
+            entry = {
+                "team_id": team["team_id"],
+                "team_name": team["team"],
+                "sport_type": team["sport"],
+                "criteria": [],
+            }
+            self.sports_with_criteria.append(entry)
+            self.add_sport_to_list(
+                entry["team_name"],
+                entry["sport_type"],
+                entry["criteria"],
+                entry["team_id"],
+            )
 
     def on_item_clicked(self, item):
         data = item.data(Qt.UserRole)
         if data:
             team_name = data["team_name"]
-            self.team_view_window = TeamViewWindow(team_name=team_name, parent=self)
-            self.team_view_window.show()
-            self.hide()
+            open_screen(
+                self,
+                lambda tn=team_name: TeamViewWindow(team_name=tn, parent=None),
+                screen_id=team_view_id(team_name),
+            )
 
     def on_add_sport(self):
         existing_team_names = [item['team_name'] for item in self.sports_with_criteria]
-        self.add_window = AddSportCriteriaWindow(existing_team_names, self)
-        self.add_window.sport_saved.connect(self.on_sport_saved)
-        self.add_window.show()
-        self.hide()
 
-    def on_sport_saved(self, team_name, sport_type, criteria):
-        self.sports_with_criteria.append({
-            "team_name": team_name,
-            "sport_type": sport_type,
-            "criteria": criteria
-        })
-        self.add_sport_to_list(team_name, sport_type, criteria)
+        def _create_add_window():
+            window = AddSportCriteriaWindow(existing_team_names, parent=None)
+            window.sport_saved.connect(self.on_sport_saved)
+            self.add_window = window
+            return window
 
+        window = open_screen(self, _create_add_window, screen_id=ADD_SPORT)
+        window.update_existing_sports(existing_team_names)
+
+    def on_sport_saved(self, team_name, sport_type, criteria, team_id):
+        self.load_teams()
         show_info(
             self,
             "Успех",
-            f"Команда '{team_name}' ({sport_type}) добавлена с {len(criteria)} критериями!",
+            f"Команда '{team_name}' ({sport_type}) сохранена с {len(criteria)} критериями!",
         )
-
-        self.show()
+        leave_to(TRAINER_HOME)
 
     def showEvent(self, event):
         super().showEvent(event)
+        self.load_teams()
         if hasattr(self, 'add_window') and self.add_window:
             existing_names = [item['team_name'] for item in self.sports_with_criteria]
             self.add_window.update_existing_sports(existing_names)
@@ -231,6 +273,7 @@ class TrainerSportsWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
+    apply_app_fonts(app)
 
     apply_dialog_styles(app)
 

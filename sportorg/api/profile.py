@@ -13,6 +13,7 @@ log = logging.getLogger("sportorg.api.profile")
 me_profile_bp = Blueprint("me_profile", __name__, url_prefix="/api/v1/me")
 
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_VALID_GENDERS = frozenset({"Мужской", "Женский"})
 
 
 def _json_error(message: str, code: str, http_status: int):
@@ -29,6 +30,15 @@ def _parse_birth_date(raw) -> date | None:
         raise ValueError("Дата рождения в формате ГГГГ-ММ-ДД")
     y, m, d = (int(x) for x in s.split("-"))
     return date(y, m, d)
+
+
+def _parse_gender(raw) -> str | None:
+    if raw is None or raw == "":
+        return None
+    value = str(raw).strip()
+    if value not in _VALID_GENDERS:
+        raise ValueError("Укажите пол: Мужской или Женский")
+    return value
 
 
 def _profile_response(profile: dict):
@@ -58,6 +68,11 @@ def put_profile(user_id: int):
     except ValueError as exc:
         return _json_error(str(exc), "invalid_birth_date", 400)
 
+    try:
+        gender = _parse_gender(body.get("gender"))
+    except ValueError as exc:
+        return _json_error(str(exc), "invalid_gender", 400)
+
     payload = {
         "last_name": body.get("last_name"),
         "first_name": body.get("first_name"),
@@ -65,12 +80,15 @@ def put_profile(user_id: int):
         "birth_date": birth,
         "phone": body.get("phone"),
         "city": body.get("city"),
+        "gender": gender,
     }
 
     try:
         profile = update_user_profile(user_id, payload)
     except ValueError as exc:
-        return _json_error(str(exc), "validation_error", 400)
+        msg = str(exc)
+        code = "invalid_gender" if "пол" in msg.lower() else "validation_error"
+        return _json_error(msg, code, 400)
     except Exception:
         log.exception("profile update failed user_id=%s", user_id)
         return _json_error("Не удалось сохранить профиль", "server_error", 500)

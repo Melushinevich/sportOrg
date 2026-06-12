@@ -11,10 +11,13 @@ from PyQt5.QtCore import pyqtSignal  # если еще не импортиров
 from scipy.ndimage import black_tophat
 
 from . import dpi_fix
+from .fonts import apply_app_fonts
 from .api_client import ROLE_API_TO_UI, ApiError, SportOrgApi
 from .session import session
 from .ui_messages import show_error, show_info
 from .assets import asset_path
+from .fonts import FONT_UI, title_font, ui_font
+from .form_styles import PLACEHOLDER_QSS
 
 
 class CustomLineEdit(QLineEdit):
@@ -25,7 +28,8 @@ class CustomLineEdit(QLineEdit):
         self.is_password = is_password
         self.setAlignment(Qt.AlignCenter)
         self.setPlaceholderText(placeholder_text)
-        self.setStyleSheet("""
+        self.setStyleSheet(
+            """
             QLineEdit {
                 background-color: #D9D9D9;
                 border: 2px solid black;
@@ -37,7 +41,9 @@ class CustomLineEdit(QLineEdit):
                 border: 4px solid;
                 border-radius: 40px;
             }
-        """)
+            """
+            + PLACEHOLDER_QSS
+        )
         self.setMinimumHeight(95)
         if is_password:
             self.setEchoMode(QLineEdit.Password)
@@ -58,7 +64,7 @@ class CustomRadioButton(QPushButton):
         self.default_color = color
         self.active_color = color  # Цвет когда кнопка выбрана
         self.inactive_color = "#D9D9D9"  # Серый когда не выбрана
-        self.setFont(QFont("Helvetica Neue", 14, QFont.Thin))
+        self.setFont(ui_font(14, QFont.Thin))
         self.update_style(False)
         self.clicked.connect(self.on_click)
 
@@ -168,15 +174,15 @@ class RegistrationWindow(QMainWindow):
 
         # Заголовок SPORTORG
         title_label = QLabel("SPORTORG")
-        title_font = QFont("Arial", 72)
-        title_label.setFont(title_font)
+        title_label_font = title_font(72)
+        title_label.setFont(title_label_font)
         title_label.setAlignment(Qt.AlignCenter)
         title_label.setStyleSheet("color: black; margin-top: 20px; margin-bottom: 10px;")  # Добавил margin-top
         main_layout.addWidget(title_label)
 
         # Подзаголовок "РЕГИСТРАЦИЯ"
         subtitle_label = QLabel("РЕГИСТРАЦИЯ")
-        subtitle_font = QFont("Helvetica Neue", 40)
+        subtitle_font = ui_font(40)
         subtitle_label.setFont(subtitle_font)
         subtitle_label.setAlignment(Qt.AlignCenter)
         subtitle_label.setStyleSheet("color: black;")
@@ -184,22 +190,22 @@ class RegistrationWindow(QMainWindow):
 
         # Поле ПОЧТА
         self.email_input = CustomLineEdit("ПОЧТА", is_password=False)
-        self.email_input.setFont(QFont("Helvetica Neue", 28))
+        self.email_input.setFont(ui_font(28))
         main_layout.addWidget(self.email_input)
 
         # Поле ПАРОЛЬ
         self.password_input = CustomLineEdit("ПАРОЛЬ", is_password=True)
-        self.password_input.setFont(QFont("Helvetica Neue", 28))
+        self.password_input.setFont(ui_font(28))
         main_layout.addWidget(self.password_input)
 
         # Поле ПОДТВЕРЖДЕНИЕ ПАРОЛЯ
         self.confirm_password_input = CustomLineEdit("ПОДТВЕРДИТЕ ПАРОЛЬ", is_password=True)
-        self.confirm_password_input.setFont(QFont("Helvetica Neue", 28))
+        self.confirm_password_input.setFont(ui_font(28))
         main_layout.addWidget(self.confirm_password_input)
 
         # Блок выбора роли
         role_label = QLabel("ВЫБЕРИТЕ ВАШУ РОЛЬ")
-        role_label.setFont(QFont("Helvetica Neue", 40))
+        role_label.setFont(ui_font(40))
         role_label.setAlignment(Qt.AlignCenter)
         role_label.setStyleSheet("color: black; margin-top: 20px; margin-bottom: 5px;")
         main_layout.addWidget(role_label)
@@ -226,7 +232,7 @@ class RegistrationWindow(QMainWindow):
         # Кнопка ЗАРЕГИСТРИРОВАТЬСЯ
         self.register_button = QPushButton("ЗАРЕГИСТРИРОВАТЬСЯ")
         self.register_button.setMinimumHeight(91)
-        self.register_button.setFont(QFont("Helvetica Neue", 14))
+        self.register_button.setFont(ui_font(14))
         self.register_button.setCursor(Qt.PointingHandCursor)
         self.register_button.setStyleSheet("""
             QPushButton {
@@ -251,7 +257,7 @@ class RegistrationWindow(QMainWindow):
         login_hint_layout.setAlignment(Qt.AlignCenter)
 
         self.login_hint_button = QPushButton("Уже есть аккаунт? Войти")
-        self.login_hint_button.setFont(QFont("Helvetica Neue", 16))
+        self.login_hint_button.setFont(ui_font(16))
         self.login_hint_button.setCursor(Qt.PointingHandCursor)
         self.login_hint_button.setStyleSheet("""
             QPushButton {
@@ -275,7 +281,7 @@ class RegistrationWindow(QMainWindow):
 
         # Копирайт слева (растягивается, чтобы кнопка ушла вправо)
         info_label = QLabel("© 2026 SPORTORG | Все права защищены")
-        info_label.setFont(QFont("Helvetica Neue", 10))
+        info_label.setFont(ui_font(10))
         info_label.setAlignment(Qt.AlignLeft)
         info_label.setStyleSheet("color: gray;")
 
@@ -410,6 +416,7 @@ class RegistrationWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
+    apply_app_fonts(app)
     dpi_fix.apply_dpi_fix(app)
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))

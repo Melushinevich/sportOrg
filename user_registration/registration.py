@@ -22,12 +22,10 @@ def validate_password(password: str, password2: str):
 
 
 def validate_empty_str(first_name, last_name, email):
-    if not first_name or not first_name.strip():
-        return False, "Имя обязательно"
-    if not last_name or not last_name.strip():
-        return False, "Фамилия обязательна"
+    """При регистрации нужен только email; ФИО заполняется в анкете."""
+    _ = first_name, last_name
     if not email or not email.strip():
-        return False, "Email обязательен"
+        return False, "Email обязателен"
     return True, ""
 
 
@@ -80,12 +78,15 @@ def register_user(request: dict) -> dict:
 
     password_hash = hash_password(request["password"])
 
+    first_name = (request.get("first_name") or "").strip() or None
+    last_name = (request.get("last_name") or "").strip() or None
+
     user_data = {
         "email": request["email"],
         "password_hash": password_hash,
         "role": str(role).strip().lower(),
-        "first_name": request["first_name"],
-        "last_name": request["last_name"],
+        "first_name": first_name,
+        "last_name": last_name,
         "patronymic": request.get("patronymic") or None,
         "birth_date": request.get("birth_date") or None,
         "phone": request.get("phone") or None,

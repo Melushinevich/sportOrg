@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import re
 
-from PyQt5.QtCore import QDate
-
 from .api_client import ApiError, SportOrgApi
 from .session import session
 
 _DATE_DMY = re.compile(r"^(\d{2})\.(\d{2})\.(\d{4})$")
+GENDER_VALUES = frozenset({"Мужской", "Женский"})
 
 
 def parse_fio(full_name: str) -> tuple[str, str, str | None]:
@@ -51,6 +50,54 @@ def dmy_from_iso(iso: str | None) -> str:
     return f"{parts[2]}.{parts[1]}.{parts[0]}"
 
 
+def is_profile_complete(profile: dict | None) -> bool:
+    """Анкета заполнена: ФИО, дата рождения, город и телефон."""
+    if not profile:
+        return False
+
+    last = (profile.get("last_name") or "").strip()
+    first = (profile.get("first_name") or "").strip()
+    if not last or not first:
+        return False
+
+    if not profile.get("birth_date"):
+        return False
+    if not (profile.get("city") or "").strip():
+        return False
+    if not (profile.get("phone") or "").strip():
+        return False
+    gender = (profile.get("gender") or "").strip()
+    if gender not in GENDER_VALUES:
+        return False
+    return True
+
+
+def gender_from_combo(combo) -> str | None:
+    text = (combo.currentText() or "").strip()
+    if text in GENDER_VALUES:
+        return text
+    if hasattr(combo, "lineEdit"):
+        text = (combo.lineEdit().text() or "").strip()
+        if text in GENDER_VALUES:
+            return text
+    return None
+
+
+def apply_gender_to_combo(combo, gender: str | None) -> None:
+    value = (gender or "").strip()
+    if value in GENDER_VALUES:
+        idx = combo.findText(value)
+        if idx >= 0:
+            combo.setCurrentIndex(idx)
+            return
+        if hasattr(combo, "lineEdit"):
+            combo.lineEdit().setText(value)
+        return
+    if hasattr(combo, "lineEdit"):
+        combo.lineEdit().clear()
+    combo.setCurrentIndex(-1)
+
+
 def format_fio(profile: dict) -> str:
     return " ".join(
         part
@@ -84,6 +131,7 @@ def save_profile(
     birth_date: str | None,
     city: str,
     phone: str,
+    gender: str | None = None,
     api: SportOrgApi | None = None,
 ) -> dict:
     if not session.is_logged_in:
@@ -102,6 +150,7 @@ def save_profile(
         birth_date=birth_date,
         city=city_val,
         phone=phone_val,
+        gender=gender,
     )
     profile = data.get("profile")
     if not profile:
@@ -111,33 +160,47 @@ def save_profile(
 
 def apply_profile_to_sportsman_form(window, profile: dict) -> None:
     fio = format_fio(profile)
-    if fio:
-        window.fio_input.setText(fio)
+    window.fio_input.setText(fio) if fio else window.fio_input.clear()
 
-    birth = profile.get("birth_date")
+    birth = dmy_from_iso(profile.get("birth_date"))
     if birth:
-        parts = str(birth).split("-")
-        if len(parts) == 3:
-            window.birth_date.setDate(
-                QDate(int(parts[0]), int(parts[1]), int(parts[2]))
-            )
+        window.birth_date.set_dmy_text(birth)
+    elif hasattr(window.birth_date, "clear_date"):
+        window.birth_date.clear_date()
+    else:
+        window.birth_date.clear()
 
     if profile.get("city"):
         window.city_input.setText(profile["city"])
+    else:
+        window.city_input.clear()
     if profile.get("phone"):
         window.phone_input.setText(profile["phone"])
+    else:
+        window.phone_input.clear()
+
+    apply_gender_to_combo(window.gender_combo, profile.get("gender"))
 
 
 def apply_profile_to_trainer_form(window, profile: dict) -> None:
     fio = format_fio(profile)
-    if fio:
-        window.fio_input.setText(fio)
+    window.fio_input.setText(fio) if fio else window.fio_input.clear()
 
     birth = dmy_from_iso(profile.get("birth_date"))
     if birth:
-        window.birth_date.setText(birth)
+        window.birth_date.set_dmy_text(birth)
+    elif hasattr(window.birth_date, "clear_date"):
+        window.birth_date.clear_date()
+    else:
+        window.birth_date.clear()
 
     if profile.get("city"):
         window.city_input.setText(profile["city"])
+    else:
+        window.city_input.clear()
     if profile.get("phone"):
         window.phone_input.setText(profile["phone"])
+    else:
+        window.phone_input.clear()
+
+    apply_gender_to_combo(window.gender_combo, profile.get("gender"))

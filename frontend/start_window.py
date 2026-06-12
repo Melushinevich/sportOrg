@@ -8,7 +8,9 @@ from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 
 # Импортируем SupportButton из registr_window
 from . import dpi_fix
+from .fonts import apply_app_fonts
 from .registr_window import SupportButton
+from .fonts import FONT_UI, title_font, ui_font
 
 
 class StartWindow(QMainWindow):
@@ -35,8 +37,8 @@ class StartWindow(QMainWindow):
 
         # Заголовок SPORTORG
         title_label = QLabel("SPORTORG")
-        title_font = QFont("Arial", 120)
-        title_label.setFont(title_font)
+        title_label_font = title_font(120)
+        title_label.setFont(title_label_font)
         title_label.setAlignment(Qt.AlignCenter)
         title_label.setStyleSheet("color: black; margin-top: 50px;")
         main_layout.addWidget(title_label)
@@ -49,7 +51,7 @@ class StartWindow(QMainWindow):
             "Привет! Я - твой виртуальный помощник по подбору команды\n"
             "Для продолжения зарегистрируйтесь или войдите в аккаунт"
         )
-        welcome_font = QFont("Helvetica Neue", 26)
+        welcome_font = ui_font(26)
         welcome_label.setFont(welcome_font)
         welcome_label.setAlignment(Qt.AlignCenter)
         welcome_label.setStyleSheet("color: black;")
@@ -66,7 +68,7 @@ class StartWindow(QMainWindow):
         # Кнопка РЕГИСТРАЦИЯ
         self.register_button = QPushButton("РЕГИСТРАЦИЯ")
         self.register_button.setFixedSize(400, 100)
-        self.register_button.setFont(QFont("Helvetica Neue", 32))
+        self.register_button.setFont(ui_font(32))
         self.register_button.setCursor(Qt.PointingHandCursor)
         self.register_button.setStyleSheet("""
             QPushButton {
@@ -88,7 +90,7 @@ class StartWindow(QMainWindow):
         # Кнопка ВХОД
         self.login_button = QPushButton("ВХОД")
         self.login_button.setFixedSize(400, 100)
-        self.login_button.setFont(QFont("Helvetica Neue", 32))
+        self.login_button.setFont(ui_font(32))
         self.login_button.setCursor(Qt.PointingHandCursor)
         self.login_button.setStyleSheet("""
             QPushButton {
@@ -122,7 +124,7 @@ class StartWindow(QMainWindow):
 
         # Копирайт слева
         info_label = QLabel("© 2026 SPORTORG | Все права защищены")
-        info_label.setFont(QFont("Helvetica Neue", 10))
+        info_label.setFont(ui_font(10))
         info_label.setAlignment(Qt.AlignLeft)
         info_label.setStyleSheet("color: gray;")
 
@@ -146,6 +148,7 @@ class StartWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
+    apply_app_fonts(app)
     dpi_fix.apply_dpi_fix(app)
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))

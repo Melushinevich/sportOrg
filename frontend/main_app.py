@@ -10,34 +10,52 @@ from .login_window import LoginWindow
 from .registr_window import RegistrationWindow
 from .start_window import StartWindow
 from .ui_messages import apply_dialog_styles
+from .fonts import apply_app_fonts
+from .profile_service import is_profile_complete, load_profile
+from .navigation import (
+    ATHLETE_HOME,
+    LOGIN,
+    REGISTRATION,
+    SPORTSMAN_PROFILE,
+    START,
+    TRAINER_HOME,
+    TRAINER_PROFILE,
+    bind_navigator,
+)
 
 
 class MainApplication(QStackedWidget):
     def __init__(self):
         super().__init__()
 
-        # Создаем все окна
         self.start_window = StartWindow()
         self.registration_window = RegistrationWindow()
         self.login_window = LoginWindow()
         self.sportsman_window = SportsmanProfileWindow()
         self.trainer_window = TrainerProfileWindow()
 
-        # Убираем стандартные заголовки у окон (для встраивания в QStackedWidget)
-        self.start_window.setWindowFlags(Qt.Widget)
-        self.registration_window.setWindowFlags(Qt.Widget)
-        self.login_window.setWindowFlags(Qt.Widget)
-        self.sportsman_window.setWindowFlags(Qt.Widget)
-        self.trainer_window.setWindowFlags(Qt.Widget)
+        for w in (
+            self.start_window,
+            self.registration_window,
+            self.login_window,
+            self.sportsman_window,
+            self.trainer_window,
+        ):
+            w.setWindowFlags(Qt.Widget)
 
-        # Добавляем окна в стек
-        self.addWidget(self.start_window)  # индекс 0
-        self.addWidget(self.registration_window)  # индекс 1
-        self.addWidget(self.login_window)  # индекс 2
-        self.addWidget(self.sportsman_window)  # индекс 3
-        self.addWidget(self.trainer_window)  # индекс 4
+        self.addWidget(self.start_window)
+        self.addWidget(self.registration_window)
+        self.addWidget(self.login_window)
+        self.addWidget(self.sportsman_window)
+        self.addWidget(self.trainer_window)
 
-        # Подключаем сигналы для переключения окон
+        nav = bind_navigator(self)
+        nav.register(START, self.start_window)
+        nav.register(REGISTRATION, self.registration_window)
+        nav.register(LOGIN, self.login_window)
+        nav.register(SPORTSMAN_PROFILE, self.sportsman_window)
+        nav.register(TRAINER_PROFILE, self.trainer_window)
+
         self.start_window.go_to_registration.connect(self.on_go_to_registration)
         self.start_window.go_to_login.connect(self.on_go_to_login)
         self.registration_window.register_success.connect(self.on_register_success)
@@ -45,55 +63,57 @@ class MainApplication(QStackedWidget):
         self.login_window.login_success.connect(self.on_login_success)
         self.login_window.go_to_start.connect(self.on_go_to_start)
 
-        # Показываем стартовое окно
-        self.setCurrentWidget(self.start_window)
+        nav.open(START)
 
     def on_go_to_registration(self):
-        """Переход из стартового окна в окно регистрации"""
-        self.setCurrentWidget(self.registration_window)
-        print("Переход на окно регистрации")
+        navigate_or(self, REGISTRATION)
 
     def on_go_to_login(self):
-        """Переход из стартового окна в окно входа"""
-        self.setCurrentWidget(self.login_window)
+        navigate_or(self, LOGIN)
         self.login_window.clear_fields()
-        print("Переход на окно входа")
 
     def on_go_to_start(self):
-        """Возврат на стартовое окно"""
-        self.setCurrentWidget(self.start_window)
-        print("Возврат на стартовое окно")
+        navigate_or(self, START)
 
     def on_register_success(self, role, email, password):
-        """Переход из регистрации в анкету (спортсмен/тренер)"""
         if role == "СПОРТСМЕН":
             self.sportsman_window.load_profile()
-            self.setCurrentWidget(self.sportsman_window)
-            print(f"Переход на анкету спортсмена (email: {email})")
+            navigate_or(self, SPORTSMAN_PROFILE)
         elif role == "ТРЕНЕР":
             self.trainer_window.load_profile()
-            self.setCurrentWidget(self.trainer_window)
-            print(f"Переход на анкету тренера (email: {email})")
+            navigate_or(self, TRAINER_PROFILE)
 
     def on_login_success(self, email, role):
-        """Переход после успешного входа"""
+        profile = load_profile()
+
         if role == "СПОРТСМЕН":
             self.sportsman_window.load_profile()
-            self.setCurrentWidget(self.sportsman_window)
-            print(f"Успешный вход спортсмена: {email}")
+            if is_profile_complete(profile):
+                self.sportsman_window._open_sportsman_home(profile)
+            else:
+                navigate_or(self, SPORTSMAN_PROFILE)
         elif role == "ТРЕНЕР":
             self.trainer_window.load_profile()
-            self.setCurrentWidget(self.trainer_window)
-            print(f"Успешный вход тренера: {email}")
+            if is_profile_complete(profile):
+                self.trainer_window._open_trainer_home(profile)
+            else:
+                navigate_or(self, TRAINER_PROFILE)
+
+
+def navigate_or(stack: QStackedWidget, screen_id: str) -> None:
+    from .navigation import get_navigator
+
+    nav = get_navigator()
+    if nav:
+        nav.open(screen_id)
 
 
 def main():
     app = QApplication(sys.argv)
-    app.setFont(QFont("Helvetica Neue", 14))
+    apply_app_fonts(app)
 
     dpi_fix.apply_dpi_fix(app)
     apply_dialog_styles(app)
-    # Устанавливаем белый фон
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))
     app.setPalette(palette)

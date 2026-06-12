@@ -12,8 +12,11 @@ from user_registration.storage import (
     get_coach_team_detail,
     init_db,
     list_available_teams,
+    list_athlete_teams,
     list_coach_teams,
     list_my_team_applications,
+    list_skills_catalog,
+    list_sports,
     remove_team_member,
     save_team_members,
     search_sportsmen,
@@ -52,6 +55,26 @@ def coach_list_teams(user_id: int):
     init_db()
     teams = list_coach_teams(user_id)
     return jsonify({"teams": teams}), 200
+
+
+@bp.get("/coach/sports")
+@require_coach_json
+@limiter.limit("120 per minute")
+def coach_list_sports(user_id: int):
+    """Справочник видов спорта для формы создания команды."""
+    init_db()
+    sports = list_sports()
+    return jsonify({"sports": sports}), 200
+
+
+@bp.get("/coach/skills-catalog")
+@require_coach_json
+@limiter.limit("120 per minute")
+def coach_list_skills_catalog(user_id: int):
+    """Справочник критериев (навыков) для формы создания команды."""
+    init_db()
+    skills = list_skills_catalog()
+    return jsonify({"skills": skills}), 200
 
 
 @bp.post("/coach/teams")
@@ -284,3 +307,13 @@ def my_applications(user_id: int):
     init_db()
     rows = list_my_team_applications(user_id)
     return jsonify({"applications": rows}), 200
+
+
+@bp.get("/me/teams")
+@require_sportsman_json
+@limiter.limit("120 per minute")
+def my_teams(user_id: int):
+    """Страница «Мои команды»: состав, куда тренер принял спортсмена."""
+    init_db()
+    rows = list_athlete_teams(user_id)
+    return jsonify({"teams": rows}), 200

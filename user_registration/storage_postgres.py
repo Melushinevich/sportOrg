@@ -5,6 +5,8 @@ from urllib.parse import quote_plus
 import psycopg
 from psycopg.rows import dict_row
 
+from user_registration.profile_gender import gender_db_to_ui, gender_ui_to_db
+
 
 def _database_url() -> str:
     url = os.environ.get("DATABASE_URL")
@@ -52,7 +54,7 @@ def get_user_by_email(email: str):
                 """
                 SELECT u.id, u.email, u.password_hash, u.role, u.created_at,
                        p.last_name, p.first_name, p.patronymic,
-                       p.birth_date, p.phone, p.city
+                       p.birth_date, p.phone, p.city, p.gender
                 FROM users u
                 LEFT JOIN profiles p ON u.id = p.user_id
                 WHERE u.email = %s
@@ -87,17 +89,18 @@ def create_new_user(user_data: dict) -> int:
             cur.execute(
                 """
                 INSERT INTO profiles (user_id, last_name, first_name, patronymic,
-                                      birth_date, phone, city)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                                      birth_date, phone, city, gender)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
                     user_id,
-                    user_data.get("last_name"),
-                    user_data.get("first_name"),
+                    (user_data.get("last_name") or "").strip(),
+                    (user_data.get("first_name") or "").strip(),
                     user_data.get("patronymic") or None,
                     user_data.get("birth_date") or None,
                     user_data.get("phone") or None,
                     user_data.get("city") or None,
+                    user_data.get("gender") or None,
                 ),
             )
         conn.commit()
@@ -117,7 +120,7 @@ def get_all_users():
                 """
                 SELECT u.id, u.email, u.password_hash, u.role, u.created_at,
                        p.last_name, p.first_name, p.patronymic,
-                       p.birth_date, p.phone, p.city
+                       p.birth_date, p.phone, p.city, p.gender
                 FROM users u
                 LEFT JOIN profiles p ON u.id = p.user_id
                 ORDER BY u.id
@@ -137,7 +140,7 @@ def get_user_by_id(user_id: int):
                 """
                 SELECT u.id, u.email, u.password_hash, u.role, u.created_at,
                        p.last_name, p.first_name, p.patronymic,
-                       p.birth_date, p.phone, p.city
+                       p.birth_date, p.phone, p.city, p.gender
                 FROM users u
                 LEFT JOIN profiles p ON u.id = p.user_id
                 WHERE u.id = %s
@@ -165,6 +168,7 @@ def _profile_row_to_dict(row: dict) -> dict:
         "birth_date": birth,
         "phone": row.get("phone"),
         "city": row.get("city"),
+        "gender": gender_db_to_ui(row.get("gender")),
     }
 
 
@@ -185,6 +189,7 @@ def update_user_profile(user_id: int, data: dict) -> dict:
     birth_date = data.get("birth_date") or None
     phone = (data.get("phone") or "").strip() or None
     city = (data.get("city") or "").strip() or None
+    gender = gender_ui_to_db(data.get("gender"))
 
     conn = get_db_connection()
     try:
@@ -198,11 +203,21 @@ def update_user_profile(user_id: int, data: dict) -> dict:
                     birth_date = %s,
                     phone = %s,
                     city = %s,
+                    gender = %s,
                     updated_at = NOW()
                 WHERE user_id = %s
                 RETURNING user_id
                 """,
-                (last_name, first_name, patronymic, birth_date, phone, city, user_id),
+                (
+                    last_name,
+                    first_name,
+                    patronymic,
+                    birth_date,
+                    phone,
+                    city,
+                    gender,
+                    user_id,
+                ),
             )
             if cur.fetchone() is None:
                 raise ValueError("Профиль не найден")
@@ -321,6 +336,50 @@ def replace_athlete_skills(user_id: int, skills: list[dict[str, Any]]) -> None:
     except Exception:
         conn.rollback()
         raise
+    finally:
+        conn.close()
+
+
+def list_sports() -> list[dict[str, Any]]:
+    """Справочник видов спорта из таблицы sports."""
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id AS sport_id, name
+                FROM sports
+                ORDER BY name ASC
+                """
+            )
+            return [
+                {"sport_id": int(r["sport_id"]), "name": r.get("name") or ""}
+                for r in cur.fetchall()
+            ]
+    finally:
+        conn.close()
+
+
+def list_skills_catalog() -> list[dict[str, Any]]:
+    """Справочник навыков/критериев из таблицы skills."""
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id AS skill_id, name, category
+                FROM skills
+                ORDER BY name ASC
+                """
+            )
+            return [
+                {
+                    "skill_id": int(r["skill_id"]),
+                    "name": r.get("name") or "",
+                    "category": r.get("category"),
+                }
+                for r in cur.fetchall()
+            ]
     finally:
         conn.close()
 
@@ -546,6 +605,54 @@ def list_available_teams(sport_name: str | None = None) -> list[dict[str, Any]]:
                         "coach_id": int(row["coach_id"]),
                         "coach": coach_name or None,
                         "criteria": _fetch_team_criteria(cur, team_id),
+                    }
+                )
+            return out
+    finally:
+        conn.close()
+
+
+def list_athlete_teams(athlete_user_id: int) -> list[dict[str, Any]]:
+    """Команды, в состав которых спортсмена принял тренер (team_members)."""
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    m.id AS member_id,
+                    t.id AS team_id,
+                    t.name AS team,
+                    s.name AS sport,
+                    u.id AS coach_id,
+                    p.first_name AS coach_first_name,
+                    p.last_name AS coach_last_name
+                FROM team_members m
+                JOIN teams t ON t.id = m.team_id
+                JOIN sports s ON s.id = t.sport_id
+                JOIN users u ON u.id = t.coach_user_id
+                LEFT JOIN profiles p ON p.user_id = u.id
+                WHERE m.athlete_user_id = %s
+                ORDER BY m.id DESC
+                """,
+                (athlete_user_id,),
+            )
+            rows = cur.fetchall()
+            out: list[dict[str, Any]] = []
+            for r in rows:
+                coach_name = " ".join(
+                    x
+                    for x in [r.get("coach_last_name") or "", r.get("coach_first_name") or ""]
+                    if x
+                ).strip()
+                out.append(
+                    {
+                        "member_id": int(r["member_id"]),
+                        "team_id": int(r["team_id"]),
+                        "team": r.get("team") or "",
+                        "sport": r.get("sport") or "",
+                        "coach_id": int(r["coach_id"]),
+                        "coach": coach_name or None,
                     }
                 )
             return out

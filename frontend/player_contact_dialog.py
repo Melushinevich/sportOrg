@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QIcon
+from .fonts import FONT_UI, title_font, ui_font
 
 
 class PlayerContactDialog(QDialog):
@@ -23,7 +24,7 @@ class PlayerContactDialog(QDialog):
 
         # Заголовок с именем
         title = QLabel(self.player_name)
-        title.setFont(QFont("Helvetica Neue", 24, QFont.Bold))
+        title.setFont(ui_font(24, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color: black;")
         main_layout.addWidget(title)
@@ -40,12 +41,12 @@ class PlayerContactDialog(QDialog):
             email_layout = QHBoxLayout()
 
             email_icon = QLabel("📧")
-            email_icon.setFont(QFont("Segoe UI", 24))
+            email_icon.setFont(ui_font(24))
             email_icon.setFixedSize(40, 40)
             email_layout.addWidget(email_icon)
 
             email_label = QLabel(self.email)
-            email_label.setFont(QFont("Helvetica Neue", 16))
+            email_label.setFont(ui_font(16))
             email_label.setStyleSheet("color: black; background: transparent;")
             email_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
             email_layout.addWidget(email_label)
@@ -59,12 +60,12 @@ class PlayerContactDialog(QDialog):
             phone_layout = QHBoxLayout()
 
             phone_icon = QLabel("📱")
-            phone_icon.setFont(QFont("Segoe UI", 24))
+            phone_icon.setFont(ui_font(24))
             phone_icon.setFixedSize(40, 40)
             phone_layout.addWidget(phone_icon)
 
             phone_label = QLabel(self.phone)
-            phone_label.setFont(QFont("Helvetica Neue", 16))
+            phone_label.setFont(ui_font(16))
             phone_label.setStyleSheet("color: black; background: transparent;")
             phone_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
             phone_layout.addWidget(phone_label)
@@ -76,7 +77,7 @@ class PlayerContactDialog(QDialog):
         # Если нет контактов
         if not self.email and not self.phone:
             no_contact_label = QLabel("Контактная информация не указана")
-            no_contact_label.setFont(QFont("Helvetica Neue", 14))
+            no_contact_label.setFont(ui_font(14))
             no_contact_label.setStyleSheet("color: gray;")
             no_contact_label.setAlignment(Qt.AlignCenter)
             main_layout.addWidget(no_contact_label)
@@ -87,7 +88,7 @@ class PlayerContactDialog(QDialog):
         # Кнопка закрытия
         close_button = QPushButton("ЗАКРЫТЬ")
         close_button.setFixedSize(200, 50)
-        close_button.setFont(QFont("Helvetica Neue", 16))
+        close_button.setFont(ui_font(16))
         close_button.setCursor(Qt.PointingHandCursor)
         close_button.setStyleSheet("""
             QPushButton {

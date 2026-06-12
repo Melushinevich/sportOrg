@@ -38,7 +38,23 @@ def test_validate_role_and_required_fields():
     assert registration.validate_role("coach")[0] is True
     assert registration.validate_role("admin")[0] is False
     assert registration.validate_required_fields("", "Last", "e@t.com")[0] is False
-    assert registration.validate_required_fields("First", "", "e@t.com")[0] is False
+    assert registration.validate_required_fields("First", "", "e@t.com")[0] is True
+
+
+def test_register_without_names(storage_mock):
+    email = f"n_{uuid.uuid4().hex[:8]}@test.local"
+    out = registration.register_user(
+        {
+            "email": email,
+            "password": "secret12",
+            "password2": "secret12",
+            "role": "coach",
+        }
+    )
+    assert out["success"] is True
+    row = storage_mock["by_email"][email]
+    assert row.get("first_name") is None
+    assert row.get("last_name") is None
 
 
 def test_hash_password_deterministic():

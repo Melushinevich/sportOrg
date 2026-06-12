@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from PyQt5.QtWidgets import QApplication, QMessageBox, QWidget
 
+from .fonts import FONT_UI, ensure_fonts_loaded
+
 MESSAGE_BOX_STYLE = """
 QMessageBox { background-color: white; }
 QMessageBox QLabel { color: black; background-color: transparent; }
@@ -14,7 +16,7 @@ QMessageBox QPushButton {
     border-radius: 15px;
     padding: 8px 20px;
     min-width: 80px;
-    font-family: 'Helvetica Neue';
+    font-family: "Roboto";
     font-size: 14px;
 }
 QMessageBox QPushButton:hover { background-color: #333333; }
@@ -43,7 +45,11 @@ QInputDialog QPushButton {
 
 def apply_dialog_styles(app: QApplication) -> None:
     """Глобальные стили диалогов — вызывать один раз после QApplication()."""
-    app.setStyleSheet((app.styleSheet() or "") + MESSAGE_BOX_STYLE + INPUT_DIALOG_STYLE)
+    ensure_fonts_loaded()
+    ui_family = FONT_UI
+    box_style = MESSAGE_BOX_STYLE.replace('"Roboto"', f'"{ui_family}"')
+    input_style = INPUT_DIALOG_STYLE.replace('"Roboto"', f'"{ui_family}"') if '"Roboto"' in INPUT_DIALOG_STYLE else INPUT_DIALOG_STYLE
+    app.setStyleSheet((app.styleSheet() or "") + box_style + input_style)
 
 
 def style_message_box(box: QMessageBox) -> None:

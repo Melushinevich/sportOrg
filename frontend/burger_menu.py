@@ -7,6 +7,7 @@ import os
 from PyQt5.QtGui import QFont, QIcon, QPalette, QColor, QPixmap
 
 from .assets import asset_path
+from .fonts import FONT_UI, title_font, ui_font
 
 MENU_CONFIGS = {
     'trainer': {
@@ -73,7 +74,7 @@ class BurgerMenu(QFrame):
         header_layout = QHBoxLayout()
 
         title_label = QLabel("SPORTORG")
-        title_label.setFont(QFont("Arial", 60))
+        title_label.setFont(title_font(60))
         title_label.setStyleSheet("color: black; background: transparent;")
         header_layout.addWidget(title_label)
 
@@ -94,7 +95,7 @@ class BurgerMenu(QFrame):
         self.menu_buttons = []
         for label, action in self.config['items']:
             button = QPushButton(label)
-            font = QFont("Helvetica Neue", 22)
+            font = ui_font(22)
             font.setItalic(True)
             button.setFont(font)
             button.setCursor(Qt.PointingHandCursor)
@@ -166,7 +167,7 @@ class BurgerMenu(QFrame):
         else:
             # Fallback на эмодзи
             icon_label.setText("🎧")
-            icon_label.setFont(QFont("Helvetica Neue", 28))
+            icon_label.setFont(ui_font(28))
             icon_label.setStyleSheet("color: white;")
 
         button_layout.addWidget(icon_label)
