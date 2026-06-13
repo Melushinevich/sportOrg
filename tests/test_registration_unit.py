@@ -37,7 +37,8 @@ def test_validate_email_and_password():
 def test_validate_role_and_required_fields():
     assert registration.validate_role("coach")[0] is True
     assert registration.validate_role("admin")[0] is False
-    assert registration.validate_required_fields("", "Last", "e@t.com")[0] is False
+    assert registration.validate_required_fields("", "Last", "")[0] is False
+    assert registration.validate_required_fields("", "Last", "e@t.com")[0] is True
     assert registration.validate_required_fields("First", "", "e@t.com")[0] is True
 
 

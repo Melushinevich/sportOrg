@@ -8,6 +8,7 @@ from user_registration.storage import (
     add_athlete_skill,
     init_db,
     list_athlete_skills,
+    list_skills_catalog,
     replace_athlete_skills,
 )
 
@@ -41,7 +42,18 @@ def _validate_rating(rating) -> tuple[bool, str | None]:
 def get_skills(user_id: int):
     init_db()
     rows = list_athlete_skills(user_id)
-    return jsonify({"skills": rows}), 200
+    catalog = list_skills_catalog()
+    return jsonify({"skills": rows, "catalog": catalog}), 200
+
+
+@me_bp.get("/skills-catalog")
+@require_sportsman_json
+@limiter.limit("60 per minute")
+def get_skills_catalog(user_id: int):
+    del user_id
+    init_db()
+    skills = list_skills_catalog()
+    return jsonify({"skills": skills}), 200
 
 
 @me_bp.post("/skills")

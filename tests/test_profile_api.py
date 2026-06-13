@@ -120,6 +120,23 @@ def test_profile_invalid_birth_date(app_client, users_db, profile_mocks):
     assert rv.get_json()["code"] == "invalid_birth_date"
 
 
+def test_profile_future_birth_date(app_client, users_db, profile_mocks):
+    rv = app_client.put(
+        "/api/v1/me/profile",
+        headers=auth_header(2, "sportsman"),
+        data=json.dumps(
+            {
+                "last_name": "Иванов",
+                "first_name": "Иван",
+                "birth_date": "2099-01-01",
+            }
+        ),
+        content_type="application/json",
+    )
+    assert rv.status_code == 400
+    assert rv.get_json()["code"] == "invalid_birth_date"
+
+
 def test_profile_invalid_gender(app_client, users_db, profile_mocks):
     rv = app_client.put(
         "/api/v1/me/profile",

@@ -3,6 +3,7 @@
 from user_registration.storage_postgres import (
     add_athlete_skill,
     add_team_member,
+    accept_team_application,
     apply_to_team,
     create_new_user,
     create_team,
@@ -18,6 +19,7 @@ from user_registration.storage_postgres import (
     list_available_teams,
     list_athlete_skills,
     list_athlete_teams,
+    list_coach_applications,
     list_coach_teams,
     list_my_team_applications,
     list_skills_catalog,
@@ -32,6 +34,7 @@ from user_registration.storage_postgres import (
 __all__ = (
     "add_athlete_skill",
     "add_team_member",
+    "accept_team_application",
     "apply_to_team",
     "create_new_user",
     "create_team",
@@ -47,6 +50,7 @@ __all__ = (
     "list_available_teams",
     "list_athlete_skills",
     "list_athlete_teams",
+    "list_coach_applications",
     "list_coach_teams",
     "list_my_team_applications",
     "list_skills_catalog",

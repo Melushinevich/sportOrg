@@ -126,6 +126,55 @@ def teams_mocks(monkeypatch):
         if len(detail["members"]) == before:
             raise ValueError("Участник не найден")
 
+    def list_coach_applications(_coach_id, team_id=None, team_name=None, status="pending"):
+        rows = []
+        for app in state["applications"]:
+            if status and app.get("status") != status:
+                continue
+            detail = state["members"].get(app["team_id"])
+            if detail is None:
+                continue
+            if team_id is not None and app["team_id"] != team_id:
+                continue
+            if team_name and detail["team"] != team_name:
+                continue
+            rows.append(
+                {
+                    "application_id": app["application_id"],
+                    "status": app["status"],
+                    "team_id": app["team_id"],
+                    "team": detail["team"],
+                    "sport": detail["sport"],
+                    "athlete_user_id": app["athlete_user_id"],
+                    "full_name": "Athlete Test",
+                    "email": "a@t.com",
+                    "phone": "",
+                    "skills": [{"name": "Скорость", "rating": 8}],
+                }
+            )
+        return rows
+
+    def accept_application(_coach_id, application_id):
+        app = next((a for a in state["applications"] if a["application_id"] == application_id), None)
+        if app is None:
+            raise ValueError("Заявка не найдена")
+        if app["status"] != "pending":
+            raise ValueError("Заявка уже обработана")
+        member_id = add_member(_coach_id, app["team_id"], app["athlete_user_id"])
+        app["status"] = "accepted"
+        detail = state["members"][app["team_id"]]
+        return {
+            "member_id": member_id,
+            "application_id": application_id,
+            "team_id": app["team_id"],
+            "team": detail["team"],
+            "sport": detail["sport"],
+            "full_name": "Athlete Test",
+            "email": "a@t.com",
+            "phone": "",
+            "skills": [{"name": "Скорость", "rating": 8}],
+        }
+
     monkeypatch.setattr("sportorg.api.teams.list_coach_teams", list_coach)
     monkeypatch.setattr("sportorg.api.teams.create_team", create_team)
     monkeypatch.setattr("sportorg.api.teams.get_coach_team_detail", get_coach_detail)
@@ -134,6 +183,8 @@ def teams_mocks(monkeypatch):
     monkeypatch.setattr("sportorg.api.teams.apply_to_team", apply_to_team)
     monkeypatch.setattr("sportorg.api.teams.list_my_team_applications", list_apps)
     monkeypatch.setattr("sportorg.api.teams.list_athlete_teams", list_athlete)
+    monkeypatch.setattr("sportorg.api.teams.list_coach_applications", list_coach_applications)
+    monkeypatch.setattr("sportorg.api.teams.accept_team_application", accept_application)
     monkeypatch.setattr("sportorg.api.teams.search_sportsmen", search_sportsmen)
     monkeypatch.setattr("sportorg.api.teams.add_team_member", add_member)
     monkeypatch.setattr("sportorg.api.teams.save_team_members", save_members)
@@ -256,6 +307,34 @@ def test_sportsman_available_and_apply(app_client, users_db, teams_mocks):
 
     rv5 = app_client.post(f"/api/v1/teams/{tid}/apply", headers=sh)
     assert rv5.status_code == 409
+
+
+def test_coach_applications_list_and_accept(app_client, users_db, teams_mocks):
+    ch = auth_header(1, "coach")
+    sh = auth_header(2, "sportsman")
+    tid = app_client.post(
+        "/api/v1/coach/teams",
+        headers=ch,
+        data=json.dumps({"sport": "Футбол", "team": "К5", "criteria": ["Скорость"]}),
+        content_type="application/json",
+    ).get_json()["team_id"]
+
+    app_client.post(f"/api/v1/teams/{tid}/apply", headers=sh)
+
+    rv = app_client.get("/api/v1/coach/applications", headers=ch)
+    assert rv.status_code == 200
+    apps = rv.get_json()["applications"]
+    assert len(apps) == 1
+    app_id = apps[0]["application_id"]
+
+    rv2 = app_client.post(f"/api/v1/coach/applications/{app_id}/accept", headers=ch)
+    assert rv2.status_code == 200
+
+    rv3 = app_client.get("/api/v1/coach/applications", headers=ch)
+    assert rv3.get_json()["applications"] == []
+
+    rv4 = app_client.get("/api/v1/me/teams", headers=sh)
+    assert len(rv4.get_json()["teams"]) == 1
 
 
 def test_available_team_not_found(app_client, users_db, teams_mocks):

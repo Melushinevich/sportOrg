@@ -24,6 +24,7 @@ def skills_mocks(monkeypatch):
         ]
 
     monkeypatch.setattr("sportorg.api.athlete_skills.list_athlete_skills", list_skills)
+    monkeypatch.setattr("sportorg.api.athlete_skills.list_skills_catalog", lambda: [])
     monkeypatch.setattr("sportorg.api.athlete_skills.add_athlete_skill", add_skill)
     monkeypatch.setattr("sportorg.api.athlete_skills.replace_athlete_skills", replace)
     return state
@@ -32,7 +33,7 @@ def skills_mocks(monkeypatch):
 def test_skills_get_empty(app_client, users_db, skills_mocks):
     rv = app_client.get("/api/v1/me/skills", headers=auth_header(2, "sportsman"))
     assert rv.status_code == 200
-    assert rv.get_json() == {"skills": []}
+    assert rv.get_json() == {"skills": [], "catalog": []}
 
 
 def test_skills_add_and_save(app_client, users_db, skills_mocks):

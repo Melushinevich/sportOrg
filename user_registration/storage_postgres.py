@@ -2,9 +2,12 @@ import os
 from typing import Any
 from urllib.parse import quote_plus
 
+from datetime import date
+
 import psycopg
 from psycopg.rows import dict_row
 
+from user_registration.birth_date import parse_iso_birth_date
 from user_registration.profile_gender import gender_db_to_ui, gender_ui_to_db
 
 
@@ -186,7 +189,13 @@ def update_user_profile(user_id: int, data: dict) -> dict:
         raise ValueError("Фамилия и имя обязательны")
 
     patronymic = (data.get("patronymic") or "").strip() or None
-    birth_date = data.get("birth_date") or None
+    birth_raw = data.get("birth_date")
+    if birth_raw is None or birth_raw == "":
+        birth_date = None
+    elif isinstance(birth_raw, date):
+        birth_date = parse_iso_birth_date(birth_raw.isoformat())
+    else:
+        birth_date = parse_iso_birth_date(str(birth_raw).strip())
     phone = (data.get("phone") or "").strip() or None
     city = (data.get("city") or "").strip() or None
     gender = gender_ui_to_db(data.get("gender"))
@@ -660,6 +669,255 @@ def list_athlete_teams(athlete_user_id: int) -> list[dict[str, Any]]:
         conn.close()
 
 
+def _fetch_athlete_skill_names(cur, athlete_user_id: int) -> list[str]:
+    return [
+        item["name"]
+        for item in _fetch_athlete_skills_with_ratings(cur, athlete_user_id)
+        if item.get("name")
+    ]
+
+
+def _fetch_athlete_skills_with_ratings(
+    cur,
+    athlete_user_id: int,
+) -> list[dict[str, Any]]:
+    cur.execute(
+        """
+        SELECT s.name, ss.self_rating AS rating
+        FROM sportsman_skills ss
+        JOIN skills s ON s.id = ss.skill_id
+        WHERE ss.user_id = %s
+        ORDER BY ss.id ASC
+        """,
+        (athlete_user_id,),
+    )
+    out: list[dict[str, Any]] = []
+    for r in cur.fetchall():
+        name = (r.get("name") or "").strip()
+        if not name:
+            continue
+        rating = r.get("rating")
+        out.append(
+            {
+                "name": name,
+                "rating": int(rating) if rating is not None else None,
+            }
+        )
+    return out
+
+
+def list_coach_applications(
+    coach_user_id: int,
+    *,
+    team_id: int | None = None,
+    team_name: str | None = None,
+    status: str | None = "pending",
+) -> list[dict[str, Any]]:
+    """Заявки спортсменов в команды тренера."""
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            query = """
+                SELECT
+                    a.id AS application_id,
+                    a.status,
+                    a.created_at,
+                    a.athlete_user_id,
+                    t.id AS team_id,
+                    t.name AS team,
+                    s.name AS sport,
+                    u.email,
+                    p.last_name,
+                    p.first_name,
+                    p.patronymic,
+                    p.phone
+                FROM team_applications a
+                JOIN teams t ON t.id = a.team_id
+                JOIN sports s ON s.id = t.sport_id
+                JOIN users u ON u.id = a.athlete_user_id
+                LEFT JOIN profiles p ON p.user_id = u.id
+                WHERE t.coach_user_id = %s
+            """
+            params: list[Any] = [coach_user_id]
+            if team_id is not None:
+                query += " AND t.id = %s"
+                params.append(team_id)
+            if team_name:
+                query += " AND t.name = %s"
+                params.append(team_name.strip())
+            if status:
+                query += " AND a.status = %s"
+                params.append(status)
+            query += " ORDER BY a.created_at DESC, a.id DESC"
+            cur.execute(query, params)
+            rows = cur.fetchall()
+            out: list[dict[str, Any]] = []
+            for r in rows:
+                row = dict(r)
+                athlete_user_id = int(row["athlete_user_id"])
+                skills = _fetch_athlete_skills_with_ratings(cur, athlete_user_id)
+                out.append(
+                    {
+                        "application_id": int(row["application_id"]),
+                        "status": row.get("status") or "",
+                        "team_id": int(row["team_id"]),
+                        "team": row.get("team") or "",
+                        "sport": row.get("sport") or "",
+                        "athlete_user_id": athlete_user_id,
+                        "full_name": _format_full_name(
+                            row.get("last_name"),
+                            row.get("first_name"),
+                            row.get("patronymic"),
+                        ),
+                        "email": row.get("email") or "",
+                        "phone": row.get("phone") or "",
+                        "skills": skills,
+                        "created_at": row.get("created_at"),
+                    }
+                )
+            return out
+    finally:
+        conn.close()
+
+
+def accept_team_application(coach_user_id: int, application_id: int) -> dict[str, Any]:
+    """Принять заявку: добавить спортсмена в состав и пометить заявку accepted."""
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT a.id, a.status, a.team_id, a.athlete_user_id, t.coach_user_id
+                FROM team_applications a
+                JOIN teams t ON t.id = a.team_id
+                WHERE a.id = %s
+                LIMIT 1
+                """,
+                (application_id,),
+            )
+            row = cur.fetchone()
+            if row is None or int(row["coach_user_id"]) != coach_user_id:
+                raise ValueError("Заявка не найдена")
+            if row["status"] != "pending":
+                raise ValueError("Заявка уже обработана")
+            team_id = int(row["team_id"])
+            athlete_user_id = int(row["athlete_user_id"])
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+    try:
+        member_id = add_team_member(coach_user_id, team_id, athlete_user_id)
+    except ValueError as exc:
+        if "уже в составе" not in str(exc).lower():
+            raise
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id FROM team_members
+                    WHERE team_id = %s AND athlete_user_id = %s
+                    LIMIT 1
+                    """,
+                    (team_id, athlete_user_id),
+                )
+                existing = cur.fetchone()
+                if existing is None:
+                    raise
+                member_id = int(existing["id"])
+        finally:
+            conn.close()
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE team_applications
+                SET status = 'accepted'
+                WHERE id = %s
+                """,
+                (application_id,),
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+    apps = list_coach_applications(coach_user_id, team_id=team_id, status="accepted")
+    app = next((a for a in apps if a["application_id"] == application_id), None)
+    if app is None:
+        pending = list_coach_applications(coach_user_id, team_id=team_id, status="pending")
+        app = next((a for a in pending if a["application_id"] == application_id), None)
+    if app is None:
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT
+                        a.id AS application_id,
+                        a.athlete_user_id,
+                        t.id AS team_id,
+                        t.name AS team,
+                        s.name AS sport,
+                        u.email,
+                        p.last_name,
+                        p.first_name,
+                        p.patronymic,
+                        p.phone
+                    FROM team_applications a
+                    JOIN teams t ON t.id = a.team_id
+                    JOIN sports s ON s.id = t.sport_id
+                    JOIN users u ON u.id = a.athlete_user_id
+                    LEFT JOIN profiles p ON p.user_id = u.id
+                    WHERE a.id = %s
+                    LIMIT 1
+                    """,
+                    (application_id,),
+                )
+                row = cur.fetchone()
+                if row is None:
+                    raise ValueError("Заявка не найдена")
+                r = dict(row)
+                skills = _fetch_athlete_skills_with_ratings(cur, int(r["athlete_user_id"]))
+                app = {
+                    "application_id": int(r["application_id"]),
+                    "team_id": int(r["team_id"]),
+                    "team": r.get("team") or "",
+                    "sport": r.get("sport") or "",
+                    "athlete_user_id": int(r["athlete_user_id"]),
+                    "full_name": _format_full_name(
+                        r.get("last_name"),
+                        r.get("first_name"),
+                        r.get("patronymic"),
+                    ),
+                    "email": r.get("email") or "",
+                    "phone": r.get("phone") or "",
+                    "skills": skills,
+                }
+        finally:
+            conn.close()
+
+    return {
+        "member_id": member_id,
+        "application_id": application_id,
+        "team_id": app["team_id"],
+        "team": app["team"],
+        "sport": app["sport"],
+        "athlete_user_id": app["athlete_user_id"],
+        "full_name": app.get("full_name") or "",
+        "email": app.get("email") or "",
+        "phone": app.get("phone") or "",
+        "skills": app.get("skills") or [],
+    }
+
+
 def apply_to_team(team_id: int, athlete_user_id: int) -> int:
     conn = get_db_connection()
     try:
@@ -760,6 +1018,22 @@ def _compute_member_score(qualities: list[dict[str, Any]]) -> float | None:
     return round(sum(rated) / len(rated), 1)
 
 
+def _compute_athlete_self_score(cur, athlete_user_id: int) -> float | None:
+    """Самооценка спортсмена: среднее self_rating по его скиллам."""
+    cur.execute(
+        """
+        SELECT self_rating
+        FROM sportsman_skills
+        WHERE user_id = %s AND self_rating IS NOT NULL
+        """,
+        (athlete_user_id,),
+    )
+    rated = [int(r["self_rating"]) for r in cur.fetchall()]
+    if not rated:
+        return None
+    return round(sum(rated) / len(rated), 1)
+
+
 def _fetch_member_qualities(
     cur,
     coach_user_id: int,
@@ -788,7 +1062,12 @@ def _fetch_member_qualities(
     ]
 
 
-def _member_row_to_dict(row: dict[str, Any], qualities: list[dict[str, Any]]) -> dict[str, Any]:
+def _member_row_to_dict(
+    row: dict[str, Any],
+    qualities: list[dict[str, Any]],
+    *,
+    athlete_score: float | None = None,
+) -> dict[str, Any]:
     return {
         "member_id": int(row["member_id"]),
         "athlete_user_id": int(row["athlete_user_id"]),
@@ -798,6 +1077,7 @@ def _member_row_to_dict(row: dict[str, Any], qualities: list[dict[str, Any]]) ->
             row.get("patronymic"),
         ),
         "score": _compute_member_score(qualities),
+        "athlete_score": athlete_score,
         "qualities": qualities,
         "notes": row.get("notes") or "",
     }
@@ -848,8 +1128,16 @@ def _fetch_team_members(cur, team_id: int, coach_user_id: int) -> list[dict[str,
     for r in cur.fetchall():
         row = dict(r)
         athlete_user_id = int(row["athlete_user_id"])
+        _seed_coach_assessments_from_athlete(cur, coach_user_id, athlete_user_id)
         qualities = _fetch_member_qualities(cur, coach_user_id, athlete_user_id)
-        out.append(_member_row_to_dict(row, qualities))
+        athlete_score = _compute_athlete_self_score(cur, athlete_user_id)
+        out.append(
+            _member_row_to_dict(
+                row,
+                qualities,
+                athlete_score=athlete_score,
+            )
+        )
     return out
 
 
@@ -904,6 +1192,7 @@ def get_coach_team_detail(coach_user_id: int, team_id: int) -> dict[str, Any]:
             team = _require_coach_team(cur, coach_user_id, team_id)
             members = _fetch_team_members(cur, team_id, coach_user_id)
             criteria = _fetch_team_criteria(cur, team_id)
+        conn.commit()
         return {
             "team_id": int(team["team_id"]),
             "team": team["team"],
@@ -986,6 +1275,41 @@ def _validate_quality_rating(rating: Any) -> int | None:
     return v
 
 
+def _upsert_coach_assessment(
+    cur,
+    coach_user_id: int,
+    athlete_user_id: int,
+    skill_id: int,
+    rating: int | None,
+) -> None:
+    cur.execute(
+        """
+        SELECT id FROM coach_assessments
+        WHERE coach_id = %s AND sportsman_id = %s AND skill_id = %s
+        LIMIT 1
+        """,
+        (coach_user_id, athlete_user_id, skill_id),
+    )
+    existing = cur.fetchone()
+    if existing:
+        cur.execute(
+            """
+            UPDATE coach_assessments
+            SET rating = %s, updated_at = NOW()
+            WHERE id = %s
+            """,
+            (rating, int(existing["id"])),
+        )
+        return
+    cur.execute(
+        """
+        INSERT INTO coach_assessments (coach_id, sportsman_id, skill_id, rating)
+        VALUES (%s, %s, %s, %s)
+        """,
+        (coach_user_id, athlete_user_id, skill_id, rating),
+    )
+
+
 def save_team_members(
     coach_user_id: int,
     team_id: int,
@@ -1031,24 +1355,28 @@ def save_team_members(
                 for j, q in enumerate(qualities):
                     if not isinstance(q, dict):
                         raise ValueError(f"members[{i}].qualities[{j}] должен быть объектом")
-                    quality_id = q.get("quality_id")
-                    if quality_id is None:
-                        raise ValueError(f"members[{i}].qualities[{j}]: нужен quality_id")
                     rating = _validate_quality_rating(q.get("rating", None))
-                    cur.execute(
-                        """
-                        UPDATE coach_assessments
-                        SET rating = %s, updated_at = NOW()
-                        WHERE id = %s
-                          AND coach_id = %s
-                          AND sportsman_id = %s
-                        """,
-                        (rating, int(quality_id), coach_user_id, athlete_user_id),
-                    )
-                    if cur.rowcount == 0:
-                        raise ValueError(
-                            f"Оценка quality_id={quality_id} не найдена у участника {member_id}"
+                    skill_id = q.get("skill_id")
+                    name = (q.get("name") or "").strip()
+                    if skill_id is None and name:
+                        cur.execute(
+                            "SELECT id FROM skills WHERE name = %s LIMIT 1",
+                            (name,),
                         )
+                        skill_row = cur.fetchone()
+                        if skill_row is not None:
+                            skill_id = int(skill_row["id"])
+                    if skill_id is None:
+                        raise ValueError(
+                            f"members[{i}].qualities[{j}]: не найден skill_id для «{name}»"
+                        )
+                    _upsert_coach_assessment(
+                        cur,
+                        coach_user_id,
+                        athlete_user_id,
+                        int(skill_id),
+                        rating,
+                    )
 
             saved = _fetch_team_members(cur, team_id, coach_user_id)
         conn.commit()

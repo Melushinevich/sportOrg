@@ -1,5 +1,6 @@
 import hashlib
 
+from user_registration.birth_date import parse_iso_birth_date
 from .storage import create_new_user, get_user_by_email
 
 VALID_ROLES = frozenset({"sportsman", "coach"})
@@ -81,6 +82,14 @@ def register_user(request: dict) -> dict:
     first_name = (request.get("first_name") or "").strip() or None
     last_name = (request.get("last_name") or "").strip() or None
 
+    birth_date = None
+    raw_birth = request.get("birth_date")
+    if raw_birth not in (None, ""):
+        try:
+            birth_date = parse_iso_birth_date(raw_birth)
+        except ValueError as exc:
+            return {"success": False, "error": str(exc), "code": "invalid_birth_date"}
+
     user_data = {
         "email": request["email"],
         "password_hash": password_hash,
@@ -88,7 +97,7 @@ def register_user(request: dict) -> dict:
         "first_name": first_name,
         "last_name": last_name,
         "patronymic": request.get("patronymic") or None,
-        "birth_date": request.get("birth_date") or None,
+        "birth_date": birth_date,
         "phone": request.get("phone") or None,
         "city": request.get("city") or None,
     }

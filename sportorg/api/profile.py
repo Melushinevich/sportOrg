@@ -1,35 +1,21 @@
 import logging
-import re
-from datetime import date
 
 from flask import Blueprint, jsonify, request
 
 from sportorg.auth.jwt import require_user_json
 from sportorg.extensions import limiter
+from user_registration.birth_date import parse_iso_birth_date
 from user_registration.storage import get_user_profile, init_db, update_user_profile
 
 log = logging.getLogger("sportorg.api.profile")
 
 me_profile_bp = Blueprint("me_profile", __name__, url_prefix="/api/v1/me")
 
-_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _VALID_GENDERS = frozenset({"Мужской", "Женский"})
 
 
 def _json_error(message: str, code: str, http_status: int):
     return jsonify({"error": message, "code": code}), http_status
-
-
-def _parse_birth_date(raw) -> date | None:
-    if raw is None or raw == "":
-        return None
-    s = str(raw).strip()
-    if not s:
-        return None
-    if not _DATE_RE.match(s):
-        raise ValueError("Дата рождения в формате ГГГГ-ММ-ДД")
-    y, m, d = (int(x) for x in s.split("-"))
-    return date(y, m, d)
 
 
 def _parse_gender(raw) -> str | None:
@@ -64,7 +50,7 @@ def put_profile(user_id: int):
     body = request.get_json(silent=True) or {}
 
     try:
-        birth = _parse_birth_date(body.get("birth_date"))
+        birth = parse_iso_birth_date(body.get("birth_date"))
     except ValueError as exc:
         return _json_error(str(exc), "invalid_birth_date", 400)
 
@@ -87,7 +73,16 @@ def put_profile(user_id: int):
         profile = update_user_profile(user_id, payload)
     except ValueError as exc:
         msg = str(exc)
-        code = "invalid_gender" if "пол" in msg.lower() else "validation_error"
+        msg_lower = msg.lower()
+        if "пол" in msg_lower:
+            code = "invalid_gender"
+        elif any(
+            token in msg_lower
+            for token in ("дата рождения", "некорректная дата", "возраст", "год")
+        ):
+            code = "invalid_birth_date"
+        else:
+            code = "validation_error"
         return _json_error(msg, code, 400)
     except Exception:
         log.exception("profile update failed user_id=%s", user_id)

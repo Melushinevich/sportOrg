@@ -82,6 +82,7 @@ def create_app(testing: bool = False) -> Flask:
                     "register": "POST /api/v1/register",
                     "login": "POST /api/v1/login",
                     "skills": "GET|POST|PUT /api/v1/me/skills (Bearer, sportsman)",
+                    "skills_catalog": "GET /api/v1/me/skills-catalog (Bearer, sportsman)",
                     "available_teams": "GET /api/v1/available-teams?sport=... (Bearer, sportsman)",
                     "available_team_detail": "GET /api/v1/available-teams/<id> (Bearer, sportsman)",
                     "apply": "POST /api/v1/teams/<team_id>/apply (Bearer, sportsman)",
@@ -93,6 +94,8 @@ def create_app(testing: bool = False) -> Flask:
                     "coach_team_detail": "GET /api/v1/coach/teams/<id> (Bearer, coach)",
                     "coach_team_members": "POST|PUT|DELETE /api/v1/coach/teams/<id>/members (Bearer, coach)",
                     "coach_search_sportsmen": "GET /api/v1/coach/sportsmen?search=... (Bearer, coach)",
+                    "coach_applications": "GET /api/v1/coach/applications (Bearer, coach)",
+                    "coach_accept_application": "POST /api/v1/coach/applications/<id>/accept (Bearer, coach)",
                 },
             }
         )

@@ -5,6 +5,7 @@ from flask import Blueprint, jsonify, request
 from sportorg.auth.jwt import require_coach_json, require_sportsman_json
 from sportorg.extensions import limiter
 from user_registration.storage import (
+    accept_team_application,
     add_team_member,
     apply_to_team,
     create_team,
@@ -13,6 +14,7 @@ from user_registration.storage import (
     init_db,
     list_available_teams,
     list_athlete_teams,
+    list_coach_applications,
     list_coach_teams,
     list_my_team_applications,
     list_skills_catalog,
@@ -156,6 +158,57 @@ def coach_search_sportsmen(user_id: int):
     query = request.args.get("search", "")
     rows = search_sportsmen(query)
     return jsonify({"sportsmen": rows}), 200
+
+
+@bp.get("/coach/applications")
+@require_coach_json
+@limiter.limit("120 per minute")
+def coach_list_applications(user_id: int):
+    """Заявки спортсменов в команды тренера (?team_id= &status=pending)."""
+    init_db()
+    team_id = request.args.get("team_id")
+    team_name = request.args.get("team")
+    status = request.args.get("status", "pending")
+    parsed_team_id: int | None = None
+    if team_id is not None and str(team_id).strip() != "":
+        try:
+            parsed_team_id = int(team_id)
+        except (TypeError, ValueError):
+            return _json_error("team_id должен быть числом", "invalid_input", 400)
+    rows = list_coach_applications(
+        user_id,
+        team_id=parsed_team_id,
+        team_name=team_name,
+        status=status or None,
+    )
+    return jsonify({"applications": rows}), 200
+
+
+@bp.post("/coach/applications/<int:application_id>/accept")
+@require_coach_json
+@limiter.limit("60 per minute")
+def coach_accept_application(application_id: int, user_id: int):
+    """Принять заявку спортсмена в команду."""
+    init_db()
+    try:
+        result = accept_team_application(user_id, application_id)
+    except ValueError as exc:
+        return _value_error_response(exc)
+    except Exception as exc:  # noqa: BLE001
+        log.exception(
+            "coach_accept_application_fail coach_id=%s app_id=%s",
+            user_id,
+            application_id,
+        )
+        return _json_error(str(exc), "storage_error", 503)
+
+    log.info(
+        "coach_accept_application_ok coach_id=%s app_id=%s member_id=%s",
+        user_id,
+        application_id,
+        result.get("member_id"),
+    )
+    return jsonify(result), 200
 
 
 @bp.post("/coach/teams/<int:team_id>/members")
