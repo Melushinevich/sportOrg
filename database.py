@@ -51,6 +51,7 @@ class Database:
                     last_name VARCHAR(100) NOT NULL,
                     first_name VARCHAR(100) NOT NULL,
                     patronymic VARCHAR(100),
+                    gender VARCHAR(20),
                     birth_date DATE,
                     phone VARCHAR(20),
                     city VARCHAR(100),
@@ -61,8 +62,15 @@ class Database:
             ''')
             print("Таблица 'profiles' создана")
 
+            try:
+                cursor.execute(
+                    'ALTER TABLE profiles ADD COLUMN IF NOT EXISTS gender VARCHAR(20) CHECK (gender IN (\'male\', \'female\'))')
+                print("Колонка 'gender' добавлена в таблицу profiles")
+            except Exception as e:
+                print(f"Колонка gender уже есть или ошибка: {e}")
+
             # 3. Таблица навыков (справочник)
-            cursor.execute('''
+            cursor.execute('''  
                 CREATE TABLE IF NOT EXISTS skills (
                     id SERIAL PRIMARY KEY,
                     name VARCHAR(100) UNIQUE NOT NULL,
@@ -167,7 +175,6 @@ class Database:
                     sportsman_id INTEGER NOT NULL,
                     skill_id INTEGER NOT NULL,
                     rating INTEGER DEFAULT 5,
-                    comment TEXT,
                     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (coach_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -310,12 +317,10 @@ class Database:
 
         print(f"Добавлено видов спорта: {len(sports)}")
 
-    # =========================================================
     # МЕТОДЫ ДЛЯ РАБОТЫ С ПОЛЬЗОВАТЕЛЯМИ
-    # =========================================================
 
     def register_user(self, email, password, last_name, first_name, role='sportsman',
-                      patronymic=None, birth_date=None, phone=None, city=None):
+                      patronymic=None, birth_date=None, phone=None, city=None, gender=None):
         if not email or '@' not in email:
             return False, "Введите корректный email", None
         if not password or len(password) < 4:
@@ -329,6 +334,12 @@ class Database:
 
         password_hash = hashlib.sha256(password.encode()).hexdigest()
 
+        gender_map = {
+            'Мужской': 'male',
+            'Женский': 'female',
+        }
+        gender = gender_map.get(gender, None) if gender else None
+
         with self.get_connection() as conn:
             cursor = conn.cursor()
             try:
@@ -341,10 +352,10 @@ class Database:
 
                 cursor.execute('''
                     INSERT INTO profiles (user_id, last_name, first_name, patronymic, 
-                                         birth_date, phone, city)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                                         gender, birth_date, phone, city)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 ''', (user_id, last_name, first_name, patronymic,
-                      birth_date, phone, city))
+                      gender, birth_date, phone, city))
 
                 role_text = "тренер" if role == 'coach' else "спортсмен"
                 return True, f"{role_text} {last_name} {first_name} успешно зарегистрирован", user_id
@@ -478,9 +489,7 @@ class Database:
             ''')
             return [dict(row) for row in cursor.fetchall()]
 
-    # =========================================================
     # МЕТОДЫ ДЛЯ НАВЫКОВ СПОРТСМЕНА (самооценка)
-    # =========================================================
 
     def add_sportsman_skill(self, user_id, skill_name, self_rating=5):
         with self.get_connection() as conn:
@@ -588,9 +597,7 @@ class Database:
 
             return result
 
-    # =========================================================
     # МЕТОДЫ ДЛЯ ТРЕБОВАНИЙ ТРЕНЕРА
-    # =========================================================
 
     def add_coach_requirement(self, user_id, skill_name, importance=5):
         with self.get_connection() as conn:
@@ -641,11 +648,9 @@ class Database:
 
             return True, f"Требование '{skill_name}' удалено"
 
-    # =========================================================
     # МЕТОДЫ ДЛЯ ОЦЕНОК ТРЕНЕРА
-    # =========================================================
 
-    def add_coach_assessment(self, coach_id, sportsman_id, skill_name, rating, comment=None):
+    def add_coach_assessment(self, coach_id, sportsman_id, skill_name, rating):
         with self.get_connection() as conn:
             cursor = conn.cursor()
 
@@ -663,11 +668,11 @@ class Database:
                 return False, "Оценка должна быть от 1 до 10"
 
             cursor.execute('''
-                INSERT INTO coach_assessments (coach_id, sportsman_id, skill_id, rating, comment)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO coach_assessments (coach_id, sportsman_id, skill_id, rating)
+                VALUES (%s, %s, %s, %s)
                 ON CONFLICT (coach_id, sportsman_id, skill_id) 
-                DO UPDATE SET rating = %s, comment = %s, updated_at = CURRENT_TIMESTAMP
-            ''', (coach_id, sportsman_id, skill['id'], rating, comment, rating, comment))
+                DO UPDATE SET rating = %s, updated_at = CURRENT_TIMESTAMP
+            ''', (coach_id, sportsman_id, skill['id'], rating, rating))
 
             return True, f"Оценка '{skill_name}' = {rating}/10"
 
@@ -722,9 +727,7 @@ class Database:
                 ''', (sportsman_id,))
                 return [dict(row) for row in cursor.fetchall()]
 
-    # =========================================================
     # МЕТОДЫ ДЛЯ СПРАВОЧНИКОВ
-    # =========================================================
 
     def get_all_skills(self):
         with self.get_connection() as conn:
@@ -744,9 +747,7 @@ class Database:
             cursor.execute('SELECT * FROM sports ORDER BY name')
             return [dict(row) for row in cursor.fetchall()]
 
-    # =========================================================
     # МЕТОДЫ ДЛЯ РАБОТЫ С КОМАНДАМИ
-    # =========================================================
 
     def create_team(self, name, coach_user_id, sport_id=None):
         with self.get_connection() as conn:
@@ -884,9 +885,7 @@ class Database:
             ''', (sport_id,))
             return [dict(row) for row in cursor.fetchall()]
 
-    # =========================================================
     # МЕТОДЫ ДЛЯ ЗАЯВОК В КОМАНДУ
-    # =========================================================
 
     def create_application(self, team_id, athlete_user_id):
         with self.get_connection() as conn:
@@ -954,9 +953,7 @@ class Database:
             ''', (athlete_user_id,))
             return [dict(row) for row in cursor.fetchall()]
 
-    # =========================================================
     # МЕТОДЫ ДЛЯ КРИТЕРИЕВ КОМАНДЫ
-    # =========================================================
 
     def add_team_criterion(self, team_id, text, sort_order=0):
         with self.get_connection() as conn:
@@ -984,9 +981,7 @@ class Database:
             cursor.execute('DELETE FROM team_criteria WHERE id = %s', (criterion_id,))
             return True, "Критерий удален"
 
-    # =========================================================
     # МЕТОДЫ ДЛЯ ПОИСКА И СООТВЕТСТВИЯ
-    # =========================================================
 
     def find_matching_sportsmen(self, coach_id):
         with self.get_connection() as conn:
@@ -1040,9 +1035,7 @@ class Database:
             results.sort(key=lambda x: x['match_percent'], reverse=True)
             return results
 
-    # =========================================================
     # СТАТИСТИКА
-    # =========================================================
 
     def get_stats(self):
         with self.get_connection() as conn:
@@ -1127,4 +1120,3 @@ if __name__ == '__main__':
     print(f"   Заявок в команды: {stats['team_applications']}")
     print(f"   Критериев команд: {stats['team_criteria']}")
 
-    print("\nБаза данных готова к работе")
