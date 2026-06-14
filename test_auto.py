@@ -331,6 +331,40 @@ class TestSportDatabase(unittest.TestCase):
             except Exception as e:
                 self.assertIn("foreign key", str(e).lower())
 
+    def test_unique_email_constraint(self):
+        """Тест: UNIQUE - нельзя вставить два одинаковых email"""
+        with self.db.get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Очищаем перед тестом
+            cursor.execute("DELETE FROM users WHERE email = 'test_unique@example.com'")
+            conn.commit()
+
+            # Первая вставка - должна пройти
+            cursor.execute("""
+                INSERT INTO users (email, password_hash, role)
+                VALUES ('test_unique@example.com', 'hash123', 'sportsman')
+            """)
+            conn.commit()
+
+            # Вторая вставка - должна вызвать ошибку
+            try:
+                cursor.execute("""
+                    INSERT INTO users (email, password_hash, role)
+                    VALUES ('test_unique@example.com', 'hash456', 'sportsman')
+                """)
+                conn.commit()
+                self.fail("Должна была быть ошибка UNIQUE")
+            except Exception:
+                # Откатываем транзакцию после ошибки
+                conn.rollback()
+
+            # Очистка в отдельной транзакции
+            cursor.execute("DELETE FROM users WHERE email = 'test_unique@example.com'")
+            conn.commit()
+
+
+
 
 if __name__ == '__main__':
     import time
