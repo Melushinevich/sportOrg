@@ -167,3 +167,79 @@ def test_search_sportsmen(monkeypatch):
 def test_get_all_users(monkeypatch):
     _mock_conn(monkeypatch, fetchall=[{"id": 1, "email": "a@b.com"}])
     assert len(sp.get_all_users()) == 1
+
+
+def test_fetch_athlete_skills_with_ratings(monkeypatch):
+    cur, _conn = _mock_conn(
+        monkeypatch,
+        fetchall=[{"name": "Скорость", "rating": 8}, {"name": "Пас", "rating": None}],
+    )
+    rows = sp._fetch_athlete_skills_with_ratings(cur, 2)
+    assert rows == [{"name": "Скорость", "rating": 8}, {"name": "Пас", "rating": None}]
+
+
+def test_list_coach_applications(monkeypatch):
+    app_row = {
+        "application_id": 5,
+        "status": "pending",
+        "created_at": None,
+        "athlete_user_id": 2,
+        "team_id": 1,
+        "team": "Dream",
+        "sport": "Футбол",
+        "email": "a@b.com",
+        "last_name": "Иванов",
+        "first_name": "Иван",
+        "patronymic": None,
+        "phone": "+7",
+    }
+    cur, _conn = _mock_conn(monkeypatch)
+    cur.fetchall.side_effect = [[app_row], [{"name": "Скорость", "rating": 7}]]
+    rows = sp.list_coach_applications(1, status="pending")
+    assert rows[0]["full_name"] == "Иванов Иван"
+    assert rows[0]["skills"][0]["rating"] == 7
+
+
+def test_get_coach_team_detail(monkeypatch):
+    cur, conn = _mock_conn(monkeypatch)
+    cur.fetchone.return_value = {"team_id": 1, "team": "Dream", "sport": "Футбол"}
+    monkeypatch.setattr(
+        sp,
+        "_fetch_team_members",
+        lambda _c, _t, _coach: [
+            {
+                "member_id": 10,
+                "athlete_user_id": 2,
+                "full_name": "A B",
+                "score": 8.0,
+                "athlete_score": 7.5,
+                "qualities": [],
+                "notes": "",
+            }
+        ],
+    )
+    monkeypatch.setattr(sp, "_fetch_team_criteria", lambda _c, _t: [])
+    detail = sp.get_coach_team_detail(1, 1)
+    assert detail["team"] == "Dream"
+    assert detail["members"][0]["full_name"] == "A B"
+    conn.commit.assert_called()
+
+
+def test_validate_quality_rating():
+    assert sp._validate_quality_rating(None) is None
+    assert sp._validate_quality_rating(5) == 5
+    with pytest.raises(ValueError, match="1 до 10"):
+        sp._validate_quality_rating(11)
+
+
+def test_remove_team_member(monkeypatch):
+    cur, conn = _mock_conn(monkeypatch, rowcount=1)
+    cur.fetchone.return_value = {"team_id": 1, "team": "T", "sport": "S"}
+    sp.remove_team_member(1, 1, 5)
+    conn.commit.assert_called()
+
+
+def test_compute_member_score():
+    qualities = [{"rating": 8}, {"rating": 6}, {"rating": None}]
+    assert sp._compute_member_score(qualities) == 7.0
+    assert sp._compute_member_score([]) is None
