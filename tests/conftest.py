@@ -1,6 +1,13 @@
 """Общие фикстуры: Flask-клиент и моки БД (без реального Postgres)."""
 
+from __future__ import annotations
+
 import importlib
+import os
+
+# До импорта Qt: headless и единый биндинг (приложение на PyQt5, не PySide6).
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+os.environ.setdefault("PYTEST_QT_API", "pyqt5")
 
 import pytest
 
@@ -70,3 +77,44 @@ class _FakeConn:
 @pytest.fixture
 def mock_db_connected(monkeypatch):
     monkeypatch.setattr("sportorg.api.public.get_db_connection", lambda: _FakeConn())
+
+
+@pytest.fixture
+def coach_session():
+    """Сессия тренера для service-тестов frontend."""
+    from frontend.session import session
+
+    session.user_id = 1
+    session.email = "coach@test.local"
+    session.role_api = "coach"
+    session.role_ui = "ТРЕНЕР"
+    session.access_token = "test-coach-token"
+    yield session
+    session.clear()
+
+
+@pytest.fixture
+def athlete_session():
+    """Сессия спортсмена для service-тестов frontend."""
+    from frontend.session import session
+
+    session.user_id = 2
+    session.email = "athlete@test.local"
+    session.role_api = "sportsman"
+    session.role_ui = "СПОРТСМЕН"
+    session.access_token = "athlete-token"
+    yield session
+    session.clear()
+
+
+@pytest.fixture
+def no_qt_dialogs(monkeypatch):
+    """Не показывать модальные диалоги в smoke-тестах PyQt."""
+    monkeypatch.setattr("frontend.ui_messages.show_info", lambda *a, **k: None)
+    monkeypatch.setattr("frontend.ui_messages.show_error", lambda *a, **k: None)
+    monkeypatch.setattr("frontend.ui_messages.show_warning", lambda *a, **k: None)
+    monkeypatch.setattr("frontend.ui_messages.ask_yes_no", lambda *a, **k: True)
+    monkeypatch.setattr(
+        "frontend.ui_messages.ask_skills_before_apply",
+        lambda *a, **k: "continue",
+    )
