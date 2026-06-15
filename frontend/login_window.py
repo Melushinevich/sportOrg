@@ -2,7 +2,6 @@ import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QLabel, QLineEdit, QPushButton,
-
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont, QPalette, QColor
@@ -12,7 +11,7 @@ from .fonts import apply_app_fonts
 from .api_client import ApiError, ROLE_API_TO_UI, SportOrgApi
 from .registr_window import CustomLineEdit, SupportButton
 from .session import session
-from .ui_messages import show_error, show_info
+from .ui_messages import apply_dialog_styles, show_error, show_info
 from .fonts import FONT_UI, title_font, ui_font
 
 
@@ -26,7 +25,6 @@ class LoginWindow(QMainWindow):
         super().__init__()
         self.api = SportOrgApi()
         self.setWindowTitle("SPORTORG - Вход")
-        self.setFixedSize(1440, 1024)
         self.setup_ui()
 
     def setup_ui(self):
@@ -68,9 +66,6 @@ class LoginWindow(QMainWindow):
         self.password_input.setFont(ui_font(28))
         main_layout.addWidget(self.password_input)
 
-        # Добавляем растяжку
-        main_layout.addStretch()
-
         # Кнопка ВОЙТИ
         self.login_button = QPushButton("ВОЙТИ")
         self.login_button.setMinimumHeight(91)
@@ -83,7 +78,7 @@ class LoginWindow(QMainWindow):
                 border: 2px solid black;
                 border-radius: 40px;
                 font-size: 40px;
-                padding: 12px;
+                padding: 0px;
             }
             QPushButton:hover {
                 background-color: #40465E;
@@ -120,7 +115,7 @@ class LoginWindow(QMainWindow):
 
         # Нижняя панель с копирайтом и кнопкой поддержки
         bottom_layout = QHBoxLayout()
-        bottom_layout.setContentsMargins(0, 20, 0, 0)
+        bottom_layout.setContentsMargins(0, 16, 0, 0)
 
         # Копирайт слева
         info_label = QLabel("© 2026 SPORTORG | Все права защищены")
@@ -136,6 +131,8 @@ class LoginWindow(QMainWindow):
         bottom_layout.addWidget(self.support_button)
 
         main_layout.addLayout(bottom_layout)
+
+        main_layout.addStretch()
 
     def on_login(self):
         """Обработка нажатия на кнопку ВОЙТИ"""
@@ -213,6 +210,7 @@ def main():
     app = QApplication(sys.argv)
     apply_app_fonts(app)
     dpi_fix.apply_dpi_fix(app)
+    apply_dialog_styles(app)
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(255, 255, 255))
     app.setPalette(palette)

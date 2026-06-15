@@ -92,3 +92,209 @@ def create_coach_team(
         "sport": data.get("sport") or sport,
         "criteria": criteria_texts(data.get("criteria")),
     }
+
+
+def load_coach_applications(
+    *,
+    team_id: int | None = None,
+    team_name: str | None = None,
+    status: str = "pending",
+    api: SportOrgApi | None = None,
+) -> list[dict[str, Any]]:
+    client = api or _api()
+    data = client.list_coach_applications(
+        token=_require_token(),
+        team_id=team_id,
+        team_name=team_name,
+        status=status,
+    )
+    return [
+        {
+            "application_id": int(a["application_id"]),
+            "team_id": int(a["team_id"]),
+            "team": a.get("team") or "",
+            "sport": a.get("sport") or "",
+            "athlete_user_id": int(a["athlete_user_id"]),
+            "full_name": a.get("full_name") or "",
+            "email": a.get("email") or "",
+            "phone": a.get("phone") or "",
+            "skills": a.get("skills") or [],
+            "status": a.get("status") or "",
+        }
+        for a in (data.get("applications") or [])
+        if a.get("application_id") is not None
+    ]
+
+
+def accept_coach_application(
+    *,
+    application_id: int,
+    api: SportOrgApi | None = None,
+) -> dict[str, Any]:
+    client = api or _api()
+    data = client.accept_coach_application(
+        token=_require_token(),
+        application_id=application_id,
+    )
+    return {
+        "member_id": int(data["member_id"]),
+        "application_id": int(data["application_id"]),
+        "team_id": int(data["team_id"]),
+        "team": data.get("team") or "",
+        "sport": data.get("sport") or "",
+        "full_name": data.get("full_name") or "",
+        "email": data.get("email") or "",
+        "phone": data.get("phone") or "",
+        "skills": data.get("skills") or [],
+    }
+
+
+def load_coach_team(
+    *,
+    team_id: int,
+    api: SportOrgApi | None = None,
+) -> dict[str, Any]:
+    client = api or _api()
+    data = client.get_coach_team(token=_require_token(), team_id=team_id)
+    members: list[dict[str, Any]] = []
+    for m in data.get("members") or []:
+        if m.get("member_id") is None:
+            continue
+        qualities = m.get("qualities") or []
+        skill_names = [q.get("name") or "" for q in qualities if q.get("name")]
+        ratings = {
+            q["name"]: int(q["rating"])
+            for q in qualities
+            if q.get("name") and q.get("rating") is not None
+        }
+        score = m.get("score")
+        athlete_score = m.get("athlete_score")
+        members.append(
+            {
+                "member_id": int(m["member_id"]),
+                "athlete_user_id": m.get("athlete_user_id"),
+                "name": m.get("full_name") or "",
+                "skills": skill_names,
+                "ratings": ratings,
+                "qualities": qualities,
+                "score": score,
+                "athlete_score": athlete_score,
+                "notes": m.get("notes") or "",
+                "email": "",
+                "phone": "",
+            }
+        )
+    return {
+        "team_id": int(data["team_id"]),
+        "team": data.get("team") or "",
+        "sport": data.get("sport") or "",
+        "criteria": [
+            {
+                "criterion_id": int(c["criterion_id"]),
+                "text": c.get("text") or "",
+                "sort_order": int(c.get("sort_order") or 0),
+            }
+            for c in (data.get("criteria") or [])
+            if c.get("criterion_id") is not None
+        ],
+        "members": members,
+    }
+
+
+def average_rating(ratings: dict[str, int] | None) -> float | None:
+    if not ratings:
+        return None
+    return round(sum(ratings.values()) / len(ratings), 1)
+
+
+def success_percent(
+    *,
+    score: float | None = None,
+    ratings: dict[str, int] | None = None,
+) -> float | None:
+    """%-усп.: среднее по coach_assessments (изначально копия sportsman_skills)."""
+    if score is not None:
+        return score
+    return average_rating(ratings)
+
+
+def build_member_save_payload(
+    *,
+    member_id: int,
+    notes: str,
+    qualities: list[dict[str, Any]],
+    ratings_by_name: dict[str, int] | None,
+) -> dict[str, Any]:
+    payload_qualities: list[dict[str, Any]] = []
+    for quality in qualities:
+        name = (quality.get("name") or "").strip()
+        if not name:
+            continue
+        if name not in (ratings_by_name or {}):
+            continue
+        rating = (ratings_by_name or {}).get(name)
+        if rating in ("", "—", None):
+            continue
+        entry: dict[str, Any] = {"name": name, "rating": int(rating)}
+        skill_id = quality.get("skill_id")
+        if skill_id is not None:
+            entry["skill_id"] = int(skill_id)
+        quality_id = quality.get("quality_id")
+        if quality_id is not None:
+            entry["quality_id"] = int(quality_id)
+        payload_qualities.append(entry)
+    return {
+        "member_id": int(member_id),
+        "notes": (notes or "").strip(),
+        "qualities": payload_qualities,
+    }
+
+
+def save_team_members(
+    *,
+    team_id: int,
+    members: list[dict[str, Any]],
+    api: SportOrgApi | None = None,
+) -> list[dict[str, Any]]:
+    client = api or _api()
+    data = client.save_coach_team_members(
+        token=_require_token(),
+        team_id=team_id,
+        members=members,
+    )
+    saved: list[dict[str, Any]] = []
+    for m in data.get("members") or []:
+        if m.get("member_id") is None:
+            continue
+        qualities = m.get("qualities") or []
+        ratings = {
+            q["name"]: int(q["rating"])
+            for q in qualities
+            if q.get("name") and q.get("rating") is not None
+        }
+        saved.append(
+            {
+                "member_id": int(m["member_id"]),
+                "name": m.get("full_name") or "",
+                "ratings": ratings,
+                "score": m.get("score"),
+                "athlete_score": m.get("athlete_score"),
+                "notes": m.get("notes") or "",
+                "qualities": qualities,
+            }
+        )
+    return saved
+
+
+def remove_team_member(
+    *,
+    team_id: int,
+    member_id: int,
+    api: SportOrgApi | None = None,
+) -> None:
+    client = api or _api()
+    client.remove_coach_team_member(
+        token=_require_token(),
+        team_id=team_id,
+        member_id=member_id,
+    )

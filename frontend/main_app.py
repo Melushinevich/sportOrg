@@ -21,6 +21,7 @@ from .navigation import (
     TRAINER_HOME,
     TRAINER_PROFILE,
     bind_navigator,
+    reset_user_screens,
 )
 
 
@@ -42,6 +43,7 @@ class MainApplication(QStackedWidget):
             self.trainer_window,
         ):
             w.setWindowFlags(Qt.Widget)
+            dpi_fix.setup_screen_widget(w)
 
         self.addWidget(self.start_window)
         self.addWidget(self.registration_window)
@@ -76,6 +78,7 @@ class MainApplication(QStackedWidget):
         navigate_or(self, START)
 
     def on_register_success(self, role, email, password):
+        reset_user_screens()
         if role == "СПОРТСМЕН":
             self.sportsman_window.load_profile()
             navigate_or(self, SPORTSMAN_PROFILE)
@@ -84,6 +87,7 @@ class MainApplication(QStackedWidget):
             navigate_or(self, TRAINER_PROFILE)
 
     def on_login_success(self, email, role):
+        reset_user_screens()
         profile = load_profile()
 
         if role == "СПОРТСМЕН":
@@ -120,7 +124,7 @@ def main():
 
     window = MainApplication()
     window.setWindowTitle("SPORTORG")
-    window.setFixedSize(1440, 1024)
+    dpi_fix.setup_main_window(window)
     window.show()
 
     sys.exit(app.exec_())

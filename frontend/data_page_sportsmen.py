@@ -11,9 +11,11 @@ from .burger_menu import show_burger_menu
 from .help_window import HelpWindow
 from .api_client import ApiError
 from .date_field import CustomDateLineEdit
+from .phone_field import CustomPhoneLineEdit
 from .navigation import ATHLETE_HOME, ATHLETE_SKILLS, ATHLETE_TEAMS, open_screen
 from .profile_service import (
     apply_profile_to_sportsman_form,
+    athlete_display_name,
     format_fio,
     gender_from_combo,
     iso_from_dmy_text,
@@ -21,7 +23,7 @@ from .profile_service import (
     save_profile,
 )
 from .ui_messages import show_error, show_info
-from .fonts import FONT_UI, title_font, ui_font
+from .fonts import FONT_UI, title_font, ui_font, ui_family_css, qss_ui_font
 from .form_styles import COMBO_PLACEHOLDER_QSS, PLACEHOLDER_QSS
 
 
@@ -64,7 +66,7 @@ class CustomComboBox(QComboBox):
         self.setCurrentIndex(-1)
 
         self.setStyleSheet(
-            """
+            qss_ui_font("""
             QComboBox{
                 background:#D9D9D9;
                 border:2px solid black;
@@ -80,10 +82,9 @@ class CustomComboBox(QComboBox):
             }
             QComboBox QAbstractItemView{
                 font-size:24px;
-                font-family: "Roboto";
+                font-family: __UI_FONT__;
             }
-            """
-            + COMBO_PLACEHOLDER_QSS
+            """) + COMBO_PLACEHOLDER_QSS
         )
 
         self.arrow_button = QPushButton("▼", self)
@@ -108,7 +109,6 @@ class ProfileWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("SPORTORG - Анкета")
-        self.setFixedSize(1440, 1024)
         self.setup_ui()
 
     def setup_ui(self):
@@ -192,7 +192,7 @@ class ProfileWindow(QMainWindow):
         row3 = QHBoxLayout()
 
         self.city_input = CustomLineEdit("Город проживания")
-        self.phone_input = CustomLineEdit("Номер телефона")
+        self.phone_input = CustomPhoneLineEdit()
 
         self.city_input.setFont(ui_font(25))
         self.phone_input.setFont(ui_font(25))
@@ -237,15 +237,17 @@ class ProfileWindow(QMainWindow):
     def _open_sportsman_home(self, profile: dict | None = None) -> None:
         from .athlete_main_window import AthleteMainWindow
 
-        if profile:
-            name = format_fio(profile) or "СПОРТСМЕН"
-        else:
-            name = self.fio_input.get_real_text() or "СПОРТСМЕН"
+        name = athlete_display_name(profile)
+
+        def _refresh(widget) -> None:
+            if hasattr(widget, "set_athlete_name"):
+                widget.set_athlete_name(name)
 
         self.home_window = open_screen(
             self,
-            lambda n=name: AthleteMainWindow(athlete_name=n),
+            lambda: AthleteMainWindow(athlete_name=name),
             screen_id=ATHLETE_HOME,
+            refresh=_refresh,
         )
 
     def on_go_home(self):
@@ -254,15 +256,33 @@ class ProfileWindow(QMainWindow):
     def on_go_available_teams(self):
         from .athlete_available_teams import AthleteAvailableTeamsWindow
 
+        name = athlete_display_name()
+
+        def _refresh(widget) -> None:
+            if hasattr(widget, "set_athlete_name"):
+                widget.set_athlete_name(name)
+
         self.available_window = open_screen(
-            self, AthleteAvailableTeamsWindow, screen_id=ATHLETE_TEAMS
+            self,
+            lambda: AthleteAvailableTeamsWindow(athlete_name=name),
+            screen_id=ATHLETE_TEAMS,
+            refresh=_refresh,
         )
 
     def on_go_my_skills(self):
         from .athlete_skills_window import AthleteSkillsWindow
 
+        name = athlete_display_name()
+
+        def _refresh(widget) -> None:
+            if hasattr(widget, "set_athlete_name"):
+                widget.set_athlete_name(name)
+
         self.skills_window = open_screen(
-            self, AthleteSkillsWindow, screen_id=ATHLETE_SKILLS
+            self,
+            lambda: AthleteSkillsWindow(athlete_name=name),
+            screen_id=ATHLETE_SKILLS,
+            refresh=_refresh,
         )
 
     def on_go_help(self):
@@ -280,6 +300,10 @@ class ProfileWindow(QMainWindow):
         phone = self.phone_input.get_real_text()
 
         try:
+            if self.birth_date.is_empty():
+                raise ValueError("Укажите дату рождения")
+            if not self.birth_date.is_complete():
+                raise ValueError("Дата рождения в формате ДД.ММ.ГГГГ")
             birth_date = iso_from_dmy_text(self.birth_date.get_real_text())
             saved = save_profile(
                 fio=fio,

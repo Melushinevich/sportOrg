@@ -7,6 +7,7 @@ import os
 import socket
 import urllib.error
 import urllib.request
+from urllib.parse import quote
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -192,6 +193,48 @@ class SportOrgApi:
             )
         return data
 
+    def get_my_skills(self, *, token: str) -> dict[str, Any]:
+        status, data = self._request("GET", "/api/v1/me/skills", token=token)
+        if status != 200:
+            raise ApiError(
+                data.get("error", "Не удалось загрузить скиллы"),
+                code=data.get("code", "unknown"),
+                status=status,
+            )
+        return data
+
+    def list_athlete_skills_catalog(self, *, token: str) -> dict[str, Any]:
+        status, data = self._request(
+            "GET", "/api/v1/me/skills-catalog", token=token
+        )
+        if status != 200:
+            raise ApiError(
+                data.get("error", "Не удалось загрузить справочник скиллов"),
+                code=data.get("code", "unknown"),
+                status=status,
+            )
+        return data
+
+    def save_my_skills(
+        self,
+        *,
+        token: str,
+        skills: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        status, data = self._request(
+            "PUT",
+            "/api/v1/me/skills",
+            body={"skills": skills},
+            token=token,
+        )
+        if status != 200:
+            raise ApiError(
+                data.get("error", "Не удалось сохранить скиллы"),
+                code=data.get("code", "unknown"),
+                status=status,
+            )
+        return data
+
     def list_sports_catalog(self, *, token: str) -> dict[str, Any]:
         status, data = self._request("GET", "/api/v1/coach/sports", token=token)
         if status != 200:
@@ -264,11 +307,95 @@ class SportOrgApi:
             )
         return data
 
-    def list_available_teams(self, *, token: str, sport: str | None = None) -> dict[str, Any]:
+    def save_coach_team_members(
+        self,
+        *,
+        token: str,
+        team_id: int,
+        members: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        status, data = self._request(
+            "PUT",
+            f"/api/v1/coach/teams/{team_id}/members",
+            body={"members": members},
+            token=token,
+        )
+        if status != 200:
+            raise ApiError(
+                data.get("error", "Не удалось сохранить состав команды"),
+                code=data.get("code", "unknown"),
+                status=status,
+            )
+        return data
+
+    def remove_coach_team_member(
+        self,
+        *,
+        token: str,
+        team_id: int,
+        member_id: int,
+    ) -> dict[str, Any]:
+        status, data = self._request(
+            "DELETE",
+            f"/api/v1/coach/teams/{team_id}/members/{member_id}",
+            token=token,
+        )
+        if status != 200:
+            raise ApiError(
+                data.get("error", "Не удалось удалить участника"),
+                code=data.get("code", "unknown"),
+                status=status,
+            )
+        return data
+
+    def list_coach_applications(
+        self,
+        *,
+        token: str,
+        team_id: int | None = None,
+        team_name: str | None = None,
+        status: str = "pending",
+    ) -> dict[str, Any]:
+        path = "/api/v1/coach/applications?"
+        params = []
+        if team_id is not None:
+            params.append(f"team_id={team_id}")
+        if team_name:
+            params.append(f"team={quote(team_name)}")
+        if status:
+            params.append(f"status={quote(status)}")
+        path += "&".join(params) if params else "status=pending"
+        status_code, data = self._request("GET", path, token=token)
+        if status_code != 200:
+            raise ApiError(
+                data.get("error", "Не удалось загрузить заявки"),
+                code=data.get("code", "unknown"),
+                status=status_code,
+            )
+        return data
+
+    def accept_coach_application(self, *, token: str, application_id: int) -> dict[str, Any]:
+        status, data = self._request(
+            "POST",
+            f"/api/v1/coach/applications/{application_id}/accept",
+            token=token,
+        )
+        if status != 200:
+            raise ApiError(
+                data.get("error", "Не удалось принять заявку"),
+                code=data.get("code", "unknown"),
+                status=status,
+            )
+        return data
+
+    def list_available_teams(
+        self,
+        *,
+        token: str,
+        sport: str | None = None,
+    ) -> dict[str, Any]:
         path = "/api/v1/available-teams"
         if sport:
-            from urllib.parse import quote
-
             path = f"{path}?sport={quote(sport)}"
         status, data = self._request("GET", path, token=token)
         if status != 200:

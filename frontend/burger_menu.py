@@ -8,6 +8,8 @@ from PyQt5.QtGui import QFont, QIcon, QPalette, QColor, QPixmap
 
 from .assets import asset_path
 from .fonts import FONT_UI, title_font, ui_font
+from .session import session
+from .support_link import open_support_link
 
 MENU_CONFIGS = {
     'trainer': {
@@ -26,12 +28,35 @@ MENU_CONFIGS = {
         'items': [
             ('Главная', 'home'),
             ('Доступные команды', 'available_teams'),
-            ('Мои скиллы', 'my_skills'),
+            ('Мои навыки', 'my_skills'),
             ('Профиль', 'profile'),
             ('Справка', 'help'),
         ],
     },
 }
+
+
+def perform_logout(parent_window=None) -> None:
+    """Сброс сессии и переход на экран входа."""
+    session.clear()
+
+    from .navigation import LOGIN, get_navigator, reset_user_screens
+
+    reset_user_screens()
+    nav = get_navigator()
+    if nav is not None:
+        login = nav.open(LOGIN)
+        if hasattr(login, "clear_fields"):
+            login.clear_fields()
+        return
+
+    if parent_window is not None:
+        parent_window.hide()
+
+    from .login_window import LoginWindow
+
+    login = LoginWindow()
+    login.show()
 
 
 class BurgerMenu(QFrame):
@@ -50,15 +75,17 @@ class BurgerMenu(QFrame):
         self.hide()
 
     def setup_ui(self):
-        self.setFixedSize(420, 900)
+        self.setFixedSize(420, 750)
 
         self.setStyleSheet("""
             QFrame {
                 background-color: #F5F5F5;
                 border-radius: 15px;
+                border: 2px solid #6C769F;
             }
             QLabel {
                 background: transparent;
+                border: 2px solid rgba(0, 0, 0, 0);
             }
             QPushButton {
                 background: transparent;
@@ -83,11 +110,9 @@ class BurgerMenu(QFrame):
         main_layout.addLayout(header_layout)
 
         # Разделитель
-        separator = QFrame()
-        separator.setFixedHeight(3)
-        burger_color = self.config['burger_color']
-        separator.setStyleSheet(f"background-color: {burger_color};")
-        main_layout.addWidget(separator)
+        self.separator = QFrame()
+        self.separator.setFixedHeight(3)
+        main_layout.addWidget(self.separator)
 
         main_layout.addSpacing(30)
 
@@ -99,19 +124,6 @@ class BurgerMenu(QFrame):
             font.setItalic(True)
             button.setFont(font)
             button.setCursor(Qt.PointingHandCursor)
-            button.setStyleSheet("""
-                QPushButton {
-                    background: transparent;
-                    color: black;
-                    border: none;
-                    text-align: left;
-                    padding: 10px;
-                }
-                QPushButton:hover {
-                    color: #6C769F;
-                    background: transparent;
-                }
-            """)
 
             if action == 'help':
                 button.clicked.connect(self._make_help_handler())
@@ -123,6 +135,17 @@ class BurgerMenu(QFrame):
             self.menu_buttons.append(button)
             main_layout.addWidget(button)
 
+        main_layout.addSpacing(20)
+
+        self.logout_button = QPushButton("Выход из аккаунта")
+        logout_font = ui_font(22)
+        logout_font.setItalic(True)
+        self.logout_button.setFont(logout_font)
+        self.logout_button.move(0, 40)
+        self.logout_button.setCursor(Qt.PointingHandCursor)
+        self.logout_button.clicked.connect(self._on_logout)
+        main_layout.addWidget(self.logout_button)
+
         main_layout.addStretch()
 
         # Кнопка поддержки — ИКОНКА ПО ЦЕНТРУ через QLabel + QPixmap
@@ -133,16 +156,6 @@ class BurgerMenu(QFrame):
         self.support_button = QPushButton()
         self.support_button.setFixedSize(65, 65)
         self.support_button.setCursor(Qt.PointingHandCursor)
-        self.support_button.setStyleSheet("""
-            QPushButton {
-                background-color: #EF8354;
-                border-radius: 32px;
-                border: none;
-            }
-            QPushButton:hover {
-                background-color: #D6754B;
-            }
-        """)
 
         # Создаём layout для кнопки
         button_layout = QHBoxLayout(self.support_button)
@@ -172,9 +185,46 @@ class BurgerMenu(QFrame):
 
         button_layout.addWidget(icon_label)
 
+        self.support_button.clicked.connect(self._on_support_click)
         bottom_layout.addWidget(self.support_button)
 
         main_layout.addLayout(bottom_layout)
+        self._apply_role_styles()
+
+    def _apply_role_styles(self) -> None:
+        accent = self.config['burger_color']
+        accent_hover = self.config['burger_hover']
+        self.separator.setStyleSheet(f"background-color: {accent};")
+        self.support_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {accent};
+                border-radius: 32px;
+                border: none;
+            }}
+            QPushButton:hover {{
+                background-color: {accent_hover};
+            }}
+        """)
+        menu_style = f"""
+            QPushButton {{
+                background: transparent;
+                color: black;
+                border: none;
+                text-align: left;
+                padding: 10px;
+            }}
+            QPushButton:hover {{
+                color: {accent};
+                background: transparent;
+            }}
+        """
+        for button in self.menu_buttons:
+            button.setStyleSheet(menu_style)
+        self.logout_button.setStyleSheet(menu_style)
+
+    def _on_logout(self) -> None:
+        self.hide()
+        perform_logout(self.parent())
 
     def _make_handler(self, callback):
         def handler():
@@ -182,6 +232,10 @@ class BurgerMenu(QFrame):
             callback()
 
         return handler
+
+    def _on_support_click(self) -> None:
+        self.hide()
+        open_support_link(self.parent())
 
     def _make_help_handler(self):
         def handler():
@@ -206,6 +260,7 @@ def show_burger_menu(window, burger_button, user_type, callbacks):
         window.burger_menu.callbacks = callbacks
         window.burger_menu.user_type = user_type
         window.burger_menu.config = MENU_CONFIGS.get(user_type, MENU_CONFIGS['trainer'])
+        window.burger_menu._apply_role_styles()
 
         if window.burger_menu.isVisible():
             window.burger_menu.hide()

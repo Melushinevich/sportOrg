@@ -8,8 +8,12 @@ from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPixmap
 from .assets import asset_path
 from .burger_menu import show_burger_menu
-from .fonts import apply_app_fonts
-from .ui_messages import apply_dialog_styles
+from .fonts import apply_app_fonts, ui_family_css, qss_ui_font
+from .ui_messages import apply_dialog_styles, show_error, show_info
+from .session import session
+from .teams_service import accept_coach_application, load_coach_applications
+from .application_skills import format_application_skills
+from .api_client import ApiError
 from .fonts import FONT_UI, title_font, ui_font
 from .navigation import (
     TRAINER_HOME,
@@ -24,62 +28,23 @@ from .navigation import (
 
 
 class ResponsesWindow(QMainWindow):
-    def __init__(self, team_name=None, sport_name="", parent=None, show_all=False):
+    def __init__(
+        self,
+        team_name=None,
+        sport_name="",
+        parent=None,
+        show_all=False,
+        team_id: int | None = None,
+    ):
         super().__init__(parent)
         self.team_name = team_name
+        self.team_id = team_id
         self.sport_name = sport_name
         self.show_all = show_all
-
-        self.all_participants = [
-            {
-                "name": "Иванов Иван Петрович", "sport": "Футбол", "team": "Команда 1", "accepted": True,
-                "email": "ivanov@example.com",
-                "phone": "+7 (999) 123-45-67",
-                "skills": ["Скорость", "Дриблинг", "Удар", "Тактическое мышление", "Командная работа"],
-                "response_details": {
-                    "experience": "5 лет", "achievements": "Чемпион области 2024",
-                    "position": "Нападающий", "motivation": "Хочу развиваться в профессиональном спорте",
-                    "availability": "Пн, Ср, Пт 18:00-20:00"
-                }
-            },
-            {
-                "name": "Петров Алексей Сергеевич", "sport": "Футбол", "team": "Команда 1", "accepted": False,
-                "email": "petrov@example.com",
-                "phone": "+7 (999) 234-56-78",
-                "skills": ["Выносливость", "Пас", "Позиционная игра", "Дисциплина"],
-                "response_details": {
-                    "experience": "2 года", "achievements": "Участник городских соревнований",
-                    "position": "Защитник", "motivation": "Люблю командные игры",
-                    "availability": "Вт, Чт 19:00-21:00"
-                }
-            },
-            {
-                "name": "Сидорова Мария Андреевна", "sport": "Баскетбол", "team": "Команда 2", "accepted": True,
-                "email": "sidorova@example.com",
-                "phone": "+7 (999) 345-67-89",
-                "skills": ["Скорость", "Выносливость", "Лидерство", "Мотивация"],
-                "response_details": {
-                    "experience": "7 лет", "achievements": "МС по баскетболу",
-                    "position": "Разыгрывающий", "motivation": "Готовлюсь к профессиональной карьере",
-                    "availability": "Ежедневно 17:00-19:00"
-                }
-            },
-            {
-                "name": "Козлов Дмитрий Владимирович", "sport": "Баскетбол", "team": "Команда 2", "accepted": False,
-                "email": "kozlov@example.com",
-                "phone": "+7 (999) 456-78-90",
-                "skills": ["Реакция", "Координация", "Стрессоустойчивость"],
-                "response_details": {
-                    "experience": "1 год", "achievements": "Новичок",
-                    "position": "Центровой", "motivation": "Хочу научиться играть в команде",
-                    "availability": "Сб, Вс 10:00-12:00"
-                }
-            },
-        ]
+        self.all_participants: list[dict] = []
 
         title = "Все отклики" if show_all else f"Отклики — {team_name}"
         self.setWindowTitle(f"SPORTORG - {title}")
-        self.setFixedSize(1440, 1024)
         self.setup_ui()
 
     def setup_ui(self):
@@ -155,107 +120,34 @@ class ResponsesWindow(QMainWindow):
             self.table.setColumnCount(4)
             self.table.setHorizontalHeaderLabels(["✓", "ФИО", "Вид спорта", "Навыки"])
 
-        if self.show_all:
-            participants = self.all_participants
-        else:
-            participants = [p for p in self.all_participants if p["team"] == self.team_name]
-
-        self.table.setRowCount(len(participants))
-
-        for row, participant in enumerate(participants):
-            checkbox_widget = QWidget()
-            checkbox_layout = QHBoxLayout(checkbox_widget)
-            checkbox = QCheckBox()
-            checkbox.setChecked(participant["accepted"])
-            checkbox.setStyleSheet("""
-                QCheckBox { spacing: 0px; }
-                QCheckBox::indicator {
-                    width: 20px; height: 20px;
-                    border: 2px solid #6C769F; border-radius: 4px;
-                    background-color: white;
-                }
-                QCheckBox::indicator:checked {
-                    background-color: #6C769F;
-                    image: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iOSIgdmlld0JveD0iMCAwIDEyIDkiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTEgNEw0LjUgNy41TDExIDEiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PC9zdmc+);
-                }
-                QCheckBox::indicator:hover { border-color: #4A5568; }
-            """)
-            checkbox_layout.addWidget(checkbox)
-            checkbox_layout.setAlignment(Qt.AlignCenter)
-            checkbox_layout.setContentsMargins(0, 0, 0, 0)
-            self.table.setCellWidget(row, 0, checkbox_widget)
-
-            details = participant["response_details"]
-            skills_text = "<br>".join([f"• {skill}" for skill in details.get("skills", [])])
-            tooltip_text = f"""
-<b>{participant['name']}</b><br><br>
-<b>Команда:</b> {participant['team']}<br>
-<b>Опыт:</b> {details['experience']}<br>
-<b>Достижения:</b> {details['achievements']}<br>
-<b>Позиция:</b> {details['position']}<br>
-<b>Мотивация:</b> {details['motivation']}<br>
-<b>Доступность:</b> {details['availability']}<br><br>
-<b>Навыки:</b><br>{skills_text}
-            """
-
-            name_item = QTableWidgetItem(participant["name"])
-            name_item.setFont(ui_font(14, QFont.Bold))
-            name_item.setTextAlignment(Qt.AlignCenter)
-            name_item.setToolTip(tooltip_text)
-            self.table.setItem(row, 1, name_item)
-
-            sport_item = QTableWidgetItem(participant["sport"])
-            sport_item.setFont(ui_font(14))
-            sport_item.setTextAlignment(Qt.AlignCenter)
-            sport_item.setToolTip(tooltip_text)
-            self.table.setItem(row, 2, sport_item)
-
-            if self.show_all:
-                team_item = QTableWidgetItem(participant["team"])
-                team_item.setFont(ui_font(14))
-                team_item.setTextAlignment(Qt.AlignCenter)
-                team_item.setToolTip(tooltip_text)
-                self.table.setItem(row, 3, team_item)
-
-                skills_display = ", ".join(participant.get("skills", []))
-                skills_item = QTableWidgetItem(skills_display)
-                skills_item.setFont(ui_font(13))
-                skills_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-                skills_item.setToolTip(tooltip_text)
-                self.table.setItem(row, 4, skills_item)
-            else:
-                skills_display = ", ".join(participant.get("skills", []))
-                skills_item = QTableWidgetItem(skills_display)
-                skills_item.setFont(ui_font(13))
-                skills_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-                skills_item.setToolTip(tooltip_text)
-                self.table.setItem(row, 3, skills_item)
+        self.populate_table([])
 
         header = self.table.horizontalHeader()
         if self.show_all:
-            header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+            header.setSectionResizeMode(0, QHeaderView.Fixed)
             header.setSectionResizeMode(1, QHeaderView.Stretch)
             header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
             header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
             header.setSectionResizeMode(4, QHeaderView.Stretch)
+            self.table.setColumnWidth(0, 58)
         else:
-            header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+            header.setSectionResizeMode(0, QHeaderView.Fixed)
             header.setSectionResizeMode(1, QHeaderView.Stretch)
             header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
             header.setSectionResizeMode(3, QHeaderView.Stretch)
+            self.table.setColumnWidth(0, 58)
 
         self.table.verticalHeader().setDefaultSectionSize(50)
 
-        self.table.setStyleSheet("""
+        self.table.setStyleSheet(qss_ui_font("""
             QTableWidget {
                 background-color: #F5F5F5;
                 border: 2px solid #6C769F;
                 gridline-color: #DDDDDD;
-                font-family: "Roboto";
+                font-family: __UI_FONT__;
                 color: black;
                 selection-background-color: #6C769F;
                 selection-color: white;
-                min-height: 450px;
                 font-size: 14px;
             }
             QTableWidget::item {
@@ -273,7 +165,7 @@ class ResponsesWindow(QMainWindow):
                 padding: 12px;
                 font-size: 16px;
                 font-weight: bold;
-                font-family: "Roboto";
+                font-family: __UI_FONT__;
             }
             QTableCornerButton::section {
                 background-color: #6C769F;
@@ -290,12 +182,12 @@ class ResponsesWindow(QMainWindow):
             QToolTip {
                 background-color: white; color: black;
                 border: 2px solid #6C769F; border-radius: 10px;
-                padding: 12px; font-family: "Roboto"; font-size: 13px;
+                padding: 12px; font-family: __UI_FONT__; font-size: 13px;
                 max-width: 400px;
             }
-        """)
+        """))
 
-        main_layout.addWidget(self.table)
+        main_layout.addWidget(self.table, 1)
         main_layout.addSpacing(30)
 
         confirm_layout = QHBoxLayout()
@@ -316,9 +208,6 @@ class ResponsesWindow(QMainWindow):
         confirm_layout.addWidget(self.confirm_button)
         main_layout.addLayout(confirm_layout)
 
-        main_layout.addStretch()
-
-        # ЗАДАЧА 4: Убрана кнопка поддержки
         bottom_layout = QHBoxLayout()
         bottom_layout.setContentsMargins(0, 20, 0, 0)
 
@@ -331,6 +220,115 @@ class ResponsesWindow(QMainWindow):
         bottom_layout.addStretch()
 
         main_layout.addLayout(bottom_layout)
+
+    def _create_row_checkbox(self) -> tuple[QWidget, QCheckBox]:
+        wrapper = QWidget()
+        layout = QHBoxLayout(wrapper)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        checkbox = QCheckBox()
+        checkbox.setText("")
+        checkbox.setChecked(False)
+        checkbox.setFocusPolicy(Qt.NoFocus)
+        checkbox.setFixedSize(20, 20)
+        checkbox.setStyleSheet("""
+            QCheckBox {
+                margin: 0;
+                padding: 0;
+                spacing: 0;
+            }
+            QCheckBox::indicator {
+                width: 20px;
+                height: 20px;
+                border: 2px solid #6C769F;
+                border-radius: 4px;
+                background-color: white;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #6C769F;
+                image: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iOSIgdmlld0JveD0iMCAwIDEyIDkiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTEgNEw0LjUgNy41TDExIDEiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PC9zdmc+);
+            }
+            QCheckBox::indicator:hover { border-color: #4A5568; }
+        """)
+
+        layout.addStretch(1)
+        layout.addWidget(checkbox, 0, Qt.AlignCenter)
+        layout.addStretch(1)
+        return wrapper, checkbox
+
+    def populate_table(self, participants: list[dict]) -> None:
+        self.table.setRowCount(len(participants))
+
+        for row, participant in enumerate(participants):
+            checkbox_widget, _checkbox = self._create_row_checkbox()
+            self.table.setCellWidget(row, 0, checkbox_widget)
+
+            name = participant.get("full_name") or participant.get("name") or "—"
+            sport = participant.get("sport") or ""
+            team = participant.get("team") or ""
+            skills = participant.get("skills") or []
+            skills_display, skills_tooltip = format_application_skills(skills)
+            tooltip_text = (
+                f"<b>{name}</b><br><br>"
+                f"<b>Команда:</b> {team}<br>"
+                f"<b>Вид спорта:</b> {sport}<br>"
+                f"<b>Email:</b> {participant.get('email') or '—'}<br>"
+                f"<b>Телефон:</b> {participant.get('phone') or '—'}<br><br>"
+                f"<b>Самооценка (навыки):</b><br>{skills_tooltip}"
+            )
+
+            name_item = QTableWidgetItem(name)
+            name_item.setFont(ui_font(14, QFont.Bold))
+            name_item.setTextAlignment(Qt.AlignCenter)
+            name_item.setToolTip(tooltip_text)
+            name_item.setData(Qt.UserRole, participant.get("application_id"))
+            self.table.setItem(row, 1, name_item)
+
+            sport_item = QTableWidgetItem(sport)
+            sport_item.setFont(ui_font(14))
+            sport_item.setTextAlignment(Qt.AlignCenter)
+            sport_item.setToolTip(tooltip_text)
+            self.table.setItem(row, 2, sport_item)
+
+            if self.show_all:
+                team_item = QTableWidgetItem(team)
+                team_item.setFont(ui_font(14))
+                team_item.setTextAlignment(Qt.AlignCenter)
+                team_item.setToolTip(tooltip_text)
+                self.table.setItem(row, 3, team_item)
+
+                skills_item = QTableWidgetItem(skills_display)
+                skills_item.setFont(ui_font(13))
+                skills_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+                skills_item.setToolTip(tooltip_text)
+                self.table.setItem(row, 4, skills_item)
+            else:
+                skills_item = QTableWidgetItem(skills_display)
+                skills_item.setFont(ui_font(13))
+                skills_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+                skills_item.setToolTip(tooltip_text)
+                self.table.setItem(row, 3, skills_item)
+
+    def load_applications(self) -> None:
+        if not session.is_logged_in:
+            return
+        try:
+            applications = load_coach_applications(
+                team_id=self.team_id,
+                team_name=None if self.team_id else self.team_name,
+                status="pending",
+            )
+        except ApiError as exc:
+            show_error(self, "Ошибка", str(exc))
+            return
+
+        self.all_participants = applications
+        self.populate_table(applications)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.load_applications()
 
     def show_burger_menu(self):
         callbacks = {
@@ -375,57 +373,61 @@ class ResponsesWindow(QMainWindow):
         self.close()
 
     def on_confirm(self):
-        accepted_players = self.get_accepted_players()
+        application_ids = self.get_selected_application_ids()
 
-        if not accepted_players:
+        if not application_ids:
             self._return_from_responses()
             return
 
+        accepted_players = []
+        for app_id in application_ids:
+            try:
+                result = accept_coach_application(application_id=app_id)
+            except ApiError as exc:
+                show_error(self, "Ошибка", str(exc))
+                return
+            except Exception as exc:  # noqa: BLE001
+                show_error(self, "Ошибка", f"Не удалось принять заявку: {exc}")
+                return
+            accepted_players.append(
+                {
+                    "name": result.get("full_name") or "",
+                    "sport": result.get("sport") or "",
+                    "team": result.get("team") or "",
+                    "skills": result.get("skills") or [],
+                    "email": result.get("email") or "",
+                    "phone": result.get("phone") or "",
+                }
+            )
+
+        if accepted_players:
+            show_info(
+                self,
+                "Готово",
+                f"Принято заявок: {len(accepted_players)}",
+            )
+
         if not self.show_all:
             team_view = getattr(self, "_team_view", None)
-            if team_view and hasattr(team_view, "add_players_to_table"):
-                team_view.add_players_to_table(accepted_players)
-            elif self.parent() and hasattr(self.parent(), "add_players_to_table"):
-                self.parent().add_players_to_table(accepted_players)
+            if team_view and hasattr(team_view, "load_team_roster"):
+                team_view.load_team_roster()
 
         self._return_from_responses()
 
-    def get_accepted_players(self):
-        accepted = []
+    def get_selected_application_ids(self) -> list[int]:
+        selected: list[int] = []
         for row in range(self.table.rowCount()):
             checkbox_widget = self.table.cellWidget(row, 0)
-            if checkbox_widget:
-                checkbox = checkbox_widget.findChild(QCheckBox)
-                if checkbox and checkbox.isChecked():
-                    player_name = self.table.item(row, 1).text() if self.table.item(row, 1) else ""
-                    player_sport = self.table.item(row, 2).text() if self.table.item(row, 2) else ""
-
-                    if self.show_all:
-                        player_team = self.table.item(row, 3).text() if self.table.item(row, 3) else ""
-                        player_skills_text = self.table.item(row, 4).text() if self.table.item(row, 4) else ""
-                    else:
-                        player_team = self.team_name
-                        player_skills_text = self.table.item(row, 3).text() if self.table.item(row, 3) else ""
-
-                    player_skills = [s.strip() for s in player_skills_text.split(",") if
-                                     s.strip()] if player_skills_text else []
-
-                    participant_data = next(
-                        (p for p in self.all_participants
-                         if p.get('name') == player_name and p.get('team') == player_team),
-                        {}
-                    )
-
-                    player_data = {
-                        "name": player_name,
-                        "sport": player_sport,
-                        "team": player_team,
-                        "skills": player_skills,
-                        "email": participant_data.get("email", ""),
-                        "phone": participant_data.get("phone", "")
-                    }
-                    accepted.append(player_data)
-        return accepted
+            if not checkbox_widget:
+                continue
+            checkbox = checkbox_widget.findChild(QCheckBox)
+            if not checkbox or not checkbox.isChecked():
+                continue
+            name_item = self.table.item(row, 1)
+            app_id = name_item.data(Qt.UserRole) if name_item else None
+            if app_id is not None:
+                selected.append(int(app_id))
+        return selected
 
     def closeEvent(self, event):
         if get_navigator() is None and self.parent():

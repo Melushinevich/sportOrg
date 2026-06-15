@@ -22,7 +22,6 @@ class StartWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("SPORTORG")
-        self.setFixedSize(1440, 1024)
         self.setup_ui()
 
     def setup_ui(self):

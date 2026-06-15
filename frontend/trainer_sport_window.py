@@ -2,7 +2,7 @@ import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QLabel, QPushButton, QListWidget,
-    QListWidgetItem,
+    QListWidgetItem, QSizePolicy,
 )
 from PyQt5.QtCore import Qt, QSize, pyqtSignal
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPixmap
@@ -10,7 +10,7 @@ from .add_sport_critetia_window import AddSportCriteriaWindow
 from .assets import asset_path
 from .burger_menu import show_burger_menu
 from .responses_window import ResponsesWindow
-from .fonts import apply_app_fonts
+from .fonts import apply_app_fonts, ui_family_css, qss_ui_font
 from .ui_messages import apply_dialog_styles, show_error, show_info
 from .team_view_window import TeamViewWindow
 from .fonts import FONT_UI, title_font, ui_font
@@ -39,7 +39,6 @@ class TrainerSportsWindow(QMainWindow):
         self.trainer_data = trainer_data or {}
         self.sports_with_criteria = []
         self.setWindowTitle("SPORTORG - Виды спорта")
-        self.setFixedSize(1440, 1024)
         self.setup_ui()
 
     def setup_ui(self):
@@ -92,30 +91,38 @@ class TrainerSportsWindow(QMainWindow):
         main_layout.addLayout(top_layout)
         main_layout.addSpacing(30)
 
+        teams_block = QWidget()
+        teams_block.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        teams_layout = QVBoxLayout(teams_block)
+        teams_layout.setContentsMargins(0, 0, 0, 0)
+        teams_layout.setSpacing(6)
+
         list_title = QLabel("Команды")
         list_title.setFont(ui_font(20, QFont.Bold))
         list_title.setAlignment(Qt.AlignLeft)
-        list_title.setStyleSheet("color: black; margin-bottom: 10px;")
-        main_layout.addWidget(list_title)
+        list_title.setStyleSheet("color: black;")
+        list_title.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        teams_layout.addWidget(list_title)
 
         self.sports_list_widget = QListWidget()
         self.sports_list_widget.setCursor(Qt.PointingHandCursor)
-        self.sports_list_widget.setStyleSheet("""
+        self.sports_list_widget.setFixedHeight(280)
+        self.sports_list_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.sports_list_widget.setStyleSheet(qss_ui_font("""
             QListWidget {
                 background-color: #D9D9D9;
                 border: 2px solid #6C769F;
                 border-radius: 20px;
                 font-size: 18px;
-                font-family: "Roboto";
-                padding: 15px;
-                min-height: 300px;
+                font-family: __UI_FONT__;
+                padding: 12px;
                 color: black;
             }
             QListWidget::item {
                 background-color: white;
-                padding: 15px 20px;
+                padding: 12px 16px;
                 border-radius: 15px;
-                margin: 5px 0;
+                margin: 4px 0;
                 color: black;
                 font-style: italic;
             }
@@ -126,9 +133,11 @@ class TrainerSportsWindow(QMainWindow):
                 background-color: #6C769F;
                 color: white;
             }
-        """)
+        """))
+
         self.sports_list_widget.itemDoubleClicked.connect(self.on_item_clicked)
-        main_layout.addWidget(self.sports_list_widget)
+        teams_layout.addWidget(self.sports_list_widget)
+        main_layout.addWidget(teams_block)
 
         self.add_sport_button = QPushButton("ДОБАВИТЬ КОМАНДУ")
         self.add_sport_button.setFixedSize(690, 65)
@@ -154,9 +163,6 @@ class TrainerSportsWindow(QMainWindow):
         btn_layout.addStretch()
         main_layout.addLayout(btn_layout)
 
-        main_layout.addStretch()
-
-        # Нижняя панель — только копирайт (кнопка поддержки убрана)
         bottom_layout = QHBoxLayout()
         bottom_layout.setContentsMargins(0, 20, 0, 0)
 
@@ -169,6 +175,8 @@ class TrainerSportsWindow(QMainWindow):
         bottom_layout.addStretch()
 
         main_layout.addLayout(bottom_layout)
+
+        main_layout.addStretch()
 
     def show_burger_menu(self):
         callbacks = {
@@ -236,9 +244,12 @@ class TrainerSportsWindow(QMainWindow):
         data = item.data(Qt.UserRole)
         if data:
             team_name = data["team_name"]
+            team_id = data.get("team_id")
             open_screen(
                 self,
-                lambda tn=team_name: TeamViewWindow(team_name=tn, parent=None),
+                lambda tn=team_name, tid=team_id: TeamViewWindow(
+                    team_name=tn, team_id=tid, parent=None
+                ),
                 screen_id=team_view_id(team_name),
             )
 

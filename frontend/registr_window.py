@@ -2,18 +2,18 @@ import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QLabel, QLineEdit, QPushButton,
-    QFrame, QRadioButton, QButtonGroup,
+    QFrame, QRadioButton, QButtonGroup, QSizePolicy,
 )
 from PyQt5.QtCore import Qt, QSize, pyqtSignal
-from PyQt5.QtGui import QFont, QPalette, QColor, QMouseEvent, QIcon
+from PyQt5.QtGui import QFont, QPalette, QColor, QMouseEvent, QIcon, QFontMetrics
 
 from PyQt5.QtCore import pyqtSignal  # если еще не импортирован
-from scipy.ndimage import black_tophat
 
 from . import dpi_fix
 from .fonts import apply_app_fonts
 from .api_client import ROLE_API_TO_UI, ApiError, SportOrgApi
 from .session import session
+from .support_link import open_support_link
 from .ui_messages import show_error, show_info
 from .assets import asset_path
 from .fonts import FONT_UI, title_font, ui_font
@@ -23,28 +23,29 @@ from .form_styles import PLACEHOLDER_QSS
 class CustomLineEdit(QLineEdit):
     """Поле ввода с серым placeholder (исчезает при клике/вводе)."""
 
-    def __init__(self, placeholder_text="", is_password=False):
+    def __init__(self, placeholder_text="", is_password=False, height=91, radius=40):
         super().__init__()
         self.is_password = is_password
         self.setAlignment(Qt.AlignCenter)
         self.setPlaceholderText(placeholder_text)
         self.setStyleSheet(
-            """
-            QLineEdit {
+            f"""
+            QLineEdit {{
                 background-color: #D9D9D9;
                 border: 2px solid black;
-                border-radius: 40px;
-                font-size: 40px;
+                border-radius: {radius}px;
+                padding: 0px 30px;
                 color: black;
-            }
-            QLineEdit:focus {
-                border: 4px solid;
-                border-radius: 40px;
-            }
+            }}
+            QLineEdit:focus {{
+                border: 2px solid black;
+                border-radius: {radius}px;
+            }}
             """
             + PLACEHOLDER_QSS
         )
-        self.setMinimumHeight(95)
+        self.setFixedHeight(height)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         if is_password:
             self.setEchoMode(QLineEdit.Password)
 
@@ -56,11 +57,13 @@ class CustomRadioButton(QPushButton):
     """Кастомная радио-кнопка без кружка, с радиусом скругления 40"""
     radio_clicked = pyqtSignal(str)
 
-    def __init__(self, text, color="#FFA500"):  # Оранжевый по умолчанию
+    def __init__(self, text, color="#FFA500", width=381, height=95, font_size=40, radius=40):
         super().__init__(text)
         self.setCheckable(True)
         self.setCursor(Qt.PointingHandCursor)
-        self.setFixedSize(381, 95)  # Фиксированный размер: ширина 381, высота 95
+        self.setFixedSize(width, height)
+        self._font_size = font_size
+        self._radius = radius
         self.default_color = color
         self.active_color = color  # Цвет когда кнопка выбрана
         self.inactive_color = "#D9D9D9"  # Серый когда не выбрана
@@ -70,28 +73,26 @@ class CustomRadioButton(QPushButton):
 
     def update_style(self, checked):
         if checked:
-            # Выбранное состояние - свой цвет (оранжевый/синий)
             self.setStyleSheet(f"""
                 QPushButton {{
                     background-color: {self.active_color};
                     border: 2px solid black;
-                    border-radius: 40px;
+                    border-radius: {self._radius}px;
                     color: white;
-                    font-size: 40px;
+                    font-size: {self._font_size}px;
                 }}
                 QPushButton:hover {{
                     background-color: {self.get_darker_color(self.active_color)};
                 }}
             """)
         else:
-            # Невыбранное состояние - серый
             self.setStyleSheet(f"""
                 QPushButton {{
                     background-color: {self.inactive_color};
                     border: 2px solid black;
-                    border-radius: 40px;
+                    border-radius: {self._radius}px;
                     color: black;
-                    font-size: 40px;
+                    font-size: {self._font_size}px;
                 }}
                 QPushButton:hover {{
                     background-color: #c0c0c0;
@@ -141,25 +142,28 @@ class SupportButton(QPushButton):
         self.clicked.connect(self.on_click)
 
     def on_click(self):
-        show_info(
-            None,
-            "Техподдержка",
-            "Свяжитесь с нами:\n\n"
-            "📧 Email: support@sportorg.ru\n"
-            "📞 Телефон: +7 (999) 123-45-67\n"
-            "💬 Telegram: @sportorg_support",
-        )
+        open_support_link(self)
 
 
 class RegistrationWindow(QMainWindow):
     register_success = pyqtSignal(str, str, str)  # (role, email, password)
     go_to_start = pyqtSignal()  # Сигнал для возврата на стартовое окно
 
+    FIELD_HEIGHT = 70
+    FIELD_GAP = 12
+    FIELD_RADIUS = 30
+    ROLE_LABEL_HEIGHT = 36
+    ROLE_GAP = 8
+    RADIO_WIDTH = 381
+    RADIO_HEIGHT = 68
+    RADIO_GAP = 153
+    RADIO_FONT_SIZE = 28
+    RADIO_RADIUS = 30
+
     def __init__(self):
         super().__init__()
         self.api = SportOrgApi()
         self.setWindowTitle("SPORTORG")
-        self.setFixedSize(1440, 1024)
         self.setup_ui()
 
     def setup_ui(self):
@@ -169,15 +173,17 @@ class RegistrationWindow(QMainWindow):
 
         # Основной вертикальный layout
         main_layout = QVBoxLayout(central_widget)
-        main_layout.setContentsMargins(200, 0, 200, 40)
-        main_layout.setSpacing(20)
+        main_layout.setContentsMargins(200, 40, 200, 20)
+        main_layout.setSpacing(16)
 
         # Заголовок SPORTORG
         title_label = QLabel("SPORTORG")
         title_label_font = title_font(72)
         title_label.setFont(title_label_font)
         title_label.setAlignment(Qt.AlignCenter)
-        title_label.setStyleSheet("color: black; margin-top: 20px; margin-bottom: 10px;")  # Добавил margin-top
+        title_label.setStyleSheet("color: black;")
+        title_label.setFixedHeight(78)
+        title_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         main_layout.addWidget(title_label)
 
         # Подзаголовок "РЕГИСТРАЦИЯ"
@@ -186,52 +192,100 @@ class RegistrationWindow(QMainWindow):
         subtitle_label.setFont(subtitle_font)
         subtitle_label.setAlignment(Qt.AlignCenter)
         subtitle_label.setStyleSheet("color: black;")
+        subtitle_label.setFixedHeight(44)
+        subtitle_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         main_layout.addWidget(subtitle_label)
 
-        # Поле ПОЧТА
-        self.email_input = CustomLineEdit("ПОЧТА", is_password=False)
-        self.email_input.setFont(ui_font(28))
-        main_layout.addWidget(self.email_input)
+        main_layout.addSpacing(16)
 
-        # Поле ПАРОЛЬ
-        self.password_input = CustomLineEdit("ПАРОЛЬ", is_password=True)
-        self.password_input.setFont(ui_font(28))
-        main_layout.addWidget(self.password_input)
+        fields_box = QWidget()
+        fields_box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        fields_box.setFixedHeight(self.FIELD_HEIGHT * 3 + self.FIELD_GAP * 2)
+        fields_layout = QVBoxLayout(fields_box)
+        fields_layout.setContentsMargins(0, 0, 0, 0)
+        fields_layout.setSpacing(self.FIELD_GAP)
 
-        # Поле ПОДТВЕРЖДЕНИЕ ПАРОЛЯ
-        self.confirm_password_input = CustomLineEdit("ПОДТВЕРДИТЕ ПАРОЛЬ", is_password=True)
-        self.confirm_password_input.setFont(ui_font(28))
-        main_layout.addWidget(self.confirm_password_input)
+        self.email_input = CustomLineEdit(
+            "ПОЧТА", is_password=False, height=self.FIELD_HEIGHT, radius=self.FIELD_RADIUS
+        )
+        self.email_input.setFont(ui_font(24))
+        fields_layout.addWidget(self.email_input)
 
-        # Блок выбора роли
+        self.password_input = CustomLineEdit(
+            "ПАРОЛЬ", is_password=True, height=self.FIELD_HEIGHT, radius=self.FIELD_RADIUS
+        )
+        self.password_input.setFont(ui_font(24))
+        fields_layout.addWidget(self.password_input)
+
+        self.confirm_password_input = CustomLineEdit(
+            "ПОДТВЕРДИТЕ ПАРОЛЬ",
+            is_password=True,
+            height=self.FIELD_HEIGHT,
+            radius=self.FIELD_RADIUS,
+        )
+        self.confirm_password_input.setFont(ui_font(24))
+        fields_layout.addWidget(self.confirm_password_input)
+
+        main_layout.addWidget(fields_box)
+
+        role_box = QWidget()
+        role_box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        role_box.setFixedHeight(
+            self.ROLE_LABEL_HEIGHT + self.ROLE_GAP + self.RADIO_HEIGHT
+        )
+        role_layout = QVBoxLayout(role_box)
+        role_layout.setContentsMargins(0, 0, 0, 0)
+        role_layout.setSpacing(self.ROLE_GAP)
+
         role_label = QLabel("ВЫБЕРИТЕ ВАШУ РОЛЬ")
-        role_label.setFont(ui_font(40))
+        role_label.setFont(ui_font(28))
         role_label.setAlignment(Qt.AlignCenter)
-        role_label.setStyleSheet("color: black; margin-top: 20px; margin-bottom: 5px;")
-        main_layout.addWidget(role_label)
+        role_label.setStyleSheet("color: black;")
+        role_label.setFixedHeight(self.ROLE_LABEL_HEIGHT)
+        role_layout.addWidget(role_label)
 
-        # Горизонтальный layout для радио-кнопок
-        radio_layout = QHBoxLayout()
-        radio_layout.setSpacing(153)
-        radio_layout.setAlignment(Qt.AlignCenter)
+        radio_row = QHBoxLayout()
+        radio_row.setContentsMargins(0, 0, 0, 0)
+        radio_row.setSpacing(self.RADIO_GAP)
+        radio_row.setAlignment(Qt.AlignCenter)
 
-        self.role_sportsman = CustomRadioButton("СПОРТСМЕН", "#EF8354")
-        self.role_trainer = CustomRadioButton("ТРЕНЕР", "#4F5D75")
+        self.role_sportsman = CustomRadioButton(
+            "СПОРТСМЕН",
+            "#EF8354",
+            width=self.RADIO_WIDTH,
+            height=self.RADIO_HEIGHT,
+            font_size=self.RADIO_FONT_SIZE,
+            radius=self.RADIO_RADIUS,
+        )
+        self.role_trainer = CustomRadioButton(
+            "ТРЕНЕР",
+            "#4F5D75",
+            width=self.RADIO_WIDTH,
+            height=self.RADIO_HEIGHT,
+            font_size=self.RADIO_FONT_SIZE,
+            radius=self.RADIO_RADIUS,
+        )
 
         self.role_sportsman.radio_clicked.connect(lambda: self.on_role_selected("СПОРТСМЕН"))
         self.role_trainer.radio_clicked.connect(lambda: self.on_role_selected("ТРЕНЕР"))
 
-        radio_layout.addWidget(self.role_sportsman)
-        radio_layout.addWidget(self.role_trainer)
+        radio_row.addWidget(self.role_sportsman)
+        radio_row.addWidget(self.role_trainer)
+        role_layout.addLayout(radio_row)
 
-        main_layout.addLayout(radio_layout)
+        main_layout.addWidget(role_box)
 
-        # Добавляем растяжку
-        main_layout.addStretch()
+        main_layout.addSpacing(12)
 
-        # Кнопка ЗАРЕГИСТРИРОВАТЬСЯ
+        actions_box = QWidget()
+        actions_box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        actions_box.setFixedHeight(self.FIELD_HEIGHT + 10 + 34)
+        actions_layout = QVBoxLayout(actions_box)
+        actions_layout.setContentsMargins(0, 0, 0, 0)
+        actions_layout.setSpacing(10)
+
         self.register_button = QPushButton("ЗАРЕГИСТРИРОВАТЬСЯ")
-        self.register_button.setMinimumHeight(91)
+        self.register_button.setFixedHeight(self.FIELD_HEIGHT)
         self.register_button.setFont(ui_font(14))
         self.register_button.setCursor(Qt.PointingHandCursor)
         self.register_button.setStyleSheet("""
@@ -239,9 +293,9 @@ class RegistrationWindow(QMainWindow):
                 background-color: #2D3142;
                 color: white;
                 border: 2px solid black;
-                border-radius: 40px;
-                font-size: 40px;
-                padding: 12px;
+                border-radius: 30px;
+                font-size: 28px;
+                padding: 0px;
             }
             QPushButton:hover {
                 background-color: #40465E;
@@ -251,12 +305,10 @@ class RegistrationWindow(QMainWindow):
             }
         """)
         self.register_button.clicked.connect(self.on_register)
-        main_layout.addWidget(self.register_button)
-
-        login_hint_layout = QHBoxLayout()
-        login_hint_layout.setAlignment(Qt.AlignCenter)
+        actions_layout.addWidget(self.register_button)
 
         self.login_hint_button = QPushButton("Уже есть аккаунт? Войти")
+        self.login_hint_button.setFixedHeight(34)
         self.login_hint_button.setFont(ui_font(16))
         self.login_hint_button.setCursor(Qt.PointingHandCursor)
         self.login_hint_button.setStyleSheet("""
@@ -271,29 +323,29 @@ class RegistrationWindow(QMainWindow):
             }
         """)
         self.login_hint_button.clicked.connect(self.on_login_clicked)
-        login_hint_layout.addWidget(self.login_hint_button)
+        actions_layout.addWidget(self.login_hint_button)
 
-        main_layout.addLayout(login_hint_layout)
+        main_layout.addWidget(actions_box)
 
-        # Горизонтальный layout для нижней панели (инфо + кнопка поддержки)
         bottom_layout = QHBoxLayout()
-        bottom_layout.setContentsMargins(0, 0, 0, 0)
+        bottom_layout.setContentsMargins(0, 6, 0, 0)
 
         # Копирайт слева (растягивается, чтобы кнопка ушла вправо)
         info_label = QLabel("© 2026 SPORTORG | Все права защищены")
         info_label.setFont(ui_font(10))
-        info_label.setAlignment(Qt.AlignLeft)
+        info_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         info_label.setStyleSheet("color: gray;")
 
         # Кнопка техподдержки справа
         self.support_button = SupportButton()
 
-        # Добавляем элементы в нижний layout
         bottom_layout.addWidget(info_label)
-        bottom_layout.addStretch()  # Растяжка между копирайтом и кнопкой
-        bottom_layout.addWidget(self.support_button)
+        bottom_layout.addStretch()
+        bottom_layout.addWidget(self.support_button, 0, Qt.AlignTop)
 
         main_layout.addLayout(bottom_layout)
+
+        main_layout.addStretch()
 
     def on_role_selected(self, role):
         """Обработка выбора роли"""

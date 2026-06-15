@@ -11,6 +11,7 @@ from .burger_menu import show_burger_menu
 from .help_window import HelpWindow
 from .api_client import ApiError
 from .date_field import CustomDateLineEdit
+from .phone_field import CustomPhoneLineEdit
 from .navigation import TRAINER_HOME, TRAINER_RESPONSES, open_screen
 from .profile_service import (
     apply_profile_to_trainer_form,
@@ -21,7 +22,7 @@ from .profile_service import (
     save_profile,
 )
 from .ui_messages import show_error, show_info
-from .fonts import FONT_UI, title_font, ui_font
+from .fonts import FONT_UI, title_font, ui_font, ui_family_css, qss_ui_font
 from .form_styles import COMBO_PLACEHOLDER_QSS, PLACEHOLDER_QSS
 
 
@@ -64,7 +65,7 @@ class CustomComboBox(QComboBox):
         self.setCurrentIndex(-1)
 
         self.setStyleSheet(
-            """
+            qss_ui_font("""
             QComboBox{
                 background:#D9D9D9;
                 border:2px solid black;
@@ -80,10 +81,9 @@ class CustomComboBox(QComboBox):
             }
             QComboBox QAbstractItemView{
                 font-size:24px;
-                font-family: "Roboto";
+                font-family: __UI_FONT__;
             }
-            """
-            + COMBO_PLACEHOLDER_QSS
+            """) + COMBO_PLACEHOLDER_QSS
         )
 
         self.arrow_button = QPushButton("▼", self)
@@ -107,7 +107,6 @@ class ProfileWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("SPORTORG - Анкета тренера")
-        self.setFixedSize(1440, 1024)
         self.setup_ui()
 
     def setup_ui(self):
@@ -190,7 +189,7 @@ class ProfileWindow(QMainWindow):
         row3 = QHBoxLayout()
 
         self.city_input = CustomLineEdit("Город проживания")
-        self.phone_input = CustomLineEdit("Номер телефона")
+        self.phone_input = CustomPhoneLineEdit()
 
         self.city_input.setFont(ui_font(25))
         self.phone_input.setFont(ui_font(25))
@@ -288,6 +287,10 @@ class ProfileWindow(QMainWindow):
         phone = self.phone_input.get_real_text()
 
         try:
+            if self.birth_date.is_empty():
+                raise ValueError("Укажите дату рождения")
+            if not self.birth_date.is_complete():
+                raise ValueError("Дата рождения в формате ДД.ММ.ГГГГ")
             birth_date = iso_from_dmy_text(self.birth_date.get_real_text())
             saved = save_profile(
                 fio=fio,

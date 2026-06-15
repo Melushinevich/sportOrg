@@ -20,7 +20,7 @@ class SkillsRatingDialog(QDialog):
     def setup_ui(self):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(30, 30, 30, 30)
-        main_layout.setSpacing(20)
+        main_layout.setSpacing(12)
 
         # Заголовок
         title = QLabel(f"Оцените навыки игрока: {self.player_name}")

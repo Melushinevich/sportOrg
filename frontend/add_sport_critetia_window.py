@@ -11,7 +11,7 @@ from . import dpi_fix
 from .assets import asset_path
 from .burger_menu import show_burger_menu
 from .registr_window import SupportButton
-from .fonts import apply_app_fonts
+from .fonts import apply_app_fonts, ui_family_css, qss_ui_font
 from .ui_messages import apply_dialog_styles, ask_yes_no, show_error as display_error
 from .fonts import FONT_UI, title_font, ui_font
 from .api_client import ApiError
@@ -47,7 +47,7 @@ class CustomComboBox(QComboBox):
         font_combo.setItalic(True)
         self.lineEdit().setFont(font_combo)
 
-        self.setStyleSheet("""
+        self.setStyleSheet(qss_ui_font("""
             QComboBox {
                 background-color: #D9D9D9;
                 border: none;
@@ -62,7 +62,7 @@ class CustomComboBox(QComboBox):
             }
             QComboBox QAbstractItemView {
                 font-size: 20px;
-                font-family: "Roboto";
+                font-family: __UI_FONT__;
                 color: black;
                 background-color: white;
                 selection-background-color: #6C769F;
@@ -70,7 +70,7 @@ class CustomComboBox(QComboBox):
                 border: 2px solid #6C769F;
                 border-radius: 15px;
             }
-        """)
+        """))
 
         # Кнопка-стрелка
         self.arrow_button = QPushButton("▼", self)
@@ -113,7 +113,6 @@ class AddSportCriteriaWindow(QMainWindow):
         self.available_criteria: list[str] = []
         self.selected_criteria = []
         self.setWindowTitle("SPORTORG - Добавление команды")
-        self.setFixedSize(1440, 1024)
         self.setup_ui()
 
     def setup_ui(self):
@@ -216,14 +215,15 @@ class AddSportCriteriaWindow(QMainWindow):
         criteria_container_layout.setSpacing(10)
 
         self.criteria_list_widget = QListWidget()
-        self.criteria_list_widget.setStyleSheet("""
+        self.criteria_list_widget.setMinimumHeight(120)
+        self.criteria_list_widget.setMaximumHeight(180)
+        self.criteria_list_widget.setStyleSheet(qss_ui_font("""
             QListWidget {
                 background-color: transparent;
                 border: none;
                 font-size: 20px;
-                font-family: "Roboto";
+                font-family: __UI_FONT__;
                 padding: 5px;
-                min-height: 250px;
                 color: black;
             }
             QListWidget::item {
@@ -238,12 +238,18 @@ class AddSportCriteriaWindow(QMainWindow):
                 background-color: #6C769F;
                 color: white;
             }
-        """)
+        """))
+
         criteria_container_layout.addWidget(self.criteria_list_widget)
+
+        main_layout.addWidget(criteria_container)
+
+        main_layout.addSpacing(12)
 
         self.add_criteria_button = QPushButton("ДОБАВИТЬ КРИТЕРИЙ")
         self.add_criteria_button.setFont(ui_font(20))
         self.add_criteria_button.setCursor(Qt.PointingHandCursor)
+        self.add_criteria_button.setFixedHeight(60)
         self.add_criteria_button.setStyleSheet("""
             QPushButton {
                 background-color: #6C769F;
@@ -251,16 +257,15 @@ class AddSportCriteriaWindow(QMainWindow):
                 border: none;
                 border-radius: 30px;
                 padding: 15px;
-                min-height: 60px;
             }
             QPushButton:hover {
                 background-color: #5A6385;
             }
         """)
         self.add_criteria_button.clicked.connect(self.on_add_criteria)
-        criteria_container_layout.addWidget(self.add_criteria_button)
+        main_layout.addWidget(self.add_criteria_button)
 
-        main_layout.addWidget(criteria_container)
+        main_layout.addStretch()
 
         # === Кнопка "СОХРАНИТЬ" ===
         save_layout = QHBoxLayout()
@@ -285,8 +290,6 @@ class AddSportCriteriaWindow(QMainWindow):
 
         save_layout.addWidget(self.save_button)
         main_layout.addLayout(save_layout)
-
-        main_layout.addStretch()
 
     def show_burger_menu(self):
         callbacks = {

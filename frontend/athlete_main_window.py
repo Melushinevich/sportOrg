@@ -15,12 +15,13 @@ from .navigation import (
     open_profile,
     open_screen,
 )
-from .fonts import apply_app_fonts
+from .fonts import apply_app_fonts, ui_family_css, qss_ui_font
 from .ui_messages import apply_dialog_styles, show_error
-from .session import session
+from .profile_service import athlete_display_name
 from .athlete_teams_service import load_my_teams
 from .api_client import ApiError
 from .fonts import FONT_UI, title_font, ui_font
+from .session import session
 
 
 class AthleteMainWindow(QMainWindow):
@@ -29,7 +30,6 @@ class AthleteMainWindow(QMainWindow):
         super().__init__(parent)
         self.athlete_name = athlete_name
         self.setWindowTitle("SPORTORG - Мои команды")
-        self.setFixedSize(1440, 1024)
         self.setup_ui()
 
     def setup_ui(self):
@@ -52,6 +52,7 @@ class AthleteMainWindow(QMainWindow):
         athlete_label = QLabel(self.athlete_name)
         athlete_label.setFont(title_font(96))
         athlete_label.setStyleSheet("color: #EF8354;")
+        self.athlete_name_label = athlete_label
         top_layout.addWidget(athlete_label)
 
         self.burger_button = QPushButton()
@@ -102,12 +103,12 @@ class AthleteMainWindow(QMainWindow):
 
         self.teams_list = QListWidget()
         self.teams_list.setCursor(Qt.PointingHandCursor)
-        self.teams_list.setStyleSheet("""
+        self.teams_list.setStyleSheet(qss_ui_font("""
             QListWidget {
                 background-color: transparent;
                 border: none;
                 font-size: 20px;
-                font-family: "Roboto";
+                font-family: __UI_FONT__;
                 padding: 5px;
                 min-height: 250px;
                 color: black;
@@ -128,10 +129,10 @@ class AthleteMainWindow(QMainWindow):
                 background-color: #EF8354;
                 color: white;
             }
-        """)
+        """))
 
-        teams_container_layout.addWidget(self.teams_list)
-        main_layout.addWidget(teams_container)
+        teams_container_layout.addWidget(self.teams_list, 1)
+        main_layout.addWidget(teams_container, 1)
 
         self.apply_button = QPushButton("ПОДАТЬ ЗАЯВКУ В КОМАНДУ")
         self.apply_button.setFixedSize(690, 65)
@@ -157,9 +158,6 @@ class AthleteMainWindow(QMainWindow):
         btn_layout.addStretch()
         main_layout.addLayout(btn_layout)
 
-        main_layout.addStretch()
-
-        # ЗАДАЧА 4: Убрана кнопка поддержки
         bottom_layout = QHBoxLayout()
         bottom_layout.setContentsMargins(0, 20, 0, 0)
 
@@ -172,6 +170,11 @@ class AthleteMainWindow(QMainWindow):
         bottom_layout.addStretch()
 
         main_layout.addLayout(bottom_layout)
+
+    def set_athlete_name(self, name: str) -> None:
+        self.athlete_name = (name or "СПОРТСМЕН").strip() or "СПОРТСМЕН"
+        if hasattr(self, "athlete_name_label"):
+            self.athlete_name_label.setText(self.athlete_name)
 
     def load_my_teams(self) -> None:
         if not session.is_logged_in:
@@ -201,6 +204,7 @@ class AthleteMainWindow(QMainWindow):
 
     def showEvent(self, event):
         super().showEvent(event)
+        self.set_athlete_name(athlete_display_name())
         self.load_my_teams()
 
     def show_burger_menu(self):
@@ -216,19 +220,33 @@ class AthleteMainWindow(QMainWindow):
     def on_go_available_teams(self):
         from .athlete_available_teams import AthleteAvailableTeamsWindow
 
+        name = athlete_display_name()
+
+        def _refresh(widget) -> None:
+            if hasattr(widget, "set_athlete_name"):
+                widget.set_athlete_name(name)
+
         open_screen(
             self,
-            lambda: AthleteAvailableTeamsWindow(athlete_name=self.athlete_name),
+            lambda: AthleteAvailableTeamsWindow(athlete_name=name),
             screen_id=ATHLETE_TEAMS,
+            refresh=_refresh,
         )
 
     def on_go_my_skills(self):
         from .athlete_skills_window import AthleteSkillsWindow
 
+        name = athlete_display_name()
+
+        def _refresh(widget) -> None:
+            if hasattr(widget, "set_athlete_name"):
+                widget.set_athlete_name(name)
+
         open_screen(
             self,
-            lambda: AthleteSkillsWindow(athlete_name=self.athlete_name),
+            lambda: AthleteSkillsWindow(athlete_name=name),
             screen_id=ATHLETE_SKILLS,
+            refresh=_refresh,
         )
 
     def on_go_profile(self):

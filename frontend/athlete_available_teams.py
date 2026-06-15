@@ -16,10 +16,19 @@ from .navigation import (
     open_profile,
     open_screen,
 )
-from .fonts import apply_app_fonts
-from .ui_messages import apply_dialog_styles, ask_yes_no, show_error, show_info, show_warning
+from .fonts import apply_app_fonts, ui_family_css, qss_ui_font
+from .ui_messages import (
+    apply_dialog_styles,
+    ask_skills_before_apply,
+    ask_yes_no,
+    show_error,
+    show_info,
+    show_warning,
+)
 from .session import session
+from .athlete_skills_service import has_filled_skills, load_my_skills
 from .athlete_teams_service import apply_to_team, load_available_teams
+from .profile_service import athlete_display_name
 from .api_client import ApiError
 from .fonts import FONT_UI, title_font, ui_font
 
@@ -30,7 +39,6 @@ class AthleteAvailableTeamsWindow(QMainWindow):
         super().__init__(parent)
         self.athlete_name = athlete_name
         self.setWindowTitle("SPORTORG - Доступные команды")
-        self.setFixedSize(1440, 1024)
         self.setup_ui()
 
     def setup_ui(self):
@@ -58,6 +66,7 @@ class AthleteAvailableTeamsWindow(QMainWindow):
         city_label = QLabel(self.athlete_name)
         city_label.setFont(title_font(96))
         city_label.setStyleSheet("color: black;")
+        self.athlete_name_label = city_label
         top_layout.addWidget(city_label)
 
         self.burger_button = QPushButton()
@@ -117,12 +126,12 @@ class AthleteAvailableTeamsWindow(QMainWindow):
 
         self.table.verticalHeader().setDefaultSectionSize(60)
 
-        self.table.setStyleSheet("""
+        self.table.setStyleSheet(qss_ui_font("""
             QTableWidget {
                 background-color: white;
                 border: 2px solid #6C769F;
                 border-radius: 0px;
-                font-family: "Roboto";
+                font-family: __UI_FONT__;
                 color: black;
                 selection-background-color: #EF8354;
                 selection-color: white;
@@ -141,7 +150,7 @@ class AthleteAvailableTeamsWindow(QMainWindow):
                 padding: 12px;
                 font-size: 16px;
                 font-weight: bold;
-                font-family: "Roboto";
+                font-family: __UI_FONT__;
             }
             QTableCornerButton::section {
                 background-color: #C8C8C8;
@@ -164,10 +173,10 @@ class AthleteAvailableTeamsWindow(QMainWindow):
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
                 height: 0px;
             }
-        """)
+        """))
 
-        table_container_layout.addWidget(self.table)
-        main_layout.addWidget(table_container)
+        table_container_layout.addWidget(self.table, 1)
+        main_layout.addWidget(table_container, 1)
 
         self.apply_button = QPushButton("ПОДАТЬ ЗАЯВКУ")
         self.apply_button.setFixedSize(400, 65)
@@ -193,9 +202,6 @@ class AthleteAvailableTeamsWindow(QMainWindow):
         btn_layout.addStretch()
         main_layout.addLayout(btn_layout)
 
-        main_layout.addStretch()
-
-        # ЗАДАЧА 4: Убрана кнопка поддержки
         bottom_layout = QHBoxLayout()
         bottom_layout.setContentsMargins(0, 20, 0, 0)
 
@@ -208,6 +214,11 @@ class AthleteAvailableTeamsWindow(QMainWindow):
         bottom_layout.addStretch()
 
         main_layout.addLayout(bottom_layout)
+
+    def set_athlete_name(self, name: str) -> None:
+        self.athlete_name = (name or "СПОРТСМЕН").strip() or "СПОРТСМЕН"
+        if hasattr(self, "athlete_name_label"):
+            self.athlete_name_label.setText(self.athlete_name)
 
     def load_available_teams(self) -> None:
         if not session.is_logged_in:
@@ -241,6 +252,7 @@ class AthleteAvailableTeamsWindow(QMainWindow):
 
     def showEvent(self, event):
         super().showEvent(event)
+        self.set_athlete_name(athlete_display_name())
         self.load_available_teams()
 
     def show_burger_menu(self):
@@ -259,10 +271,17 @@ class AthleteAvailableTeamsWindow(QMainWindow):
     def on_go_my_skills(self):
         from .athlete_skills_window import AthleteSkillsWindow
 
+        name = athlete_display_name()
+
+        def _refresh(widget) -> None:
+            if hasattr(widget, "set_athlete_name"):
+                widget.set_athlete_name(name)
+
         open_screen(
             self,
-            lambda: AthleteSkillsWindow(athlete_name=self.athlete_name),
+            lambda: AthleteSkillsWindow(athlete_name=name),
             screen_id=ATHLETE_SKILLS,
+            refresh=_refresh,
         )
 
     def on_go_profile(self):
@@ -297,6 +316,21 @@ class AthleteAvailableTeamsWindow(QMainWindow):
 
         if team_id is None:
             show_error(self, "Ошибка", "Не удалось определить команду.")
+            return
+
+        try:
+            skills = load_my_skills()
+        except ApiError:
+            skills = []
+
+        skills_choice = ask_skills_before_apply(
+            self,
+            skills_filled=has_filled_skills(skills),
+        )
+        if skills_choice == "fill_skills":
+            self.on_go_my_skills()
+            return
+        if skills_choice != "continue":
             return
 
         if ask_yes_no(

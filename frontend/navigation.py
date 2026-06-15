@@ -8,6 +8,8 @@ from typing import TypeVar
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QStackedWidget, QWidget
 
+from . import dpi_fix
+
 T = TypeVar("T", bound=QWidget)
 
 # Идентификаторы экранов в главном стеке
@@ -54,10 +56,27 @@ class AppNavigator:
                 raise KeyError(f"Экран не найден: {screen_id}")
             widget = factory()
             widget.setWindowFlags(Qt.Widget)
+            dpi_fix.setup_screen_widget(widget)
             self._screens[screen_id] = widget
             self.stack.addWidget(widget)
         self.stack.setCurrentWidget(self._screens[screen_id])
         return self._screens[screen_id]
+
+    def clear_user_screens(self) -> None:
+        """Удалить кэш экранов после выхода / смены пользователя."""
+        protected = {
+            START,
+            REGISTRATION,
+            LOGIN,
+            SPORTSMAN_PROFILE,
+            TRAINER_PROFILE,
+        }
+        for screen_id in list(self._screens.keys()):
+            if screen_id in protected:
+                continue
+            widget = self._screens.pop(screen_id)
+            self.stack.removeWidget(widget)
+            widget.deleteLater()
 
 
 _navigator: AppNavigator | None = None
@@ -73,16 +92,27 @@ def get_navigator() -> AppNavigator | None:
     return _navigator
 
 
+def reset_user_screens() -> None:
+    """Сбросить кэш экранов главной, команд, навыков и т.д."""
+    nav = _navigator
+    if nav is not None:
+        nav.clear_user_screens()
+
+
 def open_screen(
     from_widget: QWidget,
     factory: Callable[[], T],
     *,
     screen_id: str,
+    refresh: Callable[[QWidget], None] | None = None,
 ) -> T | QWidget:
     """Показать экран в главном стеке или открыть отдельное окно (режим __main__)."""
     nav = _navigator
     if nav is not None:
-        return nav.open(screen_id, factory)
+        widget = nav.open(screen_id, factory)
+        if refresh is not None:
+            refresh(widget)
+        return widget
 
     window = factory()
     from_widget.hide()

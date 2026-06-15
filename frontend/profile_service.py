@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import re
-
+from user_registration.birth_date import dmy_from_iso, iso_from_dmy_text
 from .api_client import ApiError, SportOrgApi
 from .session import session
 
-_DATE_DMY = re.compile(r"^(\d{2})\.(\d{2})\.(\d{4})$")
 GENDER_VALUES = frozenset({"Мужской", "Женский"})
 
 
@@ -24,30 +22,10 @@ def parse_fio(full_name: str) -> tuple[str, str, str | None]:
     return parts[0], parts[1], patronymic
 
 
-def iso_from_qdate(qdate: QDate) -> str | None:
+def iso_from_qdate(qdate) -> str | None:
     if qdate is None or not qdate.isValid():
         return None
     return qdate.toString("yyyy-MM-dd")
-
-
-def iso_from_dmy_text(text: str) -> str | None:
-    raw = (text or "").strip()
-    if not raw:
-        return None
-    match = _DATE_DMY.match(raw)
-    if not match:
-        raise ValueError("Дата рождения в формате ДД.ММ.ГГГГ")
-    day, month, year = match.groups()
-    return f"{year}-{month}-{day}"
-
-
-def dmy_from_iso(iso: str | None) -> str:
-    if not iso:
-        return ""
-    parts = str(iso).split("-")
-    if len(parts) != 3:
-        return ""
-    return f"{parts[2]}.{parts[1]}.{parts[0]}"
 
 
 def is_profile_complete(profile: dict | None) -> bool:
@@ -108,6 +86,17 @@ def format_fio(profile: dict) -> str:
         )
         if part
     )
+
+
+def athlete_display_name(profile: dict | None = None) -> str:
+    """Имя спортсмена для шапки экранов."""
+    if profile is None:
+        profile = load_profile()
+    if profile:
+        name = format_fio(profile).strip()
+        if name:
+            return name
+    return "СПОРТСМЕН"
 
 
 def _api() -> SportOrgApi:
@@ -175,9 +164,15 @@ def apply_profile_to_sportsman_form(window, profile: dict) -> None:
     else:
         window.city_input.clear()
     if profile.get("phone"):
-        window.phone_input.setText(profile["phone"])
+        if hasattr(window.phone_input, "set_phone_text"):
+            window.phone_input.set_phone_text(profile["phone"])
+        else:
+            window.phone_input.setText(profile["phone"])
     else:
-        window.phone_input.clear()
+        if hasattr(window.phone_input, "clear_phone"):
+            window.phone_input.clear_phone()
+        else:
+            window.phone_input.clear()
 
     apply_gender_to_combo(window.gender_combo, profile.get("gender"))
 
@@ -199,8 +194,14 @@ def apply_profile_to_trainer_form(window, profile: dict) -> None:
     else:
         window.city_input.clear()
     if profile.get("phone"):
-        window.phone_input.setText(profile["phone"])
+        if hasattr(window.phone_input, "set_phone_text"):
+            window.phone_input.set_phone_text(profile["phone"])
+        else:
+            window.phone_input.setText(profile["phone"])
     else:
-        window.phone_input.clear()
+        if hasattr(window.phone_input, "clear_phone"):
+            window.phone_input.clear_phone()
+        else:
+            window.phone_input.clear()
 
     apply_gender_to_combo(window.gender_combo, profile.get("gender"))
